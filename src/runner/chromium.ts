@@ -1,7 +1,7 @@
-/** Git operations on the Chromium checkout the agent works in. */
 import { $ } from "bun";
 import { CHROMIUM_SRC } from "../paths";
 
+/** True when tracked files in the Chromium checkout are modified (untracked files are ignored). */
 export async function hasUncommittedChanges(): Promise<boolean> {
   const status = await $`git status --porcelain --untracked-files=no`.cwd(CHROMIUM_SRC).text();
 

@@ -1,15 +1,3 @@
-/**
- * Benchmark results DB: a single SQLite file (data/bench.sqlite), no server to start.
- *
- *   import { openDb, startRun, finishRun } from "./src/db";
- *   const db = openDb();                  // creates the file + schema on first use
- *   startRun({ db, run: { runId, taskId, configId, repeat, claudeVersion, model } });
- *   // ...run `claude -p ... --output-format json` ...
- *   finishRun({ db, runId, result, score: { success: true } });
- *   db.close();
- *
- * Uses Bun's built-in bun:sqlite — no npm dependencies.
- */
 import { Database } from "bun:sqlite";
 import { mkdirSync, readFileSync } from "node:fs";
 import { hostname } from "node:os";
@@ -23,7 +11,16 @@ const SCHEMA = readFileSync(join(BENCH_DIR, "db", "schema.sql"), "utf8");
 /** JSON value -> TEXT column (null stays NULL). */
 const toJson = (value: unknown) => (value == null ? null : JSON.stringify(value));
 
-/** Open (or create) the DB and apply the idempotent schema. */
+/**
+ * Opens the results DB, a single SQLite file (data/bench.sqlite) with no server to start. Creates the file and
+ * applies the idempotent schema on first use.
+ *
+ *   const db = openDb();
+ *   startRun({ db, run: { runId, taskId, configId, repeat, claudeVersion, model } });
+ *   // ...run `claude -p ... --output-format json`...
+ *   finishRun({ db, runId, result, score: { success: true } });
+ *   db.close();
+ */
 export function openDb(path = DB_PATH): Database {
   mkdirSync(dirname(path), { recursive: true });
   const db = new Database(path, { create: true, strict: true });

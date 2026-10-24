@@ -9,7 +9,7 @@ These rules cover how code is organised and written, not where things live. For 
 
 ## Rule 1: one job per file, split when it grows
 
-A file does **one job** that you can describe in a single line, and that line is its header comment. Split a file when any of these are true:
+A file does **one job** that you can describe in a single line. Split a file when any of these are true:
 
 - **It's over ~150 lines.** Treat this as a smell, not a hard cap. A file of many small helpers that all do the same job, such as a module of query helpers, may be longer.
 - **It mixes jobs.** Examples are CLI parsing, git operations, process spawning, DB writes and file I/O.
@@ -27,14 +27,14 @@ How to split:
 ## Rule 2: the program's entry file is `main.ts`
 
 - The file you run to start the program is called `main.ts`, so it's obvious where execution begins.
-- It holds the usage header, argument parsing, and a short `main()` that calls into the feature modules. No business logic goes there.
+- It holds argument parsing and a short `main()` that calls into the feature modules. No business logic goes there. The usage block (command line, input file shapes, what a run does) is the JSDoc on `main()`.
 - Never import `main.ts` from another module or a test. It's a CLI entry point that's only run with `bun main.ts`. It guards `main()` with `if (import.meta.main)`, so an import won't run it, but code that others need belongs in a feature module.
 - A script that a _tool_ invokes by path, such as a Claude Code hook, keeps a name that describes it. It must guard its entry point with `if (import.meta.main)` when anything imports it.
 
 ## Rule 3: types live in a `*.types.ts` file next to their module
 
 - Every named `type` goes in a file with the same name plus `.types.ts`, in the same folder: `db.ts` has `db.types.ts`, and `run-one.ts` has `run-one.types.ts`.
-- A `.types.ts` file holds only types, no values or logic. It starts with a one-line header comment like any other file.
+- A `.types.ts` file holds only types, no values or logic. Each type gets a JSDoc (see Comments).
 - Import types with `import type { X } from "./x.types"` straight from the types file. Don't re-export them through the module.
 - Inline object types in a single function signature (`{ runId, outDir }: { runId: string; outDir: string }`) may stay inline. Once a type is named or reused, it moves to the types file.
 - Use `type`, not `interface`.
@@ -58,8 +58,9 @@ How to split:
 
 ## Comments
 
-- **Every file** starts with a one-line `/** ... */` saying its job. `main.ts` instead gets a full usage block (command line, input file shapes, what a run does).
-- **Exported functions** get a one-line JSDoc only when the name isn't enough, e.g. side effects, what it never does, or why an order matters.
+- **No file-level comments.** A file starts with its imports (after the shebang, if any), never a header comment. Put the description on the thing it describes.
+- **Exported types and functions** get a one-line `/** ... */` saying what they are or do. A function whose name already says everything may skip it; add detail when there are side effects, something it never does, or an order that matters. `main()` in an entry file carries the usage block: command line, input file shapes, what a run does.
+- **Exported constants** get a JSDoc when their meaning isn't obvious from the name.
 - **Inline `//` comments** explain _why_, never _what_. Put one where the code would otherwise look wrong.
 - Don't leave commented-out code or TODOs without context.
 

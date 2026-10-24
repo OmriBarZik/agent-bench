@@ -18,7 +18,7 @@ bun install
 
 ## Usage
 
-Put `tasks.json` and `configs.json` in the repo root (shapes in [docs/overview.md](docs/overview.md#input-files)), then:
+Put `benchmark-tasks.json` and `benchmark-setup.json` in `configs/` (shapes in [docs/overview.md](docs/overview.md#input-files)), then:
 
 ```sh
 bun src/main.ts                               # every task × config
@@ -28,15 +28,15 @@ bun run db:shell                              # query data/bench.sqlite
 
 > ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`). The runner refuses to start if tracked files are modified, unless you pass `--force`.
 
-| Flag                 | Default        | Description                                                     |
-| -------------------- | -------------- | --------------------------------------------------------------- |
-| `--tasks <path>`     | `tasks.json`   | Tasks file                                                      |
-| `--configs <path>`   | `configs.json` | Configs file                                                    |
-| `--repeats <n>`      | `1`            | Runs per task × config                                          |
-| `--only-task <id>`   | all            | Run only this task                                              |
-| `--only-config <id>` | all            | Run only this config                                            |
-| `--timeout-min <n>`  | `60`           | Kill a `claude` session after this many minutes                 |
-| `--sync`             | off            | Run `gclient sync -D` after each checkout                       |
-| `--force`            | off            | Run even if `chromium/src` has uncommitted changes (wipes them) |
+| Flag                 | Default                        | Description                                                     |
+| -------------------- | ------------------------------ | --------------------------------------------------------------- |
+| `--tasks <path>`     | `configs/benchmark-tasks.json` | Tasks file                                                      |
+| `--configs <path>`   | `configs/benchmark-setup.json` | Configs file                                                    |
+| `--repeats <n>`      | `1`                            | Runs per task × config                                          |
+| `--only-task <id>`   | all                            | Run only this task                                              |
+| `--only-config <id>` | all                            | Run only this config                                            |
+| `--timeout-min <n>`  | `60`                           | Kill a `claude` session after this many minutes                 |
+| `--sync`             | off                            | Run `gclient sync -D` after each checkout                       |
+| `--force`            | off                            | Run even if `chromium/src` has uncommitted changes (wipes them) |
 
 See [docs/overview.md](docs/overview.md) for how a run works, the data model and example queries.

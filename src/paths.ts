@@ -1,7 +1,10 @@
-/** Filesystem locations shared by the runner, the DB and the hooks. */
 import { dirname, join, resolve } from "node:path";
 
+/** Root of this repo. */
 export const BENCH_DIR = resolve(dirname(import.meta.path), "..");
+/** The Chromium checkout the agent works in; the runner resets it before every run. */
 export const CHROMIUM_SRC = process.env.CHROMIUM_SRC ?? resolve(BENCH_DIR, "../src");
+/** Hook registration passed to `claude --settings`; part of every config_hash. */
 export const HOOK_SETTINGS = join(BENCH_DIR, "hooks/settings.example.json");
+/** Per-run artifacts: runs/<run_id>/. */
 export const RUNS_DIR = join(BENCH_DIR, "runs");

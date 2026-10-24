@@ -1,15 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Claude Code PreToolUse / PostToolUse hook -> writes every tool call into the results DB.
- *
- * Registered in hooks/settings.example.json (passed to `claude --settings`) as:
- *   bun "$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts pre
- *   bun "$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts post
- *
- * Only logs when BENCH_RUN_ID is set (the runner sets it), so your normal
- * Claude Code sessions are not recorded. It never blocks a tool: it always exits 0.
- * If the DB is unreachable, the row goes to ~/.claude/bench-hook-fallback.jsonl instead.
- */
 import { appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
@@ -62,6 +51,17 @@ function looksLikeError(response: any): boolean | null {
   return false;
 }
 
+/**
+ * Claude Code PreToolUse / PostToolUse hook -> writes every tool call into the results DB.
+ *
+ * Registered in hooks/settings.example.json (passed to `claude --settings`) as:
+ *   bun "$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts pre
+ *   bun "$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts post
+ *
+ * Only logs when BENCH_RUN_ID is set (the runner sets it), so your normal
+ * Claude Code sessions are not recorded. It never blocks a tool: it always exits 0.
+ * If the DB is unreachable, the row goes to ~/.claude/bench-hook-fallback.jsonl instead.
+ */
 async function main() {
   const phase = (Bun.argv[2] ?? "pre") as "pre" | "post";
   const runId = process.env.BENCH_RUN_ID;

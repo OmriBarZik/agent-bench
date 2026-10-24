@@ -27,7 +27,7 @@ The runner defaults `CHROMIUM_SRC` to `../src`. The hooks in `hooks/settings.exa
 
 ```sh
 bun install                  # @types/bun + husky (installs the pre-commit hook)
-bun src/main.ts              # reads tasks.json + configs.json from the repo root
+bun src/main.ts              # reads configs/benchmark-tasks.json + configs/benchmark-setup.json
 bun src/main.ts --only-task t1 --repeats 3
 bun run db:shell             # sqlite3 shell on data/bench.sqlite
 ```
@@ -40,7 +40,7 @@ Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--t
 
 ```
 src/main.ts
-  ├─ loadSelection        tasks.json × configs.json, filtered by --only-*
+  ├─ loadSelection        benchmark-tasks.json × benchmark-setup.json, filtered by --only-*
   ├─ hasUncommittedChanges → refuse unless --force
   ├─ upsertTask / upsertConfig (config_hash = sha256 of hook settings + MCP configs + extraFiles)
   └─ for each task × config × repeat → runOne
@@ -61,7 +61,7 @@ The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` 
 | `src/main.ts`                              | Entry point: CLI args, task/config selection, the run loop, progress output                                    |
 | `src/paths.ts`                             | Shared filesystem locations (`BENCH_DIR`, `CHROMIUM_SRC`, `HOOK_SETTINGS`, `RUNS_DIR`)                         |
 | `src/db.ts` / `db.types.ts`                | Opens SQLite, applies the schema, and holds every query helper / row types                                     |
-| `src/runner/bench-config.ts` / `.types.ts` | Load and filter `tasks.json`/`configs.json`, and build a config's DB row and hash                              |
+| `src/runner/bench-config.ts` / `.types.ts` | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash            |
 | `src/runner/chromium.ts`                   | git/gclient operations on the Chromium checkout (Bun Shell)                                                    |
 | `src/runner/claude.ts`                     | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                  |
 | `src/runner/run-one.ts` / `.types.ts`      | One run end to end (the 5 steps above)                                                                         |
@@ -74,13 +74,13 @@ The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` 
 
 ## Input files
 
-`tasks.json`:
+`configs/benchmark-tasks.json`:
 
 ```json
 [{ "taskId": "t1", "prompt": "…", "chromiumSha": "abc123", "title": "…", "difficulty": "simple", "scoring": {} }]
 ```
 
-`configs.json`:
+`configs/benchmark-setup.json`:
 
 ```json
 [

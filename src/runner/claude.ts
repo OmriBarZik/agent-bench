@@ -1,4 +1,3 @@
-/** Running one `claude -p` session and collecting its output and transcript. */
 import { $ } from "bun";
 import { cpSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -7,10 +6,12 @@ import type { ClaudeResult, Task } from "../db.types";
 import { BENCH_DIR, CHROMIUM_SRC, HOOK_SETTINGS } from "../paths";
 import type { BenchConfig } from "./bench-config.types";
 
+/** Output of `claude --version`, stored on every run. */
 export async function claudeVersion(): Promise<string> {
   return (await $`claude --version`.cwd(BENCH_DIR).text()).trim();
 }
 
+/** The full `claude -p` command line for one task under one config. */
 export function claudeArgs({
   task,
   config,

@@ -1,0 +1,46 @@
+[
+  {
+    "taskId": "dino-hat",
+    "title": "Give the offline T-Rex a hat",
+    "difficulty": "simple",
+    "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
+    "prompt": "You are working in a Chromium source checkout. Chrome has an offline game where a T-Rex dinosaur runs, jumps and ducks over obstacles. Find where that dinosaur is implemented and give it a hat. The hat must follow the dinosaur and be visible in every state (waiting, running, jumping, ducking, crashed) and at both display scales (1x and 2x sprites), without changing the game's behavior or collision boxes. Do not run a full Chromium build; make the change so it would build with the existing targets.",
+    "scoring": {
+      "checks": [
+        "change is in the offline dino game sources (components/neterror/resources/dino_game)",
+        "hat rendered in all dino states and sprite scales",
+        "collision boxes and game logic unchanged"
+      ]
+    }
+  },
+  {
+    "taskId": "dino-devtools",
+    "title": "Make the dino game playable in DevTools",
+    "difficulty": "medium",
+    "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
+    "prompt": "You are working in a Chromium source checkout. Chrome's offline dinosaur game normally only runs on the network error page. Make it playable inside Chrome DevTools (the DevTools frontend, e.g. as a panel or drawer tab), so a user can open DevTools, pick the game, and play it with the keyboard while online. Reuse the existing dino game code rather than copying it where possible, and follow how DevTools frontend registers panels/views. Do not run a full Chromium build; make the change so it would build with the existing targets.",
+    "scoring": {
+      "checks": [
+        "a DevTools UI entry (panel or drawer view) that hosts the game",
+        "existing dino_game sources reused, not duplicated wholesale",
+        "keyboard input (jump/duck/restart) reaches the game",
+        "BUILD.gn / grd resources updated so the code is part of the build"
+      ]
+    }
+  },
+  {
+    "taskId": "dino-ai-player",
+    "title": "Built-in AI plays the dino game",
+    "difficulty": "complex",
+    "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
+    "prompt": "You are working in a Chromium source checkout. Embed an AI module into the browser that plays Chrome's offline dinosaur game by itself. When enabled, it must read the game state (dino position, upcoming obstacle type/distance/size, current speed), decide when to jump or duck, and drive the dinosaur with no user input, restarting after a crash. It must be switchable on and off, and off by default. Choose where the module lives and how it is wired into the browser yourself, and keep it behind a feature flag. Do not run a full Chromium build; make the change so it would build with the existing targets.",
+    "scoring": {
+      "checks": [
+        "AI module reads real game state from the dino game",
+        "issues jump/duck/restart without user input",
+        "toggle exists and is off by default, behind a feature flag",
+        "BUILD.gn / grd / feature registration updated so it builds"
+      ]
+    }
+  }
+]

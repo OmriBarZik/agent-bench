@@ -1,10 +1,10 @@
-/** tasks.json / configs.json: loading, filtering, and the configs row for each config. */
 import { resolve } from "node:path";
 import { hashFiles } from "../db";
 import type { Config, Task } from "../db.types";
 import { BENCH_DIR, HOOK_SETTINGS } from "../paths";
 import type { BenchConfig, Selection, SelectionSource } from "./bench-config.types";
 
+/** Reads benchmark-tasks.json and benchmark-setup.json and applies the --only-* filters. */
 export async function loadSelection({
   tasksPath,
   configsPath,

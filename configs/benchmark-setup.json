@@ -1,0 +1,9 @@
+[
+  {
+    "configId": "baseline",
+    "description": "Plain Claude Code, no MCP servers, default tools",
+    "model": "claude-sonnet-5-5",
+    "strictMcpConfig": true,
+    "permissionMode": "acceptEdits"
+  }
+]

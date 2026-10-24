@@ -1,5 +1,4 @@
-/** Row and payload types for src/db.ts. */
-
+/** One entry in benchmark-tasks.json. */
 export type Task = {
   taskId: string;
   prompt: string;
@@ -9,6 +8,7 @@ export type Task = {
   scoring?: unknown;
 };
 
+/** The configs table row for one benchmark-setup.json entry. */
 export type Config = {
   configId: string;
   configHash: string;
@@ -17,6 +17,7 @@ export type Config = {
   permissions?: unknown;
 };
 
+/** What startRun needs to insert the runs row before claude is spawned. */
 export type RunStart = {
   runId: string;
   taskId: string;
@@ -53,6 +54,7 @@ export type Score = {
   details?: unknown;
 };
 
+/** One PreToolUse/PostToolUse hook event, stored as a tool_calls row. */
 export type ToolCall = {
   runId: string;
   phase: "pre" | "post";

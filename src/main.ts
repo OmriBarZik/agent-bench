@@ -1,19 +1,4 @@
 #!/usr/bin/env bun
-/**
- * Benchmark runner: tasks × configs × repeats, one `claude -p` session per run.
- *
- *   bun src/main.ts [--tasks tasks.json] [--configs configs.json] [--repeats 3]
- *                     [--only-task id] [--only-config id] [--timeout-min 60] [--sync] [--force]
- *
- * tasks.json:   [{ "taskId", "prompt", "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
- * configs.json: [{ "configId", "description"?, "model"?, "mcpConfig"?: [paths],
- *                  "strictMcpConfig"?, "allowedTools"?: [..], "disallowedTools"?: [..],
- *                  "permissionMode"?, "extraFiles"?: [paths hashed into config_hash] }]
- *
- * Per run (src/runner/run-one.ts): reset src/ to the task's SHA, startRun, run claude with
- * BENCH_RUN_ID + the tool-log hooks, copy the transcript into runs/<run_id>/, finishRun.
- * Scoring is not done here: success/score stay NULL.
- */
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { openDb, upsertConfig, upsertTask } from "./db";
@@ -25,8 +10,8 @@ import { runOne } from "./runner/run-one";
 
 const { values: args } = parseArgs({
   options: {
-    tasks: { type: "string", default: join(BENCH_DIR, "tasks.json") },
-    configs: { type: "string", default: join(BENCH_DIR, "configs.json") },
+    tasks: { type: "string", default: join(BENCH_DIR, "configs/benchmark-tasks.json") },
+    configs: { type: "string", default: join(BENCH_DIR, "configs/benchmark-setup.json") },
     repeats: { type: "string", default: "1" },
     "only-task": { type: "string" },
     "only-config": { type: "string" },
@@ -36,6 +21,21 @@ const { values: args } = parseArgs({
   },
 });
 
+/**
+ * Benchmark runner: tasks × configs × repeats, one `claude -p` session per run.
+ *
+ *   bun src/main.ts [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
+ *                     [--only-task id] [--only-config id] [--timeout-min 60] [--sync] [--force]
+ *
+ * configs/benchmark-tasks.json: [{ "taskId", "prompt", "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
+ * configs/benchmark-setup.json: [{ "configId", "description"?, "model"?, "mcpConfig"?: [paths],
+ *                              "strictMcpConfig"?, "allowedTools"?: [..], "disallowedTools"?: [..],
+ *                              "permissionMode"?, "extraFiles"?: [paths hashed into config_hash] }]
+ *
+ * Per run (src/runner/run-one.ts): reset src/ to the task's SHA, startRun, run claude with
+ * BENCH_RUN_ID + the tool-log hooks, copy the transcript into runs/<run_id>/, finishRun.
+ * Scoring is not done here: success/score stay NULL.
+ */
 async function main() {
   const { tasks, configs } = await loadSelection({
     tasksPath: args.tasks,

@@ -23,7 +23,7 @@ Both typecheck and format:check must pass before finishing a change. The husky p
 
 ## Things that will bite you
 
-- **The runner is destructive.** `bun src/main.ts` runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`), and it spawns real, billed `claude` sessions. Never run it without the user's go-ahead. `tasks.json` / `configs.json` aren't in the repo; the user supplies them at the repo root.
+- **The runner is destructive.** `bun src/main.ts` runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`), and it spawns real, billed `claude` sessions. Never run it without the user's go-ahead. `configs/benchmark-tasks.json` and `configs/benchmark-setup.json` hold the benchmark tasks and tool setups (the "configs").
 - **Never import `src/main.ts`.** It's a CLI entry point, so it's only ever run with `bun src/main.ts`. An `if (import.meta.main)` guard means importing it won't start a benchmark, but don't rely on that: put anything another module or a test needs into `src/runner/` or another module.
 - **Never delete `data/` or `data/bench.sqlite*`** (including the `-wal`/`-shm` files). They hold the results.
 - **`db/schema.sql` runs on every `openDb()`**, so every statement must be idempotent (`IF NOT EXISTS`). To change an existing table, also give the user the `ALTER TABLE` to run.
@@ -43,7 +43,7 @@ The dependency direction is `src/main.ts` (CLI and run loop) → `src/runner/*` 
 
 ## Style highlights (full rules in the `code-styling` skill)
 
-- Each file does one job, stated in its one-line header comment. Split a file at ~150 lines or when it mixes jobs.
+- Each file does one job. No file-level header comments: describe things with a JSDoc on the type or function (the usage block goes on `main()`). Split a file at ~150 lines or when it mixes jobs.
 - Named types go in a sibling `*.types.ts` file. Use `type`, not `interface`.
 - A function with more than one parameter takes a single destructured object, and every type nested inside it is a named type.
 - No single-letter or abbreviated names (`config`, not `c` or `cfg`). `db` and `i` are the exceptions.

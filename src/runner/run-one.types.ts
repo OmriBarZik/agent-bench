@@ -1,4 +1,3 @@
-/** Shapes for src/runner/run-one.ts. */
 import type { ClaudeResult } from "../db.types";
 
 /** Options shared by every run in a benchmark. */

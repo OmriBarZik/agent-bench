@@ -1,4 +1,3 @@
-/** One benchmark run: reset the checkout, record the run, run claude, store the result. */
 import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
@@ -11,6 +10,7 @@ import { resetChromium } from "./chromium";
 import { claudeArgs, copyTranscript, runClaude } from "./claude";
 import type { RunOneResult, RunOptions } from "./run-one.types";
 
+/** One benchmark run: reset the checkout, record the run, run claude, store the result. */
 export async function runOne({
   db,
   task,

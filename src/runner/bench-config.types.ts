@@ -1,7 +1,6 @@
-/** Shapes for src/runner/bench-config.ts: configs.json entries and the task/config selection. */
 import type { Task } from "../db.types";
 
-/** One entry in configs.json. */
+/** One entry in benchmark-setup.json. */
 export type BenchConfig = {
   configId: string;
   description?: string;
