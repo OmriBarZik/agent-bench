@@ -1,4 +1,4 @@
-import type { ClaudeResult, RunArtifact, Score } from "../db.types";
+import type { ClaudeResult, JudgeMetrics, RunArtifact } from "../db.types";
 
 /** Options shared by every run in a benchmark. */
 export type RunOptions = {
@@ -15,5 +15,5 @@ export type RunOneResult = {
   result: ClaudeResult;
   seconds: number;
   artifact: RunArtifact;
-  score: Score;
+  judge: JudgeMetrics;
 };

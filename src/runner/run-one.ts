@@ -2,13 +2,14 @@ import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { finishRun, saveScore, startRun } from "../db";
-import type { ClaudeResult, RunArtifact, Score, Task } from "../db.types";
+import { finishRun, saveJudgeRun, startRun } from "../db";
+import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../db.types";
 import { RUNS_DIR } from "../paths";
 import type { BenchConfig } from "./bench-config.types";
 import { commitRunChanges, createRunBranch, resetChromium, restoreCommittedTree } from "./chromium";
 import { claudeArgs, copyTranscript, runClaude } from "./claude";
 import { judgeRun } from "./judge";
+import { failedJudgeMetrics } from "./judge-result";
 import type { RunOneResult, RunOptions } from "./run-one.types";
 
 /** One benchmark run: reset onto the run branch, record it, run claude, commit the tree, store the result, then score the checkout. */
@@ -73,8 +74,8 @@ export async function runOne({
 
   finishRun({ db, runId, result, artifact });
   console.log(`  judging with ${options.judgeModel}`);
-  const score = await scoreRun({ task, result, artifact, outDir, options });
-  saveScore({ db, runId, score });
+  const judge = await scoreRun({ task, result, artifact, outDir, options });
+  saveJudgeRun({ db, runId, judge });
 
   if (artifact.commitSha) {
     await restoreCommittedTree();
@@ -84,10 +85,10 @@ export async function runOne({
     throw commitError;
   }
 
-  return { runId, result, seconds: Math.round((Date.now() - started) / 1000), artifact, score };
+  return { runId, result, seconds: Math.round((Date.now() - started) / 1000), artifact, judge };
 }
 
-/** The judge score, or an unscored result when the judge session itself throws. */
+/** The judge session, or a crashed row when the judge itself throws. The agent run is already stored. */
 async function scoreRun({
   task,
   result,
@@ -100,7 +101,7 @@ async function scoreRun({
   artifact: RunArtifact;
   outDir: string;
   options: RunOptions;
-}): Promise<Score> {
+}): Promise<JudgeMetrics> {
   try {
     return await judgeRun({
       task,
@@ -112,12 +113,10 @@ async function scoreRun({
       timeoutMs: options.timeoutMs,
     });
   } catch (error) {
-    return {
-      details: {
-        judgeModel: options.judgeModel,
-        successThreshold: task.successThreshold,
-        judgeError: error instanceof Error ? error.message : String(error),
-      },
-    };
+    return failedJudgeMetrics({
+      judgeModel: options.judgeModel,
+      successThreshold: task.successThreshold,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
 }

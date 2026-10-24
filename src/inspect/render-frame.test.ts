@@ -21,6 +21,7 @@ test("renderFrame shows the run from the database and the files it changed", () 
   expect(frame).toContain("0.743");
   expect(frame).toContain("success");
   expect(frame).toContain("most of the hat");
+  expect(frame).toContain("judge claude-sonnet-5-5 · 12s · $0.041 · 4 turns");
   expect(frame).toContain("chrome/foo.cc");
   expect(frame).toContain("/chromium/src");
 });
@@ -58,6 +59,10 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     success: true,
     judgeNote: "most of the hat",
     successThreshold: 0.8,
+    judgeModel: "claude-sonnet-5-5",
+    judgeCostUsd: 0.041,
+    judgeDurationMs: 12_000,
+    judgeTurns: 4,
     present: true,
     current: false,
     transcriptPath: null,

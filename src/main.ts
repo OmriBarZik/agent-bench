@@ -40,7 +40,8 @@ const { values: args } = parseArgs({
  * after the run id, startRun, run claude with BENCH_RUN_ID + the tool-log hooks, copy the
  * transcript into runs/<run_id>/, commit the checkout onto that branch, finishRun, then a
  * second read-only claude session scores the tree with a decimal from 0 to 1 (for example 0.2 or 0.743).
- * success is 1 when that score is at least the task's successThreshold. The judge does not record tool calls.
+ * That session is a judge_runs row: its own cost, tokens, and duration. success is 1 when the
+ * score is at least the task's successThreshold. The judge does not record tool calls.
  */
 async function main() {
   const { tasks, configs } = await loadSelection({
@@ -71,10 +72,10 @@ async function main() {
     for (const config of configs) {
       for (let repeat = 0; repeat < repeats; repeat++) {
         console.log(`[${++runIndex}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
-        const { runId, result, seconds, artifact, score } = await runOne({ db, task, config, repeat, options });
+        const { runId, result, seconds, artifact, judge } = await runOne({ db, task, config, repeat, options });
         const cost = result.total_cost_usd != null ? `, $${result.total_cost_usd.toFixed(2)}` : "";
         const files = artifact.changedFiles.length === 0 ? "no file changes" : `${artifact.changedFiles.length} files`;
-        const judged = judgementText({ score, successThreshold: task.successThreshold });
+        const judged = judgementText({ judge, successThreshold: task.successThreshold });
         console.log(`  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}, ${judged}`);
       }
     }

@@ -34,6 +34,12 @@ export function detailLines({
     plain.push(choice.judgeNote.replace(/\s+/g, " ").trim());
   }
 
+  const usage = judgeUsageLine(choice);
+
+  if (usage) {
+    plain.push(usage);
+  }
+
   plain.push(choice.branch);
   plain.push(choice.commitSha ? choice.commitSha.slice(0, 12) : "no changes committed");
   plain.push(choice.transcriptPath ? "transcript ready" : "no transcript");
@@ -130,4 +136,30 @@ function scoreText(choice: RunChoice): string {
   }
 
   return `score ${label} · below ${choice.successThreshold}`;
+}
+
+function judgeUsageLine(choice: RunChoice): string | null {
+  const parts: string[] = [];
+
+  if (choice.judgeModel) {
+    parts.push(choice.judgeModel);
+  }
+
+  if (choice.judgeDurationMs != null) {
+    parts.push(`${Math.round(choice.judgeDurationMs / 1000)}s`);
+  }
+
+  if (choice.judgeCostUsd != null) {
+    parts.push(`$${choice.judgeCostUsd.toFixed(3)}`);
+  }
+
+  if (choice.judgeTurns != null) {
+    parts.push(choice.judgeTurns === 1 ? "1 turn" : `${choice.judgeTurns} turns`);
+  }
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return `judge ${parts.join(" · ")}`;
 }

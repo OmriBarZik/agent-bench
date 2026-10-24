@@ -1,8 +1,8 @@
 import { join } from "node:path";
-import type { ClaudeResult, RunArtifact, Score, Task } from "../db.types";
+import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../db.types";
 import { CHROMIUM_SRC } from "../paths";
 import { buildJudgePrompt } from "./judge-prompt";
-import { scoreFromJudgeOutput } from "./judge-result";
+import { judgeMetrics } from "./judge-result";
 import { diffAgainst } from "./worktree-diff";
 
 /** Structured output the judge must return. score is a decimal from 0 to 1, not an integer flag. */
@@ -24,7 +24,7 @@ const JUDGE_SCHEMA = JSON.stringify({
 /**
  * Scores one finished run with a second, read-only claude session.
  * The session does not set BENCH_RUN_ID, so its tool calls are not recorded as the agent's.
- * A failed session returns a score with judgeError set and no numeric score.
+ * A failed session returns metrics with error set and no numeric score.
  */
 export async function judgeRun({
   task,
@@ -42,7 +42,7 @@ export async function judgeRun({
   judgeModel: string;
   successThreshold: number;
   timeoutMs: number;
-}): Promise<Score> {
+}): Promise<JudgeMetrics> {
   const diff = await diffAgainst(task.chromiumSha);
   const prompt = buildJudgePrompt({
     taskPrompt: task.prompt,
@@ -54,7 +54,7 @@ export async function judgeRun({
   const command = judgeCommand({ prompt, judgeModel });
   const judged = await runJudgeClaude({ command, outDir, timeoutMs });
 
-  return scoreFromJudgeOutput({ result: judged, judgeModel, successThreshold });
+  return judgeMetrics({ result: judged, judgeModel, successThreshold });
 }
 
 function reportedText(result: ClaudeResult): string {

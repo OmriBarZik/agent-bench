@@ -54,12 +54,12 @@ src/main.ts
         6. commitRunChanges            commit submodule checkouts, then the superproject
         7. finishRun                   duration, turns, cost, tokens, denials, changed files, raw result
         8. judgeRun                    read-only claude -p, task judge prompt, decimal score 0–1
-        9. saveScore                   success when score >= the task's successThreshold
+        9. saveJudgeRun                judge_runs row: cost, tokens, decimal score, success
 ```
 
 The runner creates the branch and the commit. The agent is not asked to: it only edits the tree. Edits inside a checked-out submodule are committed there first, and the superproject records the new gitlink. `changed_files` lists those paths with the submodule directory prefixed. `git clean` does not pass `-x`, so ignored build output (`out/`) survives a checkout and switching runs does not force a full rebuild. It also does not pass a second `-f`, so a nested git directory that is not a submodule is left in place.
 
-The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session scores the checkout. `score` is a decimal from 0 to 1, such as 0.2 or 0.743. `success` is 1 when that score is at least the task's `successThreshold`.
+The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session scores the checkout. That session is its own `judge_runs` row: model, duration, turns, cost, token counts, a decimal `score` from 0 to 1 (such as 0.2 or 0.743), and `success` (1 when the score is at least the task's `successThreshold`). The agent's metrics stay on `runs`.
 
 To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
 
@@ -125,19 +125,30 @@ Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their conte
 
 ## Data model
 
-| Table / view           | One row per            | Notes                                                                                                                    |
-| ---------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `tasks`                | task                   | `scoring` is JSON text                                                                                                   |
-| `configs`              | config                 | `tools` / `permissions` are JSON text, and `config_hash` identifies the exact setup                                      |
-| `runs`                 | task × config × repeat | status `running` / `done` / `crashed`, plus metrics. `branch` equals `run_id`; `changed_files` and `raw_result` are JSON |
-| `tool_calls`           | hook event             | `phase` is `pre` / `post`. `program` is the actual binary for Bash (`rg`, `head`, …)                                     |
-| `tool_attempts` (view) | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                              |
+| Table / view           | One row per            | Notes                                                                                                                                |
+| ---------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `tasks`                | task                   | `scoring` is JSON text                                                                                                               |
+| `configs`              | config                 | `tools` / `permissions` are JSON text, and `config_hash` identifies the exact setup                                                  |
+| `runs`                 | task × config × repeat | status `running` / `done` / `crashed`, plus the agent's metrics. `branch` equals `run_id`; `changed_files` and `raw_result` are JSON |
+| `judge_runs`           | judge session          | one row per run. The judge's own cost, tokens, duration, decimal `score`, and `success`                                              |
+| `tool_calls`           | hook event             | `phase` is `pre` / `post`. `program` is the actual binary for Bash (`rg`, `head`, …)                                                 |
+| `tool_attempts` (view) | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                                          |
 
 Example: the average cost and turns per config.
 
 ```sql
 SELECT config_id, count(*) runs, avg(cost_usd) cost, avg(num_turns) turns
 FROM runs WHERE status = 'done' GROUP BY config_id;
+```
+
+Example: the judge's score and cost, separate from the agent's.
+
+```sql
+SELECT runs.config_id, avg(judge_runs.score) score, avg(judge_runs.cost_usd) judge_cost
+FROM runs
+LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id
+WHERE runs.status = 'done'
+GROUP BY runs.config_id;
 ```
 
 Example: the files a run committed, relative to the task SHA. A path inside a submodule includes the submodule directory.

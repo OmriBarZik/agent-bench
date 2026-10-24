@@ -75,22 +75,26 @@ export type ClaudeUsage = {
   cache_read_input_tokens?: number;
 };
 
-/** JSON stored in runs.score_details after the judge runs. */
-export type ScoreDetails = {
-  reason?: string;
-  judgeModel?: string;
-  judgeCostUsd?: number | null;
-  /** Decimal cutoff used for `success`. A score at or above it passed. */
-  successThreshold?: number;
-  judgeError?: string;
-};
-
-/** Scoring outcome stored on a finished run. success is true when score is at least the threshold. */
-export type Score = {
-  success?: boolean;
-  /** Decimal judge score from 0 to 1, such as 0.2 or 0.743. Absent when the judge did not return one. */
-  score?: number;
-  details?: ScoreDetails;
+/** One judge session, stored as a judge_runs row. Separate from the agent's runs row. */
+export type JudgeMetrics = {
+  model: string;
+  status: "done" | "crashed";
+  durationMs: number | null;
+  numTurns: number | null;
+  costUsd: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheCreationTokens: number | null;
+  cacheReadTokens: number | null;
+  totalTokens: number | null;
+  /** Decimal from 0 to 1 copied from the task. A score at or above it is success. */
+  successThreshold: number;
+  /** Decimal from 0 to 1, such as 0.2 or 0.743. Null when the judge did not return one. */
+  score: number | null;
+  /** True when score is at least successThreshold. Null when there is no score. */
+  success: boolean | null;
+  reason: string | null;
+  error: string | null;
 };
 
 /** Columns read by listRunBranches. Snake case, matching the query. */
@@ -108,7 +112,13 @@ export type RunBranchSql = {
   artifacts_path: string | null;
   score: number | null;
   success: number | null;
-  score_details: string | null;
+  judge_reason: string | null;
+  judge_error: string | null;
+  success_threshold: number | null;
+  judge_model: string | null;
+  judge_cost_usd: number | null;
+  judge_duration_ms: number | null;
+  judge_turns: number | null;
   title: string | null;
 };
 
@@ -134,6 +144,11 @@ export type RunBranchRow = {
   judgeNote: string | null;
   /** Cutoff used for success, or null when this run was not scored. */
   successThreshold: number | null;
+  /** Model that produced the judge session, or null when this run was not judged. */
+  judgeModel: string | null;
+  judgeCostUsd: number | null;
+  judgeDurationMs: number | null;
+  judgeTurns: number | null;
 };
 
 /** One PreToolUse/PostToolUse hook event, stored as a tool_calls row. */

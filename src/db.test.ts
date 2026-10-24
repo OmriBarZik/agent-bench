@@ -3,7 +3,8 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { finishRun, listRunBranches, openDb, saveScore, startRun, upsertConfig, upsertTask } from "./db";
+import { finishRun, listRunBranches, openDb, saveJudgeRun, startRun, upsertConfig, upsertTask } from "./db";
+import type { JudgeMetrics } from "./db.types";
 
 const directories: string[] = [];
 
@@ -55,6 +56,13 @@ test("openDb adds the artifact columns to a database created before them", () =>
     expect(names).toContain("branch");
     expect(names).toContain("commit_sha");
     expect(names).toContain("changed_files");
+    expect(names).not.toContain("score");
+    expect(names).not.toContain("success");
+    expect(names).not.toContain("score_details");
+    const tables = (db.query("SELECT name FROM sqlite_master WHERE type = 'table'").all() as { name: string }[]).map(
+      (row) => row.name,
+    );
+    expect(tables).toContain("judge_runs");
   } finally {
     db.close();
   }
@@ -156,7 +164,7 @@ test("listRunBranches returns newest runs and skips a corrupt file list", () => 
   }
 });
 
-test("saveScore keeps a decimal score and the threshold decision", () => {
+test("saveJudgeRun keeps the judge metrics apart from the agent run", () => {
   const db = openDb(tempDb());
   try {
     upsertTask({
@@ -177,30 +185,56 @@ test("saveScore keeps a decimal score and the threshold decision", () => {
         branch: runId,
       },
     });
-    finishRun({ db, runId, result: { is_error: false } });
-    saveScore({
-      db,
-      runId,
-      score: {
-        score: 0.743,
-        success: true,
-        details: { reason: "most of the hat", successThreshold: 0.7 },
-      },
-    });
-    const row = db.query("SELECT success, score, score_details FROM runs WHERE run_id = $runId").get({ runId }) as {
+    finishRun({ db, runId, result: { is_error: false, total_cost_usd: 1.5, duration_ms: 90_000, num_turns: 12 } });
+    saveJudgeRun({ db, runId, judge: judged });
+    const agent = db
+      .query("SELECT cost_usd, duration_ms, num_turns FROM runs WHERE run_id = $runId")
+      .get({ runId }) as {
+      cost_usd: number;
+      duration_ms: number;
+      num_turns: number;
+    };
+    const judge = db
+      .query(
+        `SELECT model, status, cost_usd, duration_ms, num_turns, total_tokens, score, success,
+                success_threshold, reason, error
+         FROM judge_runs WHERE run_id = $runId`,
+      )
+      .get({ runId }) as {
+      model: string;
+      status: string;
+      cost_usd: number;
+      duration_ms: number;
+      num_turns: number;
+      total_tokens: number;
       score: number;
-      score_details: string;
       success: number;
+      success_threshold: number;
+      reason: string;
+      error: string | null;
     };
 
-    expect(row.success).toBe(1);
-    expect(row.score).toBeCloseTo(0.743);
-    expect(JSON.parse(row.score_details)).toMatchObject({ reason: "most of the hat", successThreshold: 0.7 });
+    expect(agent).toEqual({ cost_usd: 1.5, duration_ms: 90_000, num_turns: 12 });
+    expect(judge.model).toBe("claude-sonnet-5-5");
+    expect(judge.status).toBe("done");
+    expect(judge.cost_usd).toBeCloseTo(0.041);
+    expect(judge.duration_ms).toBe(12_000);
+    expect(judge.num_turns).toBe(4);
+    expect(judge.total_tokens).toBe(155);
+    expect(judge.score).toBeCloseTo(0.743);
+    expect(judge.success).toBe(1);
+    expect(judge.success_threshold).toBe(0.7);
+    expect(judge.reason).toBe("most of the hat");
+    expect(judge.error).toBeNull();
     expect(listRunBranches(db)[0]).toMatchObject({
-      score: row.score,
+      score: judge.score,
       success: true,
       judgeNote: "most of the hat",
       successThreshold: 0.7,
+      judgeModel: "claude-sonnet-5-5",
+      judgeCostUsd: judge.cost_usd,
+      judgeDurationMs: 12_000,
+      judgeTurns: 4,
     });
   } finally {
     db.close();
@@ -229,6 +263,24 @@ test("openDb adds judge_prompt to a tasks table created before it", () => {
     db.close();
   }
 });
+
+const judged: JudgeMetrics = {
+  model: "claude-sonnet-5-5",
+  status: "done",
+  durationMs: 12_000,
+  numTurns: 4,
+  costUsd: 0.041,
+  inputTokens: 100,
+  outputTokens: 20,
+  cacheCreationTokens: 5,
+  cacheReadTokens: 30,
+  totalTokens: 155,
+  successThreshold: 0.7,
+  score: 0.743,
+  success: true,
+  reason: "most of the hat",
+  error: null,
+};
 
 function seedRun({ db, runId, startedAt }: { db: Database; runId: string; startedAt: string }) {
   startRun({

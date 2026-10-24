@@ -7,12 +7,11 @@ import type {
   ClaudeResult,
   ClaudeUsage,
   Config,
+  JudgeMetrics,
   RunArtifact,
   RunBranchRow,
   RunBranchSql,
   RunStart,
-  Score,
-  ScoreDetails,
   Task,
   ToolCall,
 } from "./db.types";
@@ -31,7 +30,7 @@ const toJson = (value: unknown) => (value == null ? null : JSON.stringify(value)
  *   const db = openDb();
  *   startRun({ db, run: { runId, taskId, configId, repeat, claudeVersion, model } });
  *   // ...run `claude -p ... --output-format json`...
- *   finishRun({ db, runId, result, score: { success: true } });
+ *   finishRun({ db, runId, result });
  *   db.close();
  */
 export function openDb(path = DB_PATH): Database {
@@ -45,6 +44,7 @@ export function openDb(path = DB_PATH): Database {
   // CREATE TABLE IF NOT EXISTS will not add columns to a database that already exists.
   ensureTaskColumns(db);
   ensureRunColumns(db);
+  retireRunScoreColumns(db);
 
   return db;
 }
@@ -90,6 +90,19 @@ function ensureRunColumns(db: Database) {
     if (name === "cache_creation_tokens") {
       backfillCacheCreationTokens(db);
     }
+  }
+}
+
+/** Judge metrics moved to judge_runs. Drops the leftover score columns on a database that still has them. */
+function retireRunScoreColumns(db: Database) {
+  const present = new Set((db.query("PRAGMA table_info(runs)").all() as { name: string }[]).map((row) => row.name));
+
+  for (const name of ["score_details", "score", "success"] as const) {
+    if (!present.has(name)) {
+      continue;
+    }
+
+    db.run(`ALTER TABLE runs DROP COLUMN ${name}`);
   }
 }
 
@@ -203,13 +216,11 @@ export function finishRun({
   db,
   runId,
   result,
-  score = {},
   artifact = { commitSha: null, changedFiles: [] },
 }: {
   db: Database;
   runId: string;
   result: ClaudeResult;
-  score?: Score;
   artifact?: RunArtifact;
 }) {
   const usage = result.usage ?? {};
@@ -226,9 +237,6 @@ export function finishRun({
        cache_read_tokens     = $cacheReadTokens,
        total_tokens          = $totalTokens,
        permission_denials = $permissionDenials,
-       success            = $success,
-       score              = $score,
-       score_details      = $scoreDetails,
        raw_result         = $rawResult,
        commit_sha         = $commitSha,
        changed_files      = $changedFiles
@@ -245,24 +253,58 @@ export function finishRun({
     cacheReadTokens: usage.cache_read_input_tokens ?? null,
     totalTokens: totalTokens(usage),
     permissionDenials: result.permission_denials?.length ?? 0,
-    success: score.success ?? null,
-    score: score.score ?? null,
-    scoreDetails: toJson(score.details),
     rawResult: toJson(result),
     commitSha: artifact.commitSha,
     changedFiles: toJson(artifact.changedFiles),
   });
 }
 
-/** Writes the judge outcome onto a run that finishRun already closed. */
-export function saveScore({ db, runId, score }: { db: Database; runId: string; score: Score }) {
+/** Writes one judge session for a run that finishRun already closed. A second judge of the same run replaces the first. */
+export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string; judge: JudgeMetrics }) {
   db.query(
-    `UPDATE runs SET success = $success, score = $score, score_details = $scoreDetails WHERE run_id = $runId`,
+    `INSERT INTO judge_runs (
+       run_id, model, status, duration_ms, num_turns, cost_usd,
+       input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens,
+       success_threshold, score, success, reason, error
+     ) VALUES (
+       $runId, $model, $status, $durationMs, $numTurns, $costUsd,
+       $inputTokens, $outputTokens, $cacheCreationTokens, $cacheReadTokens, $totalTokens,
+       $successThreshold, $score, $success, $reason, $error
+     )
+     ON CONFLICT (run_id) DO UPDATE SET
+       model = excluded.model,
+       finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+       status = excluded.status,
+       duration_ms = excluded.duration_ms,
+       num_turns = excluded.num_turns,
+       cost_usd = excluded.cost_usd,
+       input_tokens = excluded.input_tokens,
+       output_tokens = excluded.output_tokens,
+       cache_creation_tokens = excluded.cache_creation_tokens,
+       cache_read_tokens = excluded.cache_read_tokens,
+       total_tokens = excluded.total_tokens,
+       success_threshold = excluded.success_threshold,
+       score = excluded.score,
+       success = excluded.success,
+       reason = excluded.reason,
+       error = excluded.error`,
   ).run({
     runId,
-    success: score.success ?? null,
-    score: score.score ?? null,
-    scoreDetails: toJson(score.details),
+    model: judge.model,
+    status: judge.status,
+    durationMs: judge.durationMs,
+    numTurns: judge.numTurns,
+    costUsd: judge.costUsd,
+    inputTokens: judge.inputTokens,
+    outputTokens: judge.outputTokens,
+    cacheCreationTokens: judge.cacheCreationTokens,
+    cacheReadTokens: judge.cacheReadTokens,
+    totalTokens: judge.totalTokens,
+    successThreshold: judge.successThreshold,
+    score: judge.score,
+    success: judge.success == null ? null : Number(judge.success),
+    reason: judge.reason,
+    error: judge.error,
   });
 }
 
@@ -291,9 +333,14 @@ export function listRunBranches(db: Database): RunBranchRow[] {
     .query(
       `SELECT runs.run_id, runs.task_id, runs.config_id, runs.repeat, runs.status, runs.started_at,
             runs.branch, runs.model, runs.commit_sha, runs.changed_files, runs.artifacts_path,
-            runs.score, runs.success, runs.score_details, tasks.title AS title
+            judge_runs.score AS score, judge_runs.success AS success,
+            judge_runs.reason AS judge_reason, judge_runs.error AS judge_error,
+            judge_runs.success_threshold AS success_threshold, judge_runs.model AS judge_model,
+            judge_runs.cost_usd AS judge_cost_usd, judge_runs.duration_ms AS judge_duration_ms,
+            judge_runs.num_turns AS judge_turns, tasks.title AS title
      FROM runs
      LEFT JOIN tasks ON tasks.task_id = runs.task_id
+     LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id
      WHERE runs.branch IS NOT NULL AND runs.branch != ''
      ORDER BY runs.started_at DESC`,
     )
@@ -303,8 +350,6 @@ export function listRunBranches(db: Database): RunBranchRow[] {
 }
 
 function toRunBranchRow(row: RunBranchSql): RunBranchRow {
-  const details = scoreDetails(row.score_details);
-
   return {
     runId: row.run_id,
     taskId: row.task_id ?? "",
@@ -320,52 +365,23 @@ function toRunBranchRow(row: RunBranchSql): RunBranchRow {
     artifactsPath: row.artifacts_path,
     score: row.score,
     success: row.success == null ? null : row.success === 1,
-    judgeNote: noteFrom(details),
-    successThreshold: thresholdFrom(details),
+    judgeNote: textOrNull(row.judge_reason) ?? textOrNull(row.judge_error),
+    successThreshold: row.success_threshold,
+    judgeModel: row.judge_model,
+    judgeCostUsd: row.judge_cost_usd,
+    judgeDurationMs: row.judge_duration_ms,
+    judgeTurns: row.judge_turns,
   };
 }
 
-function scoreDetails(raw: string | null): ScoreDetails | null {
-  if (!raw) {
+function textOrNull(value: string | null): string | null {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
     return null;
   }
 
-  try {
-    const parsed = JSON.parse(raw) as ScoreDetails;
-
-    if (!parsed || typeof parsed !== "object") {
-      return null;
-    }
-
-    return parsed;
-  } catch {
-    // One corrupt cell should not stop the run list from opening.
-    return null;
-  }
-}
-
-function noteFrom(details: ScoreDetails | null): string | null {
-  const reason = details?.reason?.trim();
-
-  if (reason) {
-    return reason;
-  }
-
-  const judgeError = details?.judgeError?.trim();
-
-  if (!judgeError) {
-    return null;
-  }
-
-  return judgeError;
-}
-
-function thresholdFrom(details: ScoreDetails | null): number | null {
-  if (typeof details?.successThreshold !== "number" || !Number.isFinite(details.successThreshold)) {
-    return null;
-  }
-
-  return details.successThreshold;
+  return trimmed;
 }
 
 function parseChangedFiles(raw: string | null): ChangedFile[] {

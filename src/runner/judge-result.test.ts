@@ -1,60 +1,74 @@
 import { expect, test } from "bun:test";
-import { judgementText, scoreFromJudgeOutput } from "./judge-result";
+import { judgeMetrics, judgementText } from "./judge-result";
 
 test("a decimal score succeeds when it reaches the threshold", () => {
-  const score = scoreFromJudgeOutput({
-    result: { structured_output: { score: 0.743, reason: "most of the hat" } },
+  const judge = judgeMetrics({
+    result: {
+      structured_output: { score: 0.743, reason: "most of the hat" },
+      duration_ms: 12_000,
+      num_turns: 4,
+      total_cost_usd: 0.041,
+      usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 1, cache_read_input_tokens: 2 },
+    },
     judgeModel: "claude-sonnet-5-5",
     successThreshold: 0.7,
   });
 
-  expect(score.score).toBe(0.743);
-  expect(score.success).toBe(true);
-  expect(score.details?.successThreshold).toBe(0.7);
-  expect(judgementText({ score, successThreshold: 0.7 })).toBe("score 0.743 success");
+  expect(judge.score).toBe(0.743);
+  expect(judge.success).toBe(true);
+  expect(judge.successThreshold).toBe(0.7);
+  expect(judge.status).toBe("done");
+  expect(judge.durationMs).toBe(12_000);
+  expect(judge.numTurns).toBe(4);
+  expect(judge.costUsd).toBe(0.041);
+  expect(judge.totalTokens).toBe(18);
+  expect(judge.reason).toBe("most of the hat");
+  expect(judge.error).toBeNull();
+  expect(judgementText({ judge, successThreshold: 0.7 })).toBe("score 0.743 success, judge 12s $0.041");
 });
 
 test("a decimal score below the threshold is not success", () => {
-  const score = scoreFromJudgeOutput({
+  const judge = judgeMetrics({
     result: { result: '{"score": 0.2, "reason": "only the sprite"}' },
     judgeModel: "claude-sonnet-5-5",
     successThreshold: 0.8,
   });
 
-  expect(score.score).toBe(0.2);
-  expect(score.success).toBe(false);
-  expect(judgementText({ score, successThreshold: 0.8 })).toBe("score 0.200 below 0.8");
+  expect(judge.score).toBe(0.2);
+  expect(judge.success).toBe(false);
+  expect(judgementText({ judge, successThreshold: 0.8 })).toBe("score 0.200 below 0.8");
 });
 
 test("a score of 1 is not required for success", () => {
-  const score = scoreFromJudgeOutput({
+  const judge = judgeMetrics({
     result: { structured_output: { score: 0.8, reason: "enough" } },
     judgeModel: "claude-sonnet-5-5",
     successThreshold: 0.8,
   });
 
-  expect(score.success).toBe(true);
+  expect(judge.success).toBe(true);
 });
 
 test("a score outside 0 to 1 is left unscored", () => {
-  const score = scoreFromJudgeOutput({
+  const judge = judgeMetrics({
     result: { structured_output: { score: 2, reason: "too high" } },
     judgeModel: "claude-sonnet-5-5",
     successThreshold: 0.8,
   });
 
-  expect(score.score).toBeUndefined();
-  expect(score.success).toBeUndefined();
-  expect(score.details?.judgeError).toBe("judge returned no score");
+  expect(judge.score).toBeNull();
+  expect(judge.success).toBeNull();
+  expect(judge.error).toBe("judge returned no score");
+  expect(judgementText({ judge, successThreshold: 0.8 })).toBe("score n/a");
 });
 
 test("fenced JSON still yields the decimal score", () => {
-  const score = scoreFromJudgeOutput({
+  const judge = judgeMetrics({
     result: { result: '```json\n{"score": 0.743, "reason": "partial"}\n```' },
     judgeModel: "claude-sonnet-5-5",
     successThreshold: 0.8,
   });
 
-  expect(score.score).toBe(0.743);
-  expect(score.success).toBe(false);
+  expect(judge.score).toBe(0.743);
+  expect(judge.success).toBe(false);
 });

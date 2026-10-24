@@ -42,14 +42,32 @@ CREATE TABLE IF NOT EXISTS runs (
     cache_read_tokens      INTEGER,     -- input served from the prompt cache
     total_tokens           INTEGER,     -- fresh input + cache write + cache read + output
     permission_denials INTEGER,
-    success            INTEGER,    -- 1 when score >= the run's success threshold
-    score              REAL,       -- decimal judge score from 0 to 1, such as 0.2 or 0.743
-    score_details      TEXT,       -- JSON: reason, judgeModel, judgeCostUsd, successThreshold, judgeError
     raw_result         TEXT,       -- JSON: full claude -p output
     artifacts_path     TEXT,       -- folder with transcript + hook logs for this run
     branch             TEXT,       -- git branch in the Chromium checkout, named after run_id
     commit_sha         TEXT,       -- tip of that branch; NULL when the tree still matches the task SHA
     changed_files      TEXT        -- JSON: [{ "status", "path", "previousPath"? }] vs the task SHA; submodule paths are prefixed
+);
+
+-- One judge session per agent run. These metrics are the judge's; the agent's stay on runs.
+CREATE TABLE IF NOT EXISTS judge_runs (
+    run_id                 TEXT PRIMARY KEY REFERENCES runs,
+    model                  TEXT,
+    finished_at            TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    status                 TEXT,            -- done / crashed
+    duration_ms            INTEGER,
+    num_turns              INTEGER,
+    cost_usd               REAL,
+    input_tokens           INTEGER,
+    output_tokens          INTEGER,
+    cache_creation_tokens  INTEGER,
+    cache_read_tokens      INTEGER,
+    total_tokens           INTEGER,
+    success_threshold      REAL,            -- score at or above this decimal is success
+    score                  REAL,            -- decimal from 0 to 1, such as 0.2 or 0.743
+    success                INTEGER,         -- 1 when score >= success_threshold
+    reason                 TEXT,
+    error                  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS tool_calls (

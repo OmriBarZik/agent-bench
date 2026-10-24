@@ -1,8 +1,8 @@
-import type { ClaudeResult, Score } from "../db.types";
+import type { ClaudeResult, ClaudeUsage, JudgeMetrics } from "../db.types";
 import type { JudgeVerdict } from "./judge-result.types";
 
-/** Turns the judge session's JSON into the score stored on the run. A missing score leaves the run unscored. */
-export function scoreFromJudgeOutput({
+/** Turns a finished judge session into the judge_runs row. A missing score leaves score and success null. */
+export function judgeMetrics({
   result,
   judgeModel,
   successThreshold,
@@ -10,46 +10,122 @@ export function scoreFromJudgeOutput({
   result: ClaudeResult;
   judgeModel: string;
   successThreshold: number;
-}): Score {
+}): JudgeMetrics {
   const verdict = verdictFromClaude(result);
-  const judgeCostUsd = result.total_cost_usd ?? null;
-
-  if (!verdict) {
-    return {
-      details: {
-        judgeModel,
-        judgeCostUsd,
-        successThreshold,
-        judgeError: judgeError(result),
-      },
-    };
-  }
+  const usage = result.usage ?? {};
+  const reason = verdict?.reason.trim() ?? "";
 
   return {
-    score: verdict.score,
-    success: verdict.score >= successThreshold,
-    details: {
-      reason: verdict.reason,
-      judgeModel,
-      judgeCostUsd,
-      successThreshold,
-    },
+    model: judgeModel,
+    status: result.is_error ? "crashed" : "done",
+    durationMs: result.duration_ms ?? null,
+    numTurns: result.num_turns ?? null,
+    costUsd: result.total_cost_usd ?? null,
+    inputTokens: usage.input_tokens ?? null,
+    outputTokens: usage.output_tokens ?? null,
+    cacheCreationTokens: usage.cache_creation_input_tokens ?? null,
+    cacheReadTokens: usage.cache_read_input_tokens ?? null,
+    totalTokens: tokenTotal(usage),
+    successThreshold,
+    score: verdict?.score ?? null,
+    success: verdict == null ? null : verdict.score >= successThreshold,
+    reason: reason === "" ? null : reason,
+    error: verdict ? null : judgeError(result),
   };
 }
 
-/** One line for the runner log: the decimal score, and whether it met the threshold. */
-export function judgementText({ score, successThreshold }: { score: Score; successThreshold: number }): string {
-  if (score.score == null) {
+/** A judge session that threw before it returned JSON. The agent run is already stored. */
+export function failedJudgeMetrics({
+  judgeModel,
+  successThreshold,
+  error,
+}: {
+  judgeModel: string;
+  successThreshold: number;
+  error: string;
+}): JudgeMetrics {
+  return {
+    model: judgeModel,
+    status: "crashed",
+    durationMs: null,
+    numTurns: null,
+    costUsd: null,
+    inputTokens: null,
+    outputTokens: null,
+    cacheCreationTokens: null,
+    cacheReadTokens: null,
+    totalTokens: null,
+    successThreshold,
+    score: null,
+    success: null,
+    reason: null,
+    error,
+  };
+}
+
+/** One line for the runner log: the decimal score, whether it met the threshold, and the judge's own time and cost. */
+export function judgementText({ judge, successThreshold }: { judge: JudgeMetrics; successThreshold: number }): string {
+  const verdict = verdictText({ judge, successThreshold });
+  const usage = usageText(judge);
+
+  if (!usage) {
+    return verdict;
+  }
+
+  return `${verdict}, ${usage}`;
+}
+
+function verdictText({ judge, successThreshold }: { judge: JudgeMetrics; successThreshold: number }): string {
+  if (judge.score == null) {
     return "score n/a";
   }
 
-  const text = score.score.toFixed(3);
+  const text = judge.score.toFixed(3);
 
-  if (score.success) {
+  if (judge.success) {
     return `score ${text} success`;
   }
 
   return `score ${text} below ${successThreshold}`;
+}
+
+function usageText(judge: JudgeMetrics): string | null {
+  const parts: string[] = [];
+
+  if (judge.durationMs != null) {
+    parts.push(`${Math.round(judge.durationMs / 1000)}s`);
+  }
+
+  if (judge.costUsd != null) {
+    parts.push(`$${judge.costUsd.toFixed(3)}`);
+  }
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  return `judge ${parts.join(" ")}`;
+}
+
+function tokenTotal(usage: ClaudeUsage): number | null {
+  const counts = [
+    usage.input_tokens,
+    usage.cache_creation_input_tokens,
+    usage.cache_read_input_tokens,
+    usage.output_tokens,
+  ];
+
+  if (counts.every((count) => count == null)) {
+    return null;
+  }
+
+  let total = 0;
+
+  for (const count of counts) {
+    total += count ?? 0;
+  }
+
+  return total;
 }
 
 function verdictFromClaude(result: ClaudeResult): JudgeVerdict | null {
