@@ -81,7 +81,6 @@ export async function judgeAndStore({
   if (signal.aborted && judge.status !== "done") {
     const cancelledJudge = cancelledJudgeMetrics({
       judgeModel: options.judgeModel,
-      successThreshold: task.successThreshold,
       judge,
     });
     cancelRun({ db, runId });
@@ -164,7 +163,6 @@ async function scoreRun({
       artifact,
       outDir,
       judgeModel: options.judgeModel,
-      successThreshold: task.successThreshold,
       timeoutMs: options.timeoutMs,
       signal,
     });
@@ -172,13 +170,11 @@ async function scoreRun({
     if (signal.aborted) {
       return cancelledJudgeMetrics({
         judgeModel: options.judgeModel,
-        successThreshold: task.successThreshold,
       });
     }
 
     return failedJudgeMetrics({
       judgeModel: options.judgeModel,
-      successThreshold: task.successThreshold,
       error: error instanceof Error ? error.message : String(error),
     });
   }

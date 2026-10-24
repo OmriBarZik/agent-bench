@@ -9,7 +9,7 @@ import type { RunOneResult, RunOptions } from "./run-one.types";
 import { judgeAndStore, runAndCommitAgent, storeInterruptedRun } from "./run-session";
 import { prepareCheckout } from "./run-tree";
 
-/** One benchmark run: reset onto the run branch, record it, run claude, commit the tree, store the result, then score the checkout. */
+/** One benchmark run: reset onto the run branch, record it, run claude, commit the tree, store the result, then decide the checkout. */
 export async function runOne({
   db,
   task,

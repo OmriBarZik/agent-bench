@@ -4,7 +4,7 @@ import type { Task } from "../../db/db.types";
 export type TaskEntry = Omit<Task, "prompt" | "judgePrompt"> & {
   /** Path to the task prompt, relative to the tasks file (e.g. prompts/dino-hat.md). */
   promptFile: string;
-  /** Path to the judge rubric, relative to the tasks file. The judge scores the finished tree from 0 to 1. */
+  /** Path to the judge rubric, relative to the tasks file. The judge picks one decision for the finished tree. */
   judgePromptFile: string;
 };
 

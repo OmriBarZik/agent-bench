@@ -88,7 +88,6 @@ test("finishRun stores the branch commit and the files it changed", () => {
         taskId: "t1",
         prompt: "do the thing",
         judgePrompt: "score it",
-        successThreshold: 0.8,
         chromiumSha: "abc",
       },
     });
@@ -135,7 +134,6 @@ test("finishRun stores a cancelled run with the usage already reported", () => {
         taskId: "t1",
         prompt: "do the thing",
         judgePrompt: "score it",
-        successThreshold: 0.8,
         chromiumSha: "abc",
       },
     });
@@ -213,7 +211,6 @@ test("cancelRun marks a finished run cancelled without clearing its metrics", ()
         taskId: "t1",
         prompt: "do the thing",
         judgePrompt: "score it",
-        successThreshold: 0.8,
         chromiumSha: "abc",
       },
     });
@@ -264,7 +261,6 @@ test("listRunBranches returns newest runs and skips a corrupt file list", () => 
         taskId: "dino",
         prompt: "paint",
         judgePrompt: "score it",
-        successThreshold: 0.8,
         chromiumSha: "abc",
         title: "Dino",
       },
@@ -309,7 +305,7 @@ test("saveJudgeRun keeps the judge metrics apart from the agent run", () => {
   try {
     upsertTask({
       db,
-      task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", successThreshold: 0.8, chromiumSha: "abc" },
+      task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc" },
     });
     upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
     const runId = "dino__haiku__r0";
@@ -336,7 +332,7 @@ test("saveJudgeRun keeps the judge metrics apart from the agent run", () => {
     };
     const judge = db
       .query(
-        `SELECT model, status, cost_usd, duration_ms, num_turns, total_tokens, score, success,
+        `SELECT model, status, cost_usd, duration_ms, num_turns, total_tokens, decision, score, success,
                 success_threshold, reason, error
          FROM judge_runs WHERE run_id = $runId`,
       )
@@ -347,9 +343,10 @@ test("saveJudgeRun keeps the judge metrics apart from the agent run", () => {
       duration_ms: number;
       num_turns: number;
       total_tokens: number;
-      score: number;
+      decision: string;
+      score: number | null;
       success: number;
-      success_threshold: number;
+      success_threshold: number | null;
       reason: string;
       error: string | null;
     };
@@ -361,16 +358,18 @@ test("saveJudgeRun keeps the judge metrics apart from the agent run", () => {
     expect(judge.duration_ms).toBe(12_000);
     expect(judge.num_turns).toBe(4);
     expect(judge.total_tokens).toBe(155);
-    expect(judge.score).toBeCloseTo(0.743);
+    expect(judge.decision).toBe("partially-pass");
+    expect(judge.score).toBeNull();
     expect(judge.success).toBe(1);
-    expect(judge.success_threshold).toBe(0.7);
+    expect(judge.success_threshold).toBeNull();
     expect(judge.reason).toBe("most of the hat");
     expect(judge.error).toBeNull();
     expect(listRunBranches(db)[0]).toMatchObject({
-      score: judge.score,
+      decision: "partially-pass",
+      score: null,
       success: true,
       judgeNote: "most of the hat",
-      successThreshold: 0.7,
+      successThreshold: null,
       judgeModel: "claude-sonnet-5-5",
       judgeCostUsd: judge.cost_usd,
       judgeDurationMs: 12_000,
@@ -386,7 +385,7 @@ test("deleteRun removes the run, its judge, and its tool calls", () => {
   try {
     upsertTask({
       db,
-      task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", successThreshold: 0.8, chromiumSha: "abc" },
+      task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc" },
     });
     upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
     const runId = "dino__haiku__r0";
@@ -444,6 +443,26 @@ test("openDb adds judge_prompt to a tasks table created before it", () => {
   }
 });
 
+test("openDb adds decision to a judge_runs table created before it", () => {
+  const path = tempDb();
+  const created = new Database(path);
+  created.run(`CREATE TABLE judge_runs (
+    run_id TEXT PRIMARY KEY,
+    model TEXT,
+    score REAL,
+    success INTEGER
+  )`);
+  created.close();
+
+  const db = openDb(path);
+  try {
+    const names = (db.query("PRAGMA table_info(judge_runs)").all() as { name: string }[]).map((row) => row.name);
+    expect(names).toContain("decision");
+  } finally {
+    db.close();
+  }
+});
+
 const judged: JudgeMetrics = {
   model: "claude-sonnet-5-5",
   status: "done",
@@ -455,8 +474,7 @@ const judged: JudgeMetrics = {
   cacheCreationTokens: 5,
   cacheReadTokens: 30,
   totalTokens: 155,
-  successThreshold: 0.7,
-  score: 0.743,
+  decision: "partially-pass",
   success: true,
   reason: "most of the hat",
   error: null,

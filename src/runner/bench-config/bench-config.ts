@@ -47,21 +47,9 @@ async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: strin
     difficulty: entry.difficulty,
     prompt,
     judgePrompt,
-    successThreshold: requireThreshold(entry),
     chromiumSha: entry.chromiumSha,
     scoring: entry.scoring,
   };
-}
-
-/** The task's own cutoff. A judge score at or above it is success. */
-function requireThreshold(entry: TaskEntry): number {
-  const threshold = entry.successThreshold;
-
-  if (typeof threshold !== "number" || !Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
-    throw new Error(`${entry.taskId} successThreshold must be a decimal from 0 to 1`);
-  }
-
-  return threshold;
 }
 
 async function readTrimmed({ path, taskId, label }: { path: string; taskId: string; label: string }): Promise<string> {

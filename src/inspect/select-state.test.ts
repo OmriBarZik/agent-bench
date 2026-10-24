@@ -90,6 +90,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     commitSha: null,
     changedFiles: [],
     artifactsPath: null,
+    decision: null,
     score: null,
     success: null,
     judgeNote: null,

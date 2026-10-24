@@ -16,6 +16,7 @@ import type {
   Task,
   ToolCall,
 } from "./db.types";
+import { isJudgeDecision } from "./judge-decision";
 import { BENCH_DIR } from "../paths";
 
 export const DB_PATH = process.env.BENCH_DB_PATH ?? join(BENCH_DIR, "data", "bench.sqlite");
@@ -45,6 +46,7 @@ export function openDb(path = DB_PATH): Database {
   // CREATE TABLE IF NOT EXISTS will not add columns to a database that already exists.
   ensureTaskColumns(db);
   ensureRunColumns(db);
+  ensureJudgeColumns(db);
   retireRunScoreColumns(db);
 
   return db;
@@ -65,6 +67,19 @@ function ensureTaskColumns(db: Database) {
 
     db.run(`ALTER TABLE tasks ADD COLUMN ${name} ${definition}`);
   }
+}
+
+/** Columns added after the first bench.sqlite. Idempotent so opening an old file keeps working. */
+function ensureJudgeColumns(db: Database) {
+  const present = new Set(
+    (db.query("PRAGMA table_info(judge_runs)").all() as { name: string }[]).map((row) => row.name),
+  );
+
+  if (present.has("decision")) {
+    return;
+  }
+
+  db.run("ALTER TABLE judge_runs ADD COLUMN decision TEXT");
 }
 
 /** Columns added after the first bench.sqlite. Idempotent so opening an old file keeps working. */
@@ -149,11 +164,11 @@ function totalTokens(usage: ClaudeUsage): number | null {
 
 export function upsertTask({ db, task }: { db: Database; task: Task }) {
   db.query(
-    `INSERT INTO tasks (task_id, title, difficulty, prompt, judge_prompt, success_threshold, chromium_sha, scoring)
-     VALUES ($taskId, $title, $difficulty, $prompt, $judgePrompt, $successThreshold, $chromiumSha, $scoring)
+    `INSERT INTO tasks (task_id, title, difficulty, prompt, judge_prompt, chromium_sha, scoring)
+     VALUES ($taskId, $title, $difficulty, $prompt, $judgePrompt, $chromiumSha, $scoring)
      ON CONFLICT (task_id) DO UPDATE SET
        title = excluded.title, difficulty = excluded.difficulty, prompt = excluded.prompt,
-       judge_prompt = excluded.judge_prompt, success_threshold = excluded.success_threshold,
+       judge_prompt = excluded.judge_prompt,
        chromium_sha = excluded.chromium_sha, scoring = excluded.scoring`,
   ).run({
     taskId: task.taskId,
@@ -161,7 +176,6 @@ export function upsertTask({ db, task }: { db: Database; task: Task }) {
     difficulty: task.difficulty ?? null,
     prompt: task.prompt,
     judgePrompt: task.judgePrompt,
-    successThreshold: task.successThreshold,
     chromiumSha: task.chromiumSha,
     scoring: toJson(task.scoring),
   });
@@ -279,11 +293,11 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
     `INSERT INTO judge_runs (
        run_id, model, status, duration_ms, num_turns, cost_usd,
        input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens,
-       success_threshold, score, success, reason, error
+       decision, success, reason, error
      ) VALUES (
        $runId, $model, $status, $durationMs, $numTurns, $costUsd,
        $inputTokens, $outputTokens, $cacheCreationTokens, $cacheReadTokens, $totalTokens,
-       $successThreshold, $score, $success, $reason, $error
+       $decision, $success, $reason, $error
      )
      ON CONFLICT (run_id) DO UPDATE SET
        model = excluded.model,
@@ -297,8 +311,9 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
        cache_creation_tokens = excluded.cache_creation_tokens,
        cache_read_tokens = excluded.cache_read_tokens,
        total_tokens = excluded.total_tokens,
-       success_threshold = excluded.success_threshold,
-       score = excluded.score,
+       decision = excluded.decision,
+       success_threshold = NULL,
+       score = NULL,
        success = excluded.success,
        reason = excluded.reason,
        error = excluded.error`,
@@ -314,8 +329,7 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
     cacheCreationTokens: judge.cacheCreationTokens,
     cacheReadTokens: judge.cacheReadTokens,
     totalTokens: judge.totalTokens,
-    successThreshold: judge.successThreshold,
-    score: judge.score,
+    decision: judge.decision,
     success: judge.success == null ? null : Number(judge.success),
     reason: judge.reason,
     error: judge.error,
@@ -358,7 +372,7 @@ export function listRunBranches(db: Database): RunBranchRow[] {
     .query(
       `SELECT runs.run_id, runs.task_id, runs.config_id, runs.repeat, runs.status, runs.started_at,
             runs.branch, runs.model, runs.commit_sha, runs.changed_files, runs.artifacts_path,
-            judge_runs.score AS score, judge_runs.success AS success,
+            judge_runs.decision AS decision, judge_runs.score AS score, judge_runs.success AS success,
             judge_runs.reason AS judge_reason, judge_runs.error AS judge_error,
             judge_runs.success_threshold AS success_threshold, judge_runs.model AS judge_model,
             judge_runs.cost_usd AS judge_cost_usd, judge_runs.duration_ms AS judge_duration_ms,
@@ -388,6 +402,7 @@ function toRunBranchRow(row: RunBranchSql): RunBranchRow {
     commitSha: row.commit_sha,
     changedFiles: parseChangedFiles(row.changed_files),
     artifactsPath: row.artifacts_path,
+    decision: isJudgeDecision(row.decision) ? row.decision : null,
     score: row.score,
     success: row.success == null ? null : row.success === 1,
     judgeNote: textOrNull(row.judge_reason) ?? textOrNull(row.judge_error),

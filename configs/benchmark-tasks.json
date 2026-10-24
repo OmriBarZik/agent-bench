@@ -6,7 +6,6 @@
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
     "promptFile": "prompts/dino-hat.md",
     "judgePromptFile": "prompts/dino-hat-judge.md",
-    "successThreshold": 0.8,
     "scoring": {
       "checks": [
         "change is in the offline dino game sources (components/neterror/resources/dino_game)",
@@ -23,7 +22,6 @@
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
     "promptFile": "prompts/dino-devtools.md",
     "judgePromptFile": "prompts/dino-devtools-judge.md",
-    "successThreshold": 0.8,
     "scoring": {
       "checks": [
         "a DevTools UI entry (panel or drawer view) that hosts the game",
@@ -40,7 +38,6 @@
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
     "promptFile": "prompts/dino-ai-player.md",
     "judgePromptFile": "prompts/dino-ai-player-judge.md",
-    "successThreshold": 0.8,
     "scoring": {
       "checks": [
         "AI module reads real game state from the dino game",

@@ -8,8 +8,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     title         TEXT,
     difficulty    TEXT,            -- e.g. simple / medium / complex
     prompt        TEXT NOT NULL,
-    judge_prompt       TEXT,            -- rubric the judge uses to score a run from 0 to 1
-    success_threshold  REAL,            -- score at or above this decimal is success
+    judge_prompt       TEXT,            -- rubric the judge uses to choose a decision
+    success_threshold  REAL,            -- unused; older tasks stored a decimal cutoff
     chromium_sha       TEXT NOT NULL,
     scoring       TEXT             -- JSON: how success is checked for this task
 );
@@ -63,9 +63,10 @@ CREATE TABLE IF NOT EXISTS judge_runs (
     cache_creation_tokens  INTEGER,
     cache_read_tokens      INTEGER,
     total_tokens           INTEGER,
-    success_threshold      REAL,            -- score at or above this decimal is success
-    score                  REAL,            -- decimal from 0 to 1, such as 0.2 or 0.743
-    success                INTEGER,         -- 1 when score >= success_threshold
+    decision               TEXT,            -- failed / partially-failed / partially-pass / pass
+    success_threshold      REAL,            -- unused; older rows stored a decimal cutoff
+    score                  REAL,            -- unused; older rows stored a decimal
+    success                INTEGER,         -- 1 when decision is pass or partially-pass
     reason                 TEXT,
     error                  TEXT
 );

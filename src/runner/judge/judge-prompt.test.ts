@@ -1,7 +1,7 @@
 import { expect, test } from "bun:test";
 import { buildJudgePrompt } from "./judge-prompt";
 
-test("buildJudgePrompt asks for a decimal score and includes the rubric", () => {
+test("buildJudgePrompt includes the task and the rubric without the reply format", () => {
   const prompt = buildJudgePrompt({
     taskPrompt: "give the dino a hat",
     judgePrompt: "the hat must bounce",
@@ -13,8 +13,8 @@ test("buildJudgePrompt asks for a decimal score and includes the rubric", () => 
   expect(prompt).toContain("give the dino a hat");
   expect(prompt).toContain("the hat must bounce");
   expect(prompt).toContain("M dino.js");
-  expect(prompt).toContain("0.743");
-  expect(prompt).toContain("not only 0 or 1");
+  expect(prompt).not.toContain("partially-failed");
+  expect(prompt).not.toContain("partially-pass");
 });
 
 test("buildJudgePrompt says when the tree was not changed", () => {

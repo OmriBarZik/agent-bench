@@ -8,4 +8,10 @@ test("judgeCommand persists the session so the transcript can be opened later", 
   expect(command).toContain("--session-id");
   expect(command).toContain(sessionId);
   expect(command).not.toContain("--no-session-persistence");
+  const schema = JSON.parse(command[command.indexOf("--json-schema") + 1]) as {
+    required: string[];
+    properties: { decision: { enum: string[] } };
+  };
+  expect(schema.required).toContain("decision");
+  expect(schema.properties.decision.enum).toEqual(["failed", "partially-failed", "partially-pass", "pass"]);
 });

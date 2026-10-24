@@ -8,7 +8,6 @@ test("every config gets the baseline prompt", () => {
       taskId: "t1",
       prompt: "do it",
       judgePrompt: "score",
-      successThreshold: 0.5,
       chromiumSha: "abc",
     },
     config: { configId: "haiku-baseline", model: "claude-haiku-5-5" },

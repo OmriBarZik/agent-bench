@@ -7,16 +7,22 @@ test("choiceLabel shows when the run happened and how many files it changed", ()
 
   expect(label).toContain("2026-10-24 14:02");
   expect(label).toContain("done");
-  expect(label).toContain("0.743");
+  expect(label).toContain("partially-pass");
   expect(label).toContain("dino × haiku");
 });
 
 test("choiceLabel shows a cancelled run in full", () => {
-  expect(choiceLabel(choice({ status: "cancelled", score: null, success: null }))).toContain("cancelled");
+  expect(choiceLabel(choice({ status: "cancelled", decision: null, score: null, success: null }))).toContain(
+    "cancelled",
+  );
 });
 
-test("choiceLabel marks a run the judge did not score", () => {
-  expect(choiceLabel(choice({ score: null, success: null }))).toContain("n/a");
+test("choiceLabel marks a run the judge did not decide", () => {
+  expect(choiceLabel(choice({ decision: null, score: null, success: null }))).toContain("n/a");
+});
+
+test("choiceLabel shows an older decimal when the run has no decision", () => {
+  expect(choiceLabel(choice({ decision: null, score: 0.743, success: true }))).toContain("0.743");
 });
 
 test("choiceLabel marks a branch the checkout does not have", () => {
@@ -41,7 +47,8 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     commitSha: "abc123def456",
     changedFiles: [{ status: "M", path: "chrome/foo.cc" }],
     artifactsPath: null,
-    score: 0.743,
+    decision: "partially-pass",
+    score: null,
     success: true,
     judgeNote: null,
     successThreshold: 0.8,

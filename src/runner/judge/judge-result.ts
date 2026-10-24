@@ -1,16 +1,9 @@
 import type { ClaudeResult, ClaudeUsage, JudgeMetrics } from "../../db/db.types";
+import { decisionSucceeds, isJudgeDecision } from "../../db/judge-decision";
 import type { JudgeVerdict } from "./judge-result.types";
 
-/** Turns a finished judge session into the judge_runs row. A missing score leaves score and success null. */
-export function judgeMetrics({
-  result,
-  judgeModel,
-  successThreshold,
-}: {
-  result: ClaudeResult;
-  judgeModel: string;
-  successThreshold: number;
-}): JudgeMetrics {
+/** Turns a finished judge session into the judge_runs row. A missing decision leaves decision and success null. */
+export function judgeMetrics({ result, judgeModel }: { result: ClaudeResult; judgeModel: string }): JudgeMetrics {
   const verdict = verdictFromClaude(result);
   const usage = result.usage ?? {};
   const reason = verdict?.reason.trim() ?? "";
@@ -26,25 +19,22 @@ export function judgeMetrics({
     cacheCreationTokens: usage.cache_creation_input_tokens ?? null,
     cacheReadTokens: usage.cache_read_input_tokens ?? null,
     totalTokens: tokenTotal(usage),
-    successThreshold,
-    score: verdict?.score ?? null,
-    success: verdict == null ? null : verdict.score >= successThreshold,
+    decision: verdict?.decision ?? null,
+    success: verdict == null ? null : decisionSucceeds(verdict.decision),
     reason: reason === "" ? null : reason,
     error: verdict ? null : judgeError(result),
   };
 }
 
 /**
- * A judge session the user stopped. Drops the score so an aborted verdict is not stored as success.
+ * A judge session the user stopped. Drops the decision so an aborted verdict is not stored as success.
  * Keeps whatever duration, cost, and tokens were already captured.
  */
 export function cancelledJudgeMetrics({
   judgeModel,
-  successThreshold,
   judge,
 }: {
   judgeModel: string;
-  successThreshold: number;
   judge?: JudgeMetrics;
 }): JudgeMetrics {
   return {
@@ -58,8 +48,7 @@ export function cancelledJudgeMetrics({
     cacheCreationTokens: judge?.cacheCreationTokens ?? null,
     cacheReadTokens: judge?.cacheReadTokens ?? null,
     totalTokens: judge?.totalTokens ?? null,
-    successThreshold: judge?.successThreshold ?? successThreshold,
-    score: null,
+    decision: null,
     success: null,
     reason: null,
     error: "cancelled",
@@ -67,15 +56,7 @@ export function cancelledJudgeMetrics({
 }
 
 /** A judge session that threw before it returned JSON. The agent run is already stored. */
-export function failedJudgeMetrics({
-  judgeModel,
-  successThreshold,
-  error,
-}: {
-  judgeModel: string;
-  successThreshold: number;
-  error: string;
-}): JudgeMetrics {
+export function failedJudgeMetrics({ judgeModel, error }: { judgeModel: string; error: string }): JudgeMetrics {
   return {
     model: judgeModel,
     status: "crashed",
@@ -87,17 +68,16 @@ export function failedJudgeMetrics({
     cacheCreationTokens: null,
     cacheReadTokens: null,
     totalTokens: null,
-    successThreshold,
-    score: null,
+    decision: null,
     success: null,
     reason: null,
     error,
   };
 }
 
-/** One line for the runner log: the decimal score, whether it met the threshold, and the judge's own time and cost. */
-export function judgementText({ judge, successThreshold }: { judge: JudgeMetrics; successThreshold: number }): string {
-  const verdict = verdictText({ judge, successThreshold });
+/** One line for the runner log: the decision, and the judge's own time and cost. */
+export function judgementText({ judge }: { judge: JudgeMetrics }): string {
+  const verdict = verdictText(judge);
   const usage = usageText(judge);
 
   if (!usage) {
@@ -107,18 +87,12 @@ export function judgementText({ judge, successThreshold }: { judge: JudgeMetrics
   return `${verdict}, ${usage}`;
 }
 
-function verdictText({ judge, successThreshold }: { judge: JudgeMetrics; successThreshold: number }): string {
-  if (judge.score == null) {
-    return "score n/a";
+function verdictText(judge: JudgeMetrics): string {
+  if (judge.decision == null) {
+    return "decision n/a";
   }
 
-  const text = judge.score.toFixed(3);
-
-  if (judge.success) {
-    return `score ${text} success`;
-  }
-
-  return `score ${text} below ${successThreshold}`;
+  return `decision ${judge.decision}`;
 }
 
 function usageText(judge: JudgeMetrics): string | null {
@@ -161,49 +135,15 @@ function tokenTotal(usage: ClaudeUsage): number | null {
 }
 
 function verdictFromClaude(result: ClaudeResult): JudgeVerdict | null {
-  const structured = readVerdict(result.structured_output);
-
-  if (structured) {
-    return structured;
-  }
-
-  return readVerdict(result.result);
+  return readVerdict(result.structured_output);
 }
 
 function readVerdict(value: unknown): JudgeVerdict | null {
   if (typeof value === "string") {
-    return verdictFromText(value);
+    return parseVerdict(value);
   }
 
   return verdictFromUnknown(value);
-}
-
-function verdictFromText(text: string): JudgeVerdict | null {
-  const trimmed = text.trim();
-  const direct = parseVerdict(trimmed);
-
-  if (direct) {
-    return direct;
-  }
-
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
-
-  if (fenced?.[1]) {
-    const fromFence = parseVerdict(fenced[1]);
-
-    if (fromFence) {
-      return fromFence;
-    }
-  }
-
-  const start = trimmed.indexOf("{");
-  const end = trimmed.lastIndexOf("}");
-
-  if (start === -1 || end <= start) {
-    return null;
-  }
-
-  return parseVerdict(trimmed.slice(start, end + 1));
 }
 
 function parseVerdict(text: string): JudgeVerdict | null {
@@ -219,30 +159,15 @@ function verdictFromUnknown(value: unknown): JudgeVerdict | null {
     return null;
   }
 
-  const record = value as { reason?: unknown; score?: unknown };
-  const score = asScore(record.score);
+  const record = value as { decision?: unknown; reason?: unknown };
 
-  if (score == null) {
+  if (!isJudgeDecision(record.decision)) {
     return null;
   }
 
   const reason = typeof record.reason === "string" ? record.reason.trim() : "";
 
-  return { score, reason };
-}
-
-function asScore(value: unknown): number | null {
-  if (typeof value === "string" && value.trim() === "") {
-    return null;
-  }
-
-  const numeric = typeof value === "number" || typeof value === "string" ? Number(value) : Number.NaN;
-
-  if (!Number.isFinite(numeric) || numeric < 0 || numeric > 1) {
-    return null;
-  }
-
-  return numeric;
+  return { decision: record.decision, reason };
 }
 
 function judgeError(result: ClaudeResult): string {
@@ -254,5 +179,5 @@ function judgeError(result: ClaudeResult): string {
     return "judge session failed";
   }
 
-  return "judge returned no score";
+  return "judge returned no decision";
 }

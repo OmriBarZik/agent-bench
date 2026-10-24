@@ -1,11 +1,11 @@
+import type { JudgeDecision } from "./judge-decision.types";
+
 /** One entry in benchmark-tasks.json. */
 export type Task = {
   taskId: string;
   prompt: string;
-  /** Rubric the judge uses to score the run from 0 to 1. */
+  /** Rubric the judge uses to choose a decision. */
   judgePrompt: string;
-  /** Decimal from 0 to 1. A judge score at or above this is stored as success. */
-  successThreshold: number;
   chromiumSha: string;
   title?: string;
   difficulty?: "simple" | "medium" | "complex" | string;
@@ -90,11 +90,9 @@ export type JudgeMetrics = {
   cacheCreationTokens: number | null;
   cacheReadTokens: number | null;
   totalTokens: number | null;
-  /** Decimal from 0 to 1 copied from the task. A score at or above it is success. */
-  successThreshold: number;
-  /** Decimal from 0 to 1, such as 0.2 or 0.743. Null when the judge did not return one. */
-  score: number | null;
-  /** True when score is at least successThreshold. Null when there is no score. */
+  /** One of failed, partially-failed, partially-pass, pass. Null when the judge did not return one. */
+  decision: JudgeDecision | null;
+  /** True for pass and partially-pass. Null when there is no decision. */
   success: boolean | null;
   reason: string | null;
   error: string | null;
@@ -113,6 +111,8 @@ export type RunBranchSql = {
   commit_sha: string | null;
   changed_files: string | null;
   artifacts_path: string | null;
+  decision: string | null;
+  /** Older rows stored a decimal here. New rows leave it empty. */
   score: number | null;
   success: number | null;
   judge_reason: string | null;
@@ -139,13 +139,15 @@ export type RunBranchRow = {
   commitSha: string | null;
   changedFiles: ChangedFile[];
   artifactsPath: string | null;
-  /** Decimal judge score from 0 to 1, or null when this run was not scored. */
+  /** Judge decision, or null when this run has none. */
+  decision: JudgeDecision | null;
+  /** Older rows stored a decimal here. Null once a decision is stored. */
   score: number | null;
-  /** True when score was at least the threshold stored for that run. */
+  /** True for pass and partially-pass. Null when there is no decision. */
   success: boolean | null;
-  /** Why the judge gave that score, or the error when it did not return one. */
+  /** Why the judge gave that decision, or the error when it did not return one. */
   judgeNote: string | null;
-  /** Cutoff used for success, or null when this run was not scored. */
+  /** Older rows stored the cutoff used for success. Null for a decision. */
   successThreshold: number | null;
   /** Model that produced the judge session, or null when this run was not judged. */
   judgeModel: string | null;

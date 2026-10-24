@@ -54,15 +54,15 @@ src/main.ts
         5. copyTranscript              ~/.claude/projects/**/<session>.jsonl → runs/<run_id>/
         6. commitRunChanges            commit submodule checkouts, then the superproject
         7. finishRun                   duration, turns, cost, tokens, denials, changed files, raw result
-        8. judgeRun                    read-only claude -p, copies judge-transcript.jsonl, decimal score 0–1
-        9. saveJudgeRun                judge_runs row: cost, tokens, decimal score, success
+        8. judgeRun                    read-only claude -p, copies judge-transcript.jsonl, picks a decision
+        9. saveJudgeRun                judge_runs row: cost, tokens, decision, success
 ```
 
-Ctrl+C stops the benchmark. The first press kills the `claude` session in progress and does not start another run. The open `runs` row is stored as `cancelled`: `finished_at`, the wall-clock duration, and any turns, cost, and tokens the session had already reported. Whatever the agent changed is still committed onto the run branch. A judge that had started is stored as `cancelled` with no score. A second press exits immediately. The process exits with code 130.
+Ctrl+C stops the benchmark. The first press kills the `claude` session in progress and does not start another run. The open `runs` row is stored as `cancelled`: `finished_at`, the wall-clock duration, and any turns, cost, and tokens the session had already reported. Whatever the agent changed is still committed onto the run branch. A judge that had started is stored as `cancelled` with no decision. A second press exits immediately. The process exits with code 130.
 
 The runner creates the branch and the commit. The agent is not asked to: it only edits the tree. Edits inside a checked-out submodule are committed there first, and the superproject records the new gitlink. `changed_files` lists those paths with the submodule directory prefixed. `git clean` does not pass `-x`, so ignored build output (`out/`) survives a checkout and switching runs does not force a full rebuild. It also does not pass a second `-f`, so a nested git directory that is not a submodule is left in place.
 
-The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session scores the checkout. That session is its own `judge_runs` row: model, duration, turns, cost, token counts, a decimal `score` from 0 to 1 (such as 0.2 or 0.743), and `success` (1 when the score is at least the task's `successThreshold`). The agent's metrics stay on `runs`.
+The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session decides the checkout. That session is its own `judge_runs` row: model, duration, turns, cost, token counts, a `decision` (`failed`, `partially-failed`, `partially-pass`, or `pass`), and `success` (1 for `pass` and `partially-pass`). The agent's metrics stay on `runs`.
 
 To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Ctrl-x twice removes the highlighted run from the database; the Chromium branch and the files under `runs/<run_id>/` stay. Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
 
@@ -77,7 +77,7 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 | `src/runner/bench-config/`     | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash               |
 | `src/runner/chromium/`         | git/gclient on the Chromium checkout: reset, run branch, submodules, artifact commit, changed files               |
 | `src/runner/claude/claude.ts`  | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                     |
-| `src/runner/judge/`            | Read-only scoring session: judge prompt, worktree diff, and the decimal verdict                                   |
+| `src/runner/judge/`            | Read-only judge session: judge prompt, worktree diff, and the decision                                            |
 | `src/runner/run-one/`          | One run end to end (the steps above)                                                                              |
 | `hooks/tool-log.ts`            | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)              |
 | `hooks/baseline-guard.ts`      | Baseline PreToolUse guard. Parses Bash with unbash and denies `cd` and shell file edits. Part of every config     |
@@ -97,7 +97,6 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
     "taskId": "t1",
     "promptFile": "prompts/t1.md",
     "judgePromptFile": "prompts/t1-judge.md",
-    "successThreshold": 0.8,
     "chromiumSha": "abc123",
     "title": "…",
     "difficulty": "simple",
@@ -106,7 +105,7 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 ]
 ```
 
-`promptFile` and `judgePromptFile` are relative to the tasks file. Leading and trailing whitespace is trimmed. `successThreshold` is a decimal from 0 to 1: a judge score at or above it is stored as success for that task.
+`promptFile` and `judgePromptFile` are relative to the tasks file. Leading and trailing whitespace is trimmed. The judge returns one decision: `failed`, `partially-failed`, `partially-pass`, or `pass`. `success` is stored for `pass` and `partially-pass`.
 
 `configs/benchmark-setup.json`:
 
@@ -135,7 +134,7 @@ Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their conte
 | `tasks`                | task                   | `scoring` is JSON text                                                                                                                             |
 | `configs`              | config                 | `tools` / `permissions` are JSON text, and `config_hash` identifies the exact setup                                                                |
 | `runs`                 | task × config × repeat | status `running` / `done` / `crashed` / `cancelled`, plus the agent's metrics. `branch` equals `run_id`; `changed_files` and `raw_result` are JSON |
-| `judge_runs`           | judge session          | one row per run. The judge's own cost, tokens, duration, decimal `score`, and `success`. `cancelled` has no score                                  |
+| `judge_runs`           | judge session          | one row per run. The judge's own cost, tokens, duration, `decision`, and `success`. `cancelled` has no decision                                    |
 | `tool_calls`           | hook event             | `phase` is `pre` / `post`. `program` is the actual binary for Bash (`rg`, `head`, …)                                                               |
 | `tool_attempts` (view) | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                                                        |
 
@@ -146,14 +145,14 @@ SELECT config_id, count(*) runs, avg(cost_usd) cost, avg(num_turns) turns
 FROM runs WHERE status = 'done' GROUP BY config_id;
 ```
 
-Example: the judge's score and cost, separate from the agent's.
+Example: the judge's decision and cost, separate from the agent's.
 
 ```sql
-SELECT runs.config_id, avg(judge_runs.score) score, avg(judge_runs.cost_usd) judge_cost
+SELECT runs.config_id, judge_runs.decision, count(*) runs, avg(judge_runs.cost_usd) judge_cost
 FROM runs
 LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id
 WHERE runs.status = 'done'
-GROUP BY runs.config_id;
+GROUP BY runs.config_id, judge_runs.decision;
 ```
 
 Example: the files a run committed, relative to the task SHA. A path inside a submodule includes the submodule directory.

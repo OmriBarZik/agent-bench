@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../../db/db.types";
+import { JUDGE_DECISION_MEANING, JUDGE_DECISIONS } from "../../db/judge-decision";
 import { CHROMIUM_SRC, JUDGE_TRANSCRIPT_FILE } from "../../paths";
 import { copyTranscript } from "../claude/claude";
 import { captureClaude } from "../claude/claude-process";
@@ -8,27 +9,29 @@ import { buildJudgePrompt } from "./judge-prompt";
 import { judgeMetrics } from "./judge-result";
 import { diffAgainst } from "./worktree-diff";
 
-/** Structured output the judge must return. score is a decimal from 0 to 1, not an integer flag. */
+/** Structured output the session must return. The schema is enforced; the prompt does not describe it. */
 const JUDGE_SCHEMA = JSON.stringify({
   type: "object",
   additionalProperties: false,
   properties: {
-    score: {
-      type: "number",
-      minimum: 0,
-      maximum: 1,
-      description: "Decimal from 0 to 1, such as 0.2 or 0.743. Not only 0 or 1.",
+    decision: {
+      type: "string",
+      enum: [...JUDGE_DECISIONS],
+      description: JUDGE_DECISIONS.map((decision) => `${decision}: ${JUDGE_DECISION_MEANING[decision]}`).join(" "),
     },
-    reason: { type: "string" },
+    reason: {
+      type: "string",
+      description: "What is present and what is missing.",
+    },
   },
-  required: ["score", "reason"],
+  required: ["decision", "reason"],
 });
 
 /**
  * Scores one finished run with a second, read-only claude session.
  * The session does not set BENCH_RUN_ID, so its tool calls are not recorded as the agent's.
  * Copies the session log to judge-transcript.jsonl so the TUI can open it.
- * A failed session returns metrics with error set and no numeric score.
+ * A failed session returns metrics with error set and no decision.
  */
 export async function judgeRun({
   task,
@@ -36,7 +39,6 @@ export async function judgeRun({
   artifact,
   outDir,
   judgeModel,
-  successThreshold,
   timeoutMs,
   signal,
 }: {
@@ -45,7 +47,6 @@ export async function judgeRun({
   artifact: RunArtifact;
   outDir: string;
   judgeModel: string;
-  successThreshold: number;
   timeoutMs: number;
   signal?: AbortSignal;
 }): Promise<JudgeMetrics> {
@@ -62,10 +63,10 @@ export async function judgeRun({
   const judged = await runJudgeClaude({ command, outDir, timeoutMs, signal });
   saveJudgeTranscript({ sessionId: judged.session_id ?? sessionId, outDir });
 
-  return judgeMetrics({ result: judged, judgeModel, successThreshold });
+  return judgeMetrics({ result: judged, judgeModel });
 }
 
-/** Copies the judge session log. A missing log is only a warning: the score is already in hand. */
+/** Copies the judge session log. A missing log is only a warning: the decision is already in hand. */
 function saveJudgeTranscript({ sessionId, outDir }: { sessionId: string; outDir: string }) {
   try {
     const copied = copyTranscript({

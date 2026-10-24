@@ -36,7 +36,7 @@ const { values: args } = parseArgs({
  * asks whether to delete them and continue. Answering no, or running without a terminal, exits
  * with an error. --force deletes them without asking.
  *
- * configs/benchmark-tasks.json: [{ "taskId", "promptFile", "judgePromptFile", "successThreshold",
+ * configs/benchmark-tasks.json: [{ "taskId", "promptFile", "judgePromptFile",
  *                              "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
  * configs/benchmark-setup.json: [{ "configId", "description"?, "model"?, "mcpConfig"?: [paths],
  *                              "strictMcpConfig"?, "allowedTools"?: [..], "disallowedTools"?: [..],
@@ -46,9 +46,9 @@ const { values: args } = parseArgs({
  * after the run id, startRun, run claude with BENCH_RUN_ID, the tool-log hooks, and the
  * baseline guard (no cd, no shell file edits), copy the
  * transcript into runs/<run_id>/, commit the checkout onto that branch, finishRun, then a
- * second read-only claude session scores the tree with a decimal from 0 to 1 (for example 0.2 or 0.743).
- * That session is a judge_runs row: its own cost, tokens, and duration. success is 1 when the
- * score is at least the task's successThreshold. The judge does not record tool calls.
+ * second read-only claude session decides the tree: failed, partially-failed, partially-pass, or pass.
+ * That session is a judge_runs row: its own cost, tokens, and duration. success is 1 for pass and
+ * partially-pass. The judge does not record tool calls.
  *
  * Ctrl+C stops the benchmark. The run in progress is stored as cancelled (finished time, duration,
  * and any cost, turns, and tokens already reported) and later runs are not started. Exit code 130.
@@ -140,7 +140,7 @@ async function main() {
               break;
             }
 
-            const judged = judgementText({ judge, successThreshold: task.successThreshold });
+            const judged = judgementText({ judge });
             console.log(
               `  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}, ${judged}`,
             );

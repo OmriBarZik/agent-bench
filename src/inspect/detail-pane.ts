@@ -1,4 +1,4 @@
-import { changedFileLine, scoreLabel } from "./format-run";
+import { changedFileLine } from "./format-run";
 import type { RunChoice } from "./select-state.types";
 import { colorLine, fit } from "./terminal-text";
 import type { LineKind } from "./terminal-text.types";
@@ -124,11 +124,19 @@ function titleLine(choice: RunChoice): string {
 function metaLine(choice: RunChoice): string {
   const model = choice.model === "" ? "default model" : choice.model;
 
-  return `${model} · ${choice.status} · repeat ${choice.repeat} · ${scoreText(choice)}`;
+  return `${model} · ${choice.status} · repeat ${choice.repeat} · ${decisionText(choice)}`;
 }
 
-function scoreText(choice: RunChoice): string {
-  const label = scoreLabel(choice.score).trim();
+function decisionText(choice: RunChoice): string {
+  if (choice.decision) {
+    if (choice.success) {
+      return `decision ${choice.decision} · success`;
+    }
+
+    return `decision ${choice.decision}`;
+  }
+
+  const label = choice.score == null ? "n/a" : choice.score.toFixed(3);
 
   if (choice.success == null) {
     return `score ${label}`;

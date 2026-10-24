@@ -1,6 +1,7 @@
-/** The score and explanation parsed from a judge session. */
+import type { JudgeDecision } from "../../db/judge-decision.types";
+
+/** The decision and explanation parsed from a judge session. */
 export type JudgeVerdict = {
-  /** 0 means the task was not done. 1 means every requirement was met. */
-  score: number;
+  decision: JudgeDecision;
   reason: string;
 };
