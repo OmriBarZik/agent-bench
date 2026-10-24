@@ -44,6 +44,8 @@ export async function selectRun({
   } finally {
     detach();
     process.stdin.setRawMode(false);
+    // resume() keeps the event loop alive, so Esc and Ctrl+C would return here and then wait for another Ctrl+C.
+    process.stdin.pause();
     process.stdout.write(LEAVE_SCREEN);
   }
 }
