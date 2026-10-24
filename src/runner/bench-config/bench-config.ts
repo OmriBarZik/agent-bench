@@ -1,7 +1,7 @@
 import { dirname, resolve } from "node:path";
 import { hashFiles } from "../../db/db";
 import type { Config, Task } from "../../db/db.types";
-import { BENCH_DIR, HOOK_SETTINGS } from "../../paths";
+import { BASELINE_HASH_FILES, BENCH_DIR } from "../../paths";
 import type { BenchConfig, Selection, SelectionSource, TaskEntry } from "./bench-config.types";
 
 /** Reads benchmark-tasks.json (loading each task's prompt and judge prompt) and benchmark-setup.json, then applies the --only-* filters. */
@@ -80,9 +80,9 @@ async function readTrimmed({ path, taskId, label }: { path: string; taskId: stri
   return text;
 }
 
-/** The configs row: config_hash covers the hook settings, MCP configs and extraFiles. */
+/** The configs row: config_hash covers the shared baseline, MCP configs and extraFiles. */
 export async function toConfigRow(config: BenchConfig): Promise<Config> {
-  const files = [HOOK_SETTINGS, ...(config.mcpConfig ?? []), ...(config.extraFiles ?? [])].map((path) =>
+  const files = [...BASELINE_HASH_FILES, ...(config.mcpConfig ?? []), ...(config.extraFiles ?? [])].map((path) =>
     resolve(BENCH_DIR, path),
   );
 

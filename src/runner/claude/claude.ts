@@ -2,6 +2,7 @@ import { $ } from "bun";
 import { cpSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+import { BASELINE_PROMPT } from "../../baseline-policy";
 import type { ClaudeResult, Task } from "../../db/db.types";
 import { BENCH_DIR, CHROMIUM_SRC, HOOK_SETTINGS, TRANSCRIPT_FILE } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
@@ -32,6 +33,8 @@ export function claudeArgs({
     sessionId,
     "--settings",
     HOOK_SETTINGS,
+    "--append-system-prompt",
+    BASELINE_PROMPT,
   ];
 
   if (config.model) {

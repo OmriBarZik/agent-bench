@@ -43,13 +43,14 @@ Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--t
 src/main.ts
   ├─ loadSelection        benchmark-tasks.json × benchmark-setup.json, filtered by --only-*
   ├─ hasUncommittedChanges → refuse unless --force
-  ├─ upsertTask / upsertConfig (config_hash = sha256 of hook settings + MCP configs + extraFiles)
+  ├─ upsertTask / upsertConfig (config_hash = sha256 of the shared baseline + MCP configs + extraFiles)
   └─ for each task × config × repeat → runOne
         1. resetChromium(sha)          git reset/clean/checkout, then the same in each submodule [+ gclient sync]
         2. createRunBranch(runId)      branch at that SHA, named after the run id
         3. startRun                    insert the runs row (status = running)
-        4. runClaude                   claude -p … --output-format json --settings hooks/settings.example.json
-        │     └─ hooks/tool-log.ts     PreToolUse/PostToolUse → tool_calls rows (only when BENCH_RUN_ID is set)
+        4. runClaude                   claude -p … --append-system-prompt (baseline) --settings hooks/settings.example.json
+        │     ├─ hooks/tool-log.ts        PreToolUse/PostToolUse → tool_calls rows (only when BENCH_RUN_ID is set)
+        │     └─ hooks/baseline-guard.ts  PreToolUse Bash: deny cd and shell file edits for every config
         5. copyTranscript              ~/.claude/projects/**/<session>.jsonl → runs/<run_id>/
         6. commitRunChanges            commit submodule checkouts, then the superproject
         7. finishRun                   duration, turns, cost, tokens, denials, changed files, raw result
@@ -79,7 +80,8 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 | `src/runner/judge/`            | Read-only scoring session: judge prompt, worktree diff, and the decimal verdict                                   |
 | `src/runner/run-one/`          | One run end to end (the steps above)                                                                              |
 | `hooks/tool-log.ts`            | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)              |
-| `hooks/settings.example.json`  | The hook registration passed to `claude --settings`. It's part of `config_hash`                                   |
+| `hooks/baseline-guard.ts`      | Baseline PreToolUse guard. Parses Bash with unbash and denies `cd` and shell file edits. Part of every config     |
+| `hooks/settings.example.json`  | Hook registration and the `cd` deny rules, passed to `claude --settings`. Part of `config_hash`                   |
 | `db/schema.sql`                | SQLite schema, applied idempotently on every open                                                                 |
 | `data/bench.sqlite`            | The results DB (gitignored)                                                                                       |
 | `runs/<run_id>/`               | Per-run artifacts: agent `transcript.jsonl`, judge `judge-transcript.jsonl`, command and result logs (gitignored) |
@@ -124,7 +126,7 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 ]
 ```
 
-Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their contents are hashed into `config_hash`, so editing one of them shows up as a new config version.
+Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their contents are hashed into `config_hash`, along with the shared baseline (hook settings, the Bash guard, and its prompt). Editing any of them shows up as a new config version. The baseline is not a config in `benchmark-setup.json`: every config gets the same `cd` ban, the same shell-edit ban, and the same appended prompt.
 
 ## Data model
 
@@ -182,7 +184,8 @@ WHERE run_id = ? AND phase = 'pre' AND tool = 'Bash' GROUP BY program ORDER BY 2
 ## Design choices
 
 - **SQLite in WAL mode** lets many short-lived hook processes write while the runner holds the DB open, with no Docker or server to start.
-- **The hook never blocks a tool.** It always exits 0, and if the DB write fails it appends the row to `~/.claude/bench-hook-fallback.jsonl` instead.
+- **tool-log never blocks a tool.** It always exits 0, and if the DB write fails it appends the row to `~/.claude/bench-hook-fallback.jsonl` instead.
+- **The baseline guard denies `cd` and shell file edits** on every config, then exits 0. The agent uses absolute paths or `git -C`, and Edit or Write for file contents. `cd`, `pushd`, and `popd` are also in the settings deny list.
 - **Bun built-ins only**: `bun:sqlite`, Bun Shell (`$`), `Bun.spawn`, `Bun.file` and `Bun.CryptoHasher`. Type checking is `bun check` and formatting is `bun fmt` (120 columns).
 
 ## Dashboard

@@ -10,7 +10,7 @@ Read `docs/overview.md` for the full layout, data model and input file shapes. L
 
 ## Commands
 
-Bun 1.4.4 only: no Node, `tsc`, Prettier, ESLint or runtime npm dependencies. Ask before adding any dependency.
+Bun 1.4.4 only: no Node, `tsc`, Prettier, or ESLint. The only runtime dependency is `unbash`, used by the baseline Bash guard. Ask before adding another.
 
 ```sh
 bun run typecheck        # bun check (src/ + hooks/ per tsconfig include); bun check path/to/file.ts for one file
@@ -28,8 +28,8 @@ Both typecheck and format:check must pass before finishing a change. The husky p
 - **Never import `src/main.ts`.** It's a CLI entry point, so it's only ever run with `bun src/main.ts`. An `if (import.meta.main)` guard means importing it won't start a benchmark, but don't rely on that: put anything another module or a test needs into `src/runner/` or another module.
 - **Never delete `data/` or `data/bench.sqlite*`** (including the `-wal`/`-shm` files). They hold the results.
 - **`db/schema.sql` runs on every `openDb()`**, so every statement must be idempotent (`IF NOT EXISTS`). To change an existing table, also give the user the `ALTER TABLE` to run.
-- **The hook must never block a tool.** `hooks/tool-log.ts` must always exit 0, do nothing unless `BENCH_RUN_ID` is set, and fall back to `~/.claude/bench-hook-fallback.jsonl` when the DB write fails.
-- **Editing `hooks/settings.example.json` changes every config's `config_hash`.** The hash also covers each config's `mcpConfig` and `extraFiles` contents, so editing those files creates a new config version.
+- **tool-log must never block a tool.** `hooks/tool-log.ts` must always exit 0, do nothing unless `BENCH_RUN_ID` is set, and fall back to `~/.claude/bench-hook-fallback.jsonl` when the DB write fails. `hooks/baseline-guard.ts` is the exception that may deny a Bash call: it is the shared baseline (no `cd`, no shell file edits), not a config.
+- **Editing the baseline changes every config's `config_hash`.** The hash covers `hooks/settings.example.json`, the guard sources, `src/baseline-policy.ts`, and each config's `mcpConfig` and `extraFiles`. Editing those creates a new config version.
 
 ## Architecture
 

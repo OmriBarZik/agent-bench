@@ -38,7 +38,8 @@ const { values: args } = parseArgs({
  *                              "permissionMode"?, "extraFiles"?: [paths hashed into config_hash] }]
  *
  * Per run (src/runner/run-one/run-one.ts): reset src/ to the task's SHA, check out a branch named
- * after the run id, startRun, run claude with BENCH_RUN_ID + the tool-log hooks, copy the
+ * after the run id, startRun, run claude with BENCH_RUN_ID, the tool-log hooks, and the
+ * baseline guard (no cd, no shell file edits), copy the
  * transcript into runs/<run_id>/, commit the checkout onto that branch, finishRun, then a
  * second read-only claude session scores the tree with a decimal from 0 to 1 (for example 0.2 or 0.743).
  * That session is a judge_runs row: its own cost, tokens, and duration. success is 1 when the

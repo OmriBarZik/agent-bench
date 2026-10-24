@@ -7,7 +7,7 @@ description: Rules for writing, checking and running TypeScript in agent-bench w
 
 For the project layout and how a run works, see `docs/overview.md`.
 
-agent-bench runs Claude Code sessions against a Chromium checkout and stores the results in a local SQLite file (`data/bench.sqlite`). There's no Docker and no DB server. It uses **Bun 1.4.4** for everything. There is no Node, no `tsc`, no Prettier, no ESLint and no npm runtime dependencies. Keep it that way.
+agent-bench runs Claude Code sessions against a Chromium checkout and stores the results in a local SQLite file (`data/bench.sqlite`). There's no Docker and no DB server. It uses **Bun 1.4.4** for everything. There is no Node, no `tsc`, no Prettier, and no ESLint. The only runtime dependency is `unbash`, which the baseline guard uses to parse Bash. Ask before adding another.
 
 ## Before you finish any change
 
@@ -84,12 +84,13 @@ For file structure, naming, comments and when to split a file, see the `code-sty
 ## Hooks (`hooks/tool-log.ts`)
 
 - These are Claude Code PreToolUse/PostToolUse hooks. The input is JSON on stdin (`Bun.stdin.text()`) and the phase is `Bun.argv[2]` (`pre`/`post`).
-- **A hook must never block or fail a tool.** Keep all three of these behaviours in any change:
+- **tool-log must never block or fail a tool.** Keep all three of these behaviours in any change to `hooks/tool-log.ts`:
   - it always ends with `process.exit(0)`;
   - it does nothing unless `BENCH_RUN_ID` is set;
   - it falls back to `~/.claude/bench-hook-fallback.jsonl` when the DB write fails.
+- `hooks/baseline-guard.ts` may deny a Bash call (no `cd`, no shell file edits). That guard is the shared baseline, and it still exits 0: the deny decision is JSON on stdout. It parses Bash with `unbash` rather than a handwritten tokenizer.
 - `tool_calls.run_id` is a foreign key, so the `runs` row must exist before the hook fires. The runner calls `startRun` before spawning `claude`.
-- `hooks/settings.example.json` is part of `config_hash` (via `hashFiles`), so editing it changes every config's hash.
+- The baseline files (`hooks/settings.example.json`, the guard sources, and `src/baseline-policy.ts`) are part of `config_hash`, so editing them changes every config's hash.
 - Set `BENCH_HOOK_DUMP=/path/file.jsonl` to capture the raw hook payloads when debugging.
 
 ## Runner (`src/main.ts` + `src/runner/`)
