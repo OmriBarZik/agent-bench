@@ -6,14 +6,22 @@ import { commitStaged } from "./git-commit";
 import { commitDirtySubmodules, discardSubmoduleChanges, syncSubmodulesToHead } from "./submodules";
 
 /**
- * True when tracked files in the Chromium checkout are modified, including inside a checked-out submodule.
+ * Tracked changes in the Chromium checkout, including inside a checked-out submodule.
  * Untracked files are ignored. `--ignore-submodules=untracked` is required because Chromium sets
  * `diff.ignoreSubmodules=dirty`, which hides those edits from a plain `git status`.
+ * Empty when the tree is clean.
  */
-export async function hasUncommittedChanges(repo: string = CHROMIUM_SRC): Promise<boolean> {
+export async function uncommittedStatus(repo: string = CHROMIUM_SRC): Promise<string> {
   const status = await $`git status --porcelain --untracked-files=no --ignore-submodules=untracked`.cwd(repo).text();
 
-  return status.trim() !== "";
+  return status.trim();
+}
+
+/** True when `uncommittedStatus` reports tracked changes. */
+export async function hasUncommittedChanges(repo: string = CHROMIUM_SRC): Promise<boolean> {
+  const status = await uncommittedStatus(repo);
+
+  return status !== "";
 }
 
 /**

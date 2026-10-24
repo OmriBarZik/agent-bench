@@ -33,7 +33,7 @@ bun run db:shell             # sqlite3 shell on data/bench.sqlite
 bun run inspect              # pick a run: enter opens its transcript, tab checks out its branch
 ```
 
-> ⚠️ The runner **wipes uncommitted work** in the Chromium checkout (`git reset --hard` + `git clean -fd`), including every checked-out submodule, before every run. It refuses to start if tracked files are modified, unless you pass `--force`.
+> ⚠️ The runner **wipes uncommitted work** in the Chromium checkout (`git reset --hard` + `git clean -fd`), including every checked-out submodule, before every run. It refuses to start if tracked files are modified, unless you pass `--force` or answer yes when asked to delete those changes.
 
 Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--timeout-min` (default 60), `--sync` (run `gclient sync -D` after each checkout) and `--force`.
 
@@ -42,7 +42,7 @@ Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--t
 ```
 src/main.ts
   ├─ loadSelection        benchmark-tasks.json × benchmark-setup.json, filtered by --only-*
-  ├─ hasUncommittedChanges → refuse unless --force
+  ├─ uncommittedStatus → ask to delete them; refuse unless --force or the user says yes
   ├─ upsertTask / upsertConfig (config_hash = sha256 of the shared baseline + MCP configs + extraFiles)
   └─ for each task × config × repeat → runOne
         1. resetChromium(sha)          git reset/clean/checkout, then the same in each submodule [+ gclient sync]

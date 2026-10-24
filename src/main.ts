@@ -5,7 +5,8 @@ import { openDb, upsertConfig, upsertTask } from "./db/db";
 import { BENCH_DIR, CHROMIUM_SRC } from "./paths";
 import { loadSelection, toConfigRow } from "./runner/bench-config/bench-config";
 import { claudeVersion } from "./runner/claude/claude";
-import { hasUncommittedChanges } from "./runner/chromium/chromium";
+import { confirmDiscardUncommittedChanges } from "./runner/chromium/confirm-discard";
+import { uncommittedStatus } from "./runner/chromium/chromium";
 import { judgementText } from "./runner/judge/judge-result";
 import { runOne } from "./runner/run-one/run-one";
 import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
@@ -20,7 +21,7 @@ const { values: args } = parseArgs({
     "timeout-min": { type: "string", default: "60" },
     "judge-model": { type: "string", default: "claude-sonnet-5-5" },
     sync: { type: "boolean", default: false }, // run `gclient sync -D` after each checkout
-    force: { type: "boolean", default: false }, // allow wiping uncommitted changes in src/
+    force: { type: "boolean", default: false }, // wipe uncommitted changes in src/ without asking
   },
 });
 
@@ -30,6 +31,10 @@ const { values: args } = parseArgs({
  *   bun src/main.ts [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
  *                     [--only-task id] [--only-config id] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
  *                     [--sync] [--force]
+ *
+ * Uncommitted tracked changes in the Chromium checkout block the run. On a terminal the runner
+ * asks whether to delete them and continue. Answering no, or running without a terminal, exits
+ * with an error. --force deletes them without asking.
  *
  * configs/benchmark-tasks.json: [{ "taskId", "promptFile", "judgePromptFile", "successThreshold",
  *                              "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
@@ -78,9 +83,23 @@ async function main() {
 
     if (shutdown.signal.aborted) {
       stopped = true;
-    } else if (!args.force && (await hasUncommittedChanges())) {
-      throw new Error(`${CHROMIUM_SRC} has uncommitted changes; commit/stash them or pass --force`);
-    } else {
+    } else if (!args.force) {
+      const status = await uncommittedStatus();
+
+      if (status !== "") {
+        const discard = await confirmDiscardUncommittedChanges({ signal: shutdown.signal, status });
+
+        if (shutdown.signal.aborted) {
+          stopped = true;
+        } else if (!discard) {
+          throw new Error(`${CHROMIUM_SRC} has uncommitted changes; commit/stash them or pass --force`);
+        } else {
+          console.log(`Deleting uncommitted changes in ${CHROMIUM_SRC}.`);
+        }
+      }
+    }
+
+    if (!stopped) {
       const options = {
         claudeVersion: await claudeVersion(),
         timeoutMs: Number(args["timeout-min"]) * 60_000,

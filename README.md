@@ -28,19 +28,19 @@ bun run inspect                               # list runs; enter opens the trans
 bun run inspect -- <branch>                   # check out that run's branch
 ```
 
-> ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`), including checked-out submodules. The runner refuses to start if tracked files are modified, unless you pass `--force`.
+> ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`), including checked-out submodules. The runner refuses to start if tracked files are modified, unless you pass `--force` or answer yes when asked to delete those changes.
 >
 > Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends, including files inside submodules. `bun run inspect` lists those runs from the database. Enter opens the run's transcript in the browser, and Tab checks the branch out in `chromium/src` so you can build it. Ignored build output is left in place. `bun run inspect -- --force` discards uncommitted tracked changes that block the switch.
 
-| Flag                 | Default                        | Description                                                     |
-| -------------------- | ------------------------------ | --------------------------------------------------------------- |
-| `--tasks <path>`     | `configs/benchmark-tasks.json` | Tasks file                                                      |
-| `--configs <path>`   | `configs/benchmark-setup.json` | Configs file                                                    |
-| `--repeats <n>`      | `1`                            | Runs per task × config                                          |
-| `--only-task <id>`   | all                            | Run only this task                                              |
-| `--only-config <id>` | all                            | Run only this config                                            |
-| `--timeout-min <n>`  | `60`                           | Kill a `claude` session after this many minutes                 |
-| `--sync`             | off                            | Run `gclient sync -D` after each checkout                       |
-| `--force`            | off                            | Run even if `chromium/src` has uncommitted changes (wipes them) |
+| Flag                 | Default                        | Description                                               |
+| -------------------- | ------------------------------ | --------------------------------------------------------- |
+| `--tasks <path>`     | `configs/benchmark-tasks.json` | Tasks file                                                |
+| `--configs <path>`   | `configs/benchmark-setup.json` | Configs file                                              |
+| `--repeats <n>`      | `1`                            | Runs per task × config                                    |
+| `--only-task <id>`   | all                            | Run only this task                                        |
+| `--only-config <id>` | all                            | Run only this config                                      |
+| `--timeout-min <n>`  | `60`                           | Kill a `claude` session after this many minutes           |
+| `--sync`             | off                            | Run `gclient sync -D` after each checkout                 |
+| `--force`            | off                            | Wipe uncommitted changes in `chromium/src` without asking |
 
 See [docs/overview.md](docs/overview.md) for how a run works, the data model and example queries.
