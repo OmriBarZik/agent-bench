@@ -2,7 +2,19 @@ import { Database } from "bun:sqlite";
 import { mkdirSync, readFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
-import type { ClaudeResult, ClaudeUsage, Config, RunArtifact, RunStart, Score, Task, ToolCall } from "./db.types";
+import type {
+  ChangedFile,
+  ClaudeResult,
+  ClaudeUsage,
+  Config,
+  RunArtifact,
+  RunBranchRow,
+  RunBranchSql,
+  RunStart,
+  Score,
+  Task,
+  ToolCall,
+} from "./db.types";
 import { BENCH_DIR } from "./paths";
 
 export const DB_PATH = process.env.BENCH_DB_PATH ?? join(BENCH_DIR, "data", "bench.sqlite");
@@ -237,4 +249,57 @@ export function logToolCall({ db, call }: { db: Database; call: ToolCall }) {
     isError: call.isError ?? null,
     responsePreview: call.responsePreview ?? null,
   });
+}
+
+/** Runs that recorded a branch, newest first. This is the list the inspect command shows. */
+export function listRunBranches(db: Database): RunBranchRow[] {
+  const rows = db
+    .query(
+      `SELECT runs.run_id, runs.task_id, runs.config_id, runs.repeat, runs.status, runs.started_at,
+            runs.branch, runs.model, runs.commit_sha, runs.changed_files, runs.artifacts_path,
+            tasks.title AS title
+     FROM runs
+     LEFT JOIN tasks ON tasks.task_id = runs.task_id
+     WHERE runs.branch IS NOT NULL AND runs.branch != ''
+     ORDER BY runs.started_at DESC`,
+    )
+    .all() as RunBranchSql[];
+
+  return rows.map((row) => toRunBranchRow(row));
+}
+
+function toRunBranchRow(row: RunBranchSql): RunBranchRow {
+  return {
+    runId: row.run_id,
+    taskId: row.task_id ?? "",
+    configId: row.config_id ?? "",
+    repeat: row.repeat ?? 0,
+    status: row.status ?? "running",
+    startedAt: row.started_at ?? "",
+    branch: row.branch,
+    model: row.model ?? "",
+    title: row.title,
+    commitSha: row.commit_sha,
+    changedFiles: parseChangedFiles(row.changed_files),
+    artifactsPath: row.artifacts_path,
+  };
+}
+
+function parseChangedFiles(raw: string | null): ChangedFile[] {
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as ChangedFile[];
+
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed;
+  } catch {
+    // One corrupt cell should not stop the run list from opening.
+    return [];
+  }
 }

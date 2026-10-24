@@ -73,6 +73,38 @@ export type Score = {
   details?: unknown;
 };
 
+/** Columns read by listRunBranches. Snake case, matching the query. */
+export type RunBranchSql = {
+  run_id: string;
+  task_id: string | null;
+  config_id: string | null;
+  repeat: number | null;
+  status: string | null;
+  started_at: string | null;
+  branch: string;
+  model: string | null;
+  commit_sha: string | null;
+  changed_files: string | null;
+  artifacts_path: string | null;
+  title: string | null;
+};
+
+/** One run that recorded a branch, newest-first in the inspect list. */
+export type RunBranchRow = {
+  runId: string;
+  taskId: string;
+  configId: string;
+  repeat: number;
+  status: string;
+  startedAt: string;
+  branch: string;
+  model: string;
+  title: string | null;
+  commitSha: string | null;
+  changedFiles: ChangedFile[];
+  artifactsPath: string | null;
+};
+
 /** One PreToolUse/PostToolUse hook event, stored as a tool_calls row. */
 export type ToolCall = {
   runId: string;

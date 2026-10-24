@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "db:shell": "sqlite3 data/bench.sqlite",
+    "inspect": "bun src/inspect/main.ts",
     "typecheck": "bun check",
     "format": "bun fmt",
     "format:check": "bun fmt --check",

@@ -24,6 +24,46 @@ export async function createRunBranch(branch: string) {
   await $`git switch --quiet -C ${branch}`.cwd(CHROMIUM_SRC).quiet();
 }
 
+/** Short names of local branches in the Chromium checkout. */
+export async function listLocalBranches(): Promise<string[]> {
+  // Bun shell parses "(" as syntax, so the git format string has to be a JS value.
+  const format = "%(refname:short)";
+  const raw = await $`git for-each-ref --format=${format} refs/heads`.cwd(CHROMIUM_SRC).text();
+
+  return raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+}
+
+/** The branch checked out in the Chromium tree, or null when HEAD is detached. */
+export async function currentBranch(): Promise<string | null> {
+  const name = (await $`git branch --show-current`.cwd(CHROMIUM_SRC).text()).trim();
+
+  if (name === "") {
+    return null;
+  }
+
+  return name;
+}
+
+/** Checks out an existing local branch in the Chromium tree. `force` discards tracked changes that block the switch. */
+export async function checkoutBranch({ branch, force = false }: { branch: string; force?: boolean }) {
+  const branches = await listLocalBranches();
+
+  if (!branches.includes(branch)) {
+    throw new Error(`branch ${branch} does not exist in ${CHROMIUM_SRC}`);
+  }
+
+  if (force) {
+    await $`git switch --quiet --force ${branch}`.cwd(CHROMIUM_SRC).quiet();
+
+    return;
+  }
+
+  await $`git switch --quiet ${branch}`.cwd(CHROMIUM_SRC).quiet();
+}
+
 /**
  * Commits the checkout onto `branch` and returns every path that differs from `baseSha`.
  * The agent is not asked to do this. Hooks and signing are skipped: depot_tools rejects

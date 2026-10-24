@@ -24,11 +24,13 @@ Put `benchmark-tasks.json` and `benchmark-setup.json` in `configs/` (shapes in [
 bun src/main.ts                               # every task × config
 bun src/main.ts --only-task t1 --repeats 3    # one task, 3 repeats
 bun run db:shell                              # query data/bench.sqlite
+bun run inspect                               # list runs; enter opens the transcript, tab checks out the branch
+bun run inspect -- <branch>                   # check out that run's branch
 ```
 
 > ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`). The runner refuses to start if tracked files are modified, unless you pass `--force`.
 >
-> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends. `git switch <run_id>` in `chromium/src` shows that run. Ignored build output is left in place.
+> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends. `bun run inspect` lists those runs from the database. Enter opens the run's transcript in the browser, and Tab checks the branch out in `chromium/src` so you can build it. Ignored build output is left in place. `bun run inspect -- --force` discards uncommitted tracked changes that block the switch.
 
 | Flag                 | Default                        | Description                                                     |
 | -------------------- | ------------------------------ | --------------------------------------------------------------- |

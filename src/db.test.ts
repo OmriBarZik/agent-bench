@@ -3,7 +3,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { finishRun, openDb, startRun, upsertConfig, upsertTask } from "./db";
+import { finishRun, listRunBranches, openDb, startRun, upsertConfig, upsertTask } from "./db";
 
 const directories: string[] = [];
 
@@ -97,3 +97,56 @@ test("finishRun stores the branch commit and the files it changed", () => {
     db.close();
   }
 });
+
+test("listRunBranches returns newest runs and skips a corrupt file list", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint", chromiumSha: "abc", title: "Dino" } });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    seedRun({ db, runId: "older", startedAt: "2026-10-24T12:00:00.000Z" });
+    seedRun({ db, runId: "newer", startedAt: "2026-10-24T14:00:00.000Z" });
+    finishRun({
+      db,
+      runId: "newer",
+      result: { is_error: false },
+      artifact: { commitSha: "abc123", changedFiles: [{ status: "M", path: "chrome/foo.cc" }] },
+    });
+    seedRun({ db, runId: "skipped", startedAt: "2026-10-24T15:00:00.000Z" });
+    db.query("UPDATE runs SET branch = NULL WHERE run_id = $runId").run({ runId: "skipped" });
+    db.query("UPDATE runs SET changed_files = $changedFiles WHERE run_id = $runId").run({
+      runId: "older",
+      changedFiles: "{",
+    });
+    const rows = listRunBranches(db);
+
+    expect(rows.map((row) => row.runId)).toEqual(["newer", "older"]);
+    expect(rows[0]).toMatchObject({
+      title: "Dino",
+      taskId: "dino",
+      configId: "haiku",
+      status: "done",
+      model: "claude-haiku-5-5",
+      commitSha: "abc123",
+      changedFiles: [{ status: "M", path: "chrome/foo.cc" }],
+    });
+    expect(rows[1]?.changedFiles).toEqual([]);
+  } finally {
+    db.close();
+  }
+});
+
+function seedRun({ db, runId, startedAt }: { db: Database; runId: string; startedAt: string }) {
+  startRun({
+    db,
+    run: {
+      runId,
+      taskId: "dino",
+      configId: "haiku",
+      repeat: 0,
+      claudeVersion: "test",
+      model: "claude-haiku-5-5",
+      branch: runId,
+    },
+  });
+  db.query("UPDATE runs SET started_at = $startedAt WHERE run_id = $runId").run({ runId, startedAt });
+}
