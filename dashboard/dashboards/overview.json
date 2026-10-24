@@ -4,7 +4,7 @@
   "tags": ["agent-bench"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 5,
+  "version": 6,
   "refresh": "30s",
   "time": {
     "from": "now-7d",
@@ -51,6 +51,26 @@
         },
         "refresh": 2,
         "sort": 1
+      },
+      {
+        "name": "run",
+        "label": "Run",
+        "type": "query",
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "bench-sqlite"
+        },
+        "query": "SELECT run_id FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC",
+        "definition": "SELECT run_id FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC",
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "refresh": 2,
+        "sort": 0
       }
     ]
   },
@@ -76,8 +96,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT count(*) AS runs FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT count(*) AS runs FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT count(*) AS runs FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT count(*) AS runs FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -115,8 +135,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT count(*) AS done FROM runs WHERE status = 'done' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT count(*) AS done FROM runs WHERE status = 'done' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT count(*) AS done FROM runs WHERE status = 'done' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT count(*) AS done FROM runs WHERE status = 'done' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -154,8 +174,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT count(*) AS crashed FROM runs WHERE status = 'crashed' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT count(*) AS crashed FROM runs WHERE status = 'crashed' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT count(*) AS crashed FROM runs WHERE status = 'crashed' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT count(*) AS crashed FROM runs WHERE status = 'crashed' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -193,8 +213,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT coalesce(avg(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT coalesce(avg(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT coalesce(avg(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT coalesce(avg(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -235,8 +255,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT coalesce(sum(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT coalesce(sum(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT coalesce(sum(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT coalesce(sum(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -277,8 +297,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT coalesce(avg(num_turns), 0) AS turns FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT coalesce(avg(num_turns), 0) AS turns FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT coalesce(avg(num_turns), 0) AS turns FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT coalesce(avg(num_turns), 0) AS turns FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -318,8 +338,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT coalesce(avg(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT coalesce(avg(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT coalesce(avg(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT coalesce(avg(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -363,8 +383,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT coalesce(sum(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT coalesce(sum(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT coalesce(sum(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT coalesce(sum(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -408,8 +428,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT CASE WHEN coalesce(sum(total_tokens), 0) = 0 THEN 0 ELSE 100.0 * coalesce(sum(cache_read_tokens), 0) / sum(total_tokens) END AS percent FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT CASE WHEN coalesce(sum(total_tokens), 0) = 0 THEN 0 ELSE 100.0 * coalesce(sum(cache_read_tokens), 0) / sum(total_tokens) END AS percent FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryText": "SELECT CASE WHEN coalesce(sum(total_tokens), 0) = 0 THEN 0 ELSE 100.0 * coalesce(sum(cache_read_tokens), 0) / sum(total_tokens) END AS percent FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT CASE WHEN coalesce(sum(total_tokens), 0) = 0 THEN 0 ELSE 100.0 * coalesce(sum(cache_read_tokens), 0) / sum(total_tokens) END AS percent FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})",
           "queryType": "table"
         }
       ],
@@ -454,8 +474,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT type, tokens FROM (SELECT 1 AS ord, 'fresh input' AS type, coalesce(sum(input_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 2, 'cache write', coalesce(sum(cache_creation_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 3, 'cache read', coalesce(sum(cache_read_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 4, 'output', coalesce(sum(output_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})) ORDER BY ord",
-          "rawQueryText": "SELECT type, tokens FROM (SELECT 1 AS ord, 'fresh input' AS type, coalesce(sum(input_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 2, 'cache write', coalesce(sum(cache_creation_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 3, 'cache read', coalesce(sum(cache_read_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 4, 'output', coalesce(sum(output_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})) ORDER BY ord",
+          "queryText": "SELECT type, tokens FROM (SELECT 1 AS ord, 'fresh input' AS type, coalesce(sum(input_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) UNION ALL SELECT 2, 'cache write', coalesce(sum(cache_creation_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) UNION ALL SELECT 3, 'cache read', coalesce(sum(cache_read_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) UNION ALL SELECT 4, 'output', coalesce(sum(output_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})) ORDER BY ord",
+          "rawQueryText": "SELECT type, tokens FROM (SELECT 1 AS ord, 'fresh input' AS type, coalesce(sum(input_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) UNION ALL SELECT 2, 'cache write', coalesce(sum(cache_creation_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) UNION ALL SELECT 3, 'cache read', coalesce(sum(cache_read_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) UNION ALL SELECT 4, 'output', coalesce(sum(output_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote})) ORDER BY ord",
           "queryType": "table"
         }
       ],
@@ -495,8 +515,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT task_id || ' / ' || config_id AS setup, avg(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
-          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, avg(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
+          "queryText": "SELECT task_id || ' / ' || config_id AS setup, avg(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
+          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, avg(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
           "queryType": "table"
         }
       ],
@@ -537,8 +557,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT task_id || ' / ' || config_id AS setup, avg(duration_ms) / 1000.0 AS seconds FROM runs WHERE duration_ms IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY task_id, config_id ORDER BY seconds DESC",
-          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, avg(duration_ms) / 1000.0 AS seconds FROM runs WHERE duration_ms IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY task_id, config_id ORDER BY seconds DESC",
+          "queryText": "SELECT task_id || ' / ' || config_id AS setup, avg(duration_ms) / 1000.0 AS seconds FROM runs WHERE duration_ms IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY seconds DESC",
+          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, avg(duration_ms) / 1000.0 AS seconds FROM runs WHERE duration_ms IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY seconds DESC",
           "queryType": "table"
         }
       ],
@@ -579,8 +599,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT CAST(strftime('%s', started_at) AS INTEGER) AS time, cost_usd AS \"cost (USD)\", CAST(num_turns AS REAL) AS turns FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at",
-          "rawQueryText": "SELECT CAST(strftime('%s', started_at) AS INTEGER) AS time, cost_usd AS \"cost (USD)\", CAST(num_turns AS REAL) AS turns FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at",
+          "queryText": "SELECT CAST(strftime('%s', started_at) AS INTEGER) AS time, cost_usd AS \"cost (USD)\", CAST(num_turns AS REAL) AS turns FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at",
+          "rawQueryText": "SELECT CAST(strftime('%s', started_at) AS INTEGER) AS time, cost_usd AS \"cost (USD)\", CAST(num_turns AS REAL) AS turns FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at",
           "queryType": "table",
           "timeColumns": ["time"]
         }
@@ -651,8 +671,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
-          "rawQueryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
+          "queryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
+          "rawQueryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
           "queryType": "table"
         }
       ],
@@ -690,8 +710,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY action ORDER BY calls DESC",
-          "rawQueryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY action ORDER BY calls DESC",
+          "queryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY action ORDER BY calls DESC",
+          "rawQueryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY action ORDER BY calls DESC",
           "queryType": "table"
         }
       ],
@@ -729,8 +749,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC LIMIT 100",
-          "rawQueryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC LIMIT 100",
+          "queryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at DESC LIMIT 100",
+          "rawQueryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at DESC LIMIT 100",
           "queryType": "table"
         }
       ],
@@ -785,8 +805,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
-          "rawQueryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
+          "queryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
+          "rawQueryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
           "queryType": "table"
         }
       ],
@@ -823,8 +843,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
-          "rawQueryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
+          "queryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
+          "rawQueryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
           "queryType": "table"
         }
       ],
