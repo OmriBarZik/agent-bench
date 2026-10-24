@@ -327,6 +327,17 @@ export function logToolCall({ db, call }: { db: Database; call: ToolCall }) {
   });
 }
 
+/** Removes one run and the judge and tool-call rows that belong to it. The task and config rows stay. */
+export function deleteRun({ db, runId }: { db: Database; runId: string }) {
+  const remove = db.transaction(() => {
+    db.query(`DELETE FROM tool_calls WHERE run_id = $runId`).run({ runId });
+    db.query(`DELETE FROM judge_runs WHERE run_id = $runId`).run({ runId });
+    db.query(`DELETE FROM runs WHERE run_id = $runId`).run({ runId });
+  });
+
+  remove();
+}
+
 /** Runs that recorded a branch, newest first. This is the list the inspect command shows. */
 export function listRunBranches(db: Database): RunBranchRow[] {
   const rows = db

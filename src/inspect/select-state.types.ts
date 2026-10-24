@@ -19,8 +19,11 @@ export type SelectState = {
   scroll: number;
 };
 
+/** What the run list should do after one keypress. */
+export type SelectAction = "stay" | "transcript" | "judge" | "checkout" | "delete" | "quit";
+
 /** What one keypress did to the run list. */
 export type SelectResult = {
   state: SelectState;
-  action: "stay" | "transcript" | "judge" | "checkout" | "quit";
+  action: SelectAction;
 };

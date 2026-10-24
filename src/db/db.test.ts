@@ -3,7 +3,17 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { finishRun, listRunBranches, openDb, saveJudgeRun, startRun, upsertConfig, upsertTask } from "./db";
+import {
+  deleteRun,
+  finishRun,
+  listRunBranches,
+  logToolCall,
+  openDb,
+  saveJudgeRun,
+  startRun,
+  upsertConfig,
+  upsertTask,
+} from "./db";
 import type { JudgeMetrics } from "./db.types";
 
 const directories: string[] = [];
@@ -236,6 +246,46 @@ test("saveJudgeRun keeps the judge metrics apart from the agent run", () => {
       judgeDurationMs: 12_000,
       judgeTurns: 4,
     });
+  } finally {
+    db.close();
+  }
+});
+
+test("deleteRun removes the run, its judge, and its tool calls", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({
+      db,
+      task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", successThreshold: 0.8, chromiumSha: "abc" },
+    });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    const runId = "dino__haiku__r0";
+    const keptId = "dino__haiku__r1";
+    startRun({
+      db,
+      run: { runId, taskId: "dino", configId: "haiku", repeat: 0, claudeVersion: "test", model: "test", branch: runId },
+    });
+    startRun({
+      db,
+      run: {
+        runId: keptId,
+        taskId: "dino",
+        configId: "haiku",
+        repeat: 1,
+        claudeVersion: "test",
+        model: "test",
+        branch: keptId,
+      },
+    });
+    saveJudgeRun({ db, runId, judge: judged });
+    logToolCall({ db, call: { runId, phase: "pre", tool: "Bash", command: "ls" } });
+    deleteRun({ db, runId });
+
+    expect(db.query(`SELECT run_id FROM runs WHERE run_id = $runId`).get({ runId })).toBeNull();
+    expect(db.query(`SELECT run_id FROM judge_runs WHERE run_id = $runId`).get({ runId })).toBeNull();
+    expect(db.query(`SELECT run_id FROM tool_calls WHERE run_id = $runId`).get({ runId })).toBeNull();
+    expect(listRunBranches(db).map((row) => row.runId)).toEqual([keptId]);
+    expect(db.query(`SELECT task_id FROM tasks WHERE task_id = $taskId`).get({ taskId: "dino" })).not.toBeNull();
   } finally {
     db.close();
   }

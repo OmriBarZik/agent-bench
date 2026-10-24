@@ -61,7 +61,7 @@ The runner creates the branch and the commit. The agent is not asked to: it only
 
 The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session scores the checkout. That session is its own `judge_runs` row: model, duration, turns, cost, token counts, a decimal `score` from 0 to 1 (such as 0.2 or 0.743), and `success` (1 when the score is at least the task's `successThreshold`). The agent's metrics stay on `runs`.
 
-To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
+To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Ctrl-x twice removes the highlighted run from the database; the Chromium branch and the files under `runs/<run_id>/` stay. Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
 
 ## Project layout
 

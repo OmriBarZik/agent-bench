@@ -114,7 +114,7 @@ function headerLine({
 function hintLine({ state, columns }: { state: SelectState; columns: number }): string {
   const filter = state.query === "" ? "type to filter" : `filter: ${state.query}`;
   const text = fit({
-    text: `↑↓ move    enter run    → judge    tab checkout    ${filter}    esc quit`,
+    text: `↑↓  enter run  → judge  tab checkout  ^X delete  ${filter}  esc quit`,
     width: columns,
   });
 

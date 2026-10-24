@@ -29,6 +29,15 @@ test("enter opens the run, right arrow opens the judge, and tab checks out", () 
   expect(emptyJudge.action).toBe("stay");
 });
 
+test("ctrl-x deletes unless the list is empty", () => {
+  const remove = applyKey({ state: idle, key: "\x18", matchCount: 2, pageSize: 5 });
+  const empty = applyKey({ state: idle, key: "\x18", matchCount: 0, pageSize: 5 });
+
+  expect(remove.action).toBe("delete");
+  expect(remove.state).toEqual(idle);
+  expect(empty.action).toBe("stay");
+});
+
 test("letters filter, including q, and ctrl-c quits", () => {
   const typed = applyKey({ state: { query: "", selected: 4, scroll: 2 }, key: "q", matchCount: 10, pageSize: 5 });
   const quit = applyKey({ state: typed.state, key: "\x03", matchCount: 10, pageSize: 5 });

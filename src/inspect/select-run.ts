@@ -1,4 +1,5 @@
 import process from "node:process";
+import { deleteIntent, removeListedRun } from "./delete-run";
 import { openTranscript } from "./open-transcript";
 import { frameLayout, renderFrame } from "./render-frame";
 import { applyKey, clampSelection, matchingChoices } from "./select-state";
@@ -10,6 +11,7 @@ const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 /**
  * Full-screen list of runs. Enter opens that run's transcript in the browser and stays here.
  * Right arrow opens the judge session the same way.
+ * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
  * Tab resolves with the highlighted run so the caller can check its branch out. Esc or ctrl-c resolves with null.
  * A lone escape quits, but arrow keys (which start with the same byte) do not.
  */
@@ -58,6 +60,7 @@ function waitForChoice({
   return new Promise((resolve) => {
     let state: SelectState = { query: "", selected: 0, scroll: 0 };
     let notice = "";
+    let armedRunId: string | null = null;
     let settled = false;
     let opening = false;
     let escapeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -183,6 +186,23 @@ function waitForChoice({
           break;
         }
 
+        if (result.action === "delete") {
+          const chosen = matchingChoices({ choices, query: state.query })[state.selected];
+          const intent = deleteIntent({ armedRunId, action: result.action, runId: chosen?.runId ?? null });
+          armedRunId = intent.armedRunId;
+
+          if (intent.remove && chosen) {
+            notice = removeListedRun({ choices, chosen });
+            const matchCount = matchingChoices({ choices, query: state.query }).length;
+            state = clampSelection({ state, matchCount, pageSize });
+          } else {
+            notice = chosen ? "press ^X again to remove this run from the database" : "";
+          }
+
+          break;
+        }
+
+        armedRunId = null;
         notice = "";
       }
 

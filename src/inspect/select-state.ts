@@ -1,7 +1,7 @@
 import { scoreLabel } from "./format-run";
 import type { RunChoice, SelectResult, SelectState } from "./select-state.types";
 
-/** Applies one keypress. Letters always filter, including q; ctrl-c quits. */
+/** Applies one keypress. Letters always filter, including q; ctrl-c quits and ctrl-x deletes. */
 export function applyKey({
   state,
   key,
@@ -27,6 +27,10 @@ export function applyKey({
 
   if (key === "\t") {
     return { state, action: matchCount === 0 ? "stay" : "checkout" };
+  }
+
+  if (key === "\x18") {
+    return { state, action: matchCount === 0 ? "stay" : "delete" };
   }
 
   if (key === "\x7f" || key === "\b" || key === "\x1b[3~") {
