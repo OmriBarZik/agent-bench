@@ -6,8 +6,10 @@ export type RunChoice = RunBranchRow & {
   present: boolean;
   /** True when this branch is the one currently checked out. */
   current: boolean;
-  /** Absolute path to transcript.jsonl, or null when this run has no saved transcript. */
+  /** Absolute path to the agent transcript, or null when this run has no saved transcript. */
   transcriptPath: string | null;
+  /** Absolute path to the judge transcript, or null when that session was not saved. */
+  judgeTranscriptPath: string | null;
 };
 
 /** Filter text and which row of the filtered list is highlighted. */
@@ -20,5 +22,5 @@ export type SelectState = {
 /** What one keypress did to the run list. */
 export type SelectResult = {
   state: SelectState;
-  action: "stay" | "transcript" | "checkout" | "quit";
+  action: "stay" | "transcript" | "judge" | "checkout" | "quit";
 };

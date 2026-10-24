@@ -42,7 +42,7 @@ export function detailLines({
 
   plain.push(choice.branch);
   plain.push(choice.commitSha ? choice.commitSha.slice(0, 12) : "no changes committed");
-  plain.push(choice.transcriptPath ? "transcript ready" : "no transcript");
+  plain.push(transcriptStatus(choice));
 
   if (choice.current) {
     plain.push("currently checked out");
@@ -102,6 +102,13 @@ function colorDetails({
 
     return colorLine({ text: fit({ text: line, width: columns }), kind });
   });
+}
+
+function transcriptStatus(choice: RunChoice): string {
+  const run = choice.transcriptPath ? "run transcript" : "no run transcript";
+  const judge = choice.judgeTranscriptPath ? "judge transcript" : "no judge transcript";
+
+  return `${run} · ${judge}`;
 }
 
 function titleLine(choice: RunChoice): string {

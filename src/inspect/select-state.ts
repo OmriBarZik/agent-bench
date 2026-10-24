@@ -21,6 +21,10 @@ export function applyKey({
     return { state, action: matchCount === 0 ? "stay" : "transcript" };
   }
 
+  if (isRight(key)) {
+    return { state, action: matchCount === 0 ? "stay" : "judge" };
+  }
+
   if (key === "\t") {
     return { state, action: matchCount === 0 ? "stay" : "checkout" };
   }
@@ -168,6 +172,10 @@ function isUp(key: string): boolean {
 
 function isDown(key: string): boolean {
   return key === "\x1b[B" || key === "\x1bOB";
+}
+
+function isRight(key: string): boolean {
+  return key === "\x1b[C" || key === "\x1bOC";
 }
 
 function isPageUp(key: string): boolean {

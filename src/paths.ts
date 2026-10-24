@@ -8,3 +8,7 @@ export const CHROMIUM_SRC = process.env.CHROMIUM_SRC ?? resolve(BENCH_DIR, "../s
 export const HOOK_SETTINGS = join(BENCH_DIR, "hooks/settings.example.json");
 /** Per-run artifacts: runs/<run_id>/. */
 export const RUNS_DIR = join(BENCH_DIR, "runs");
+/** Agent session log inside a run's artifact folder. */
+export const TRANSCRIPT_FILE = "transcript.jsonl";
+/** Judge session log inside a run's artifact folder. */
+export const JUDGE_TRANSCRIPT_FILE = "judge-transcript.jsonl";

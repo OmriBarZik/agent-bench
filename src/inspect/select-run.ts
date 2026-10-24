@@ -9,6 +9,7 @@ const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 
 /**
  * Full-screen list of runs. Enter opens that run's transcript in the browser and stays here.
+ * Right arrow opens the judge session the same way.
  * Tab resolves with the highlighted run so the caller can check its branch out. Esc or ctrl-c resolves with null.
  * A lone escape quits, but arrow keys (which start with the same byte) do not.
  */
@@ -83,7 +84,7 @@ function waitForChoice({
       process.stdout.write(renderFrame({ choices, state, chromiumSrc, notice, rows, columns }));
     };
 
-    const revealTranscript = (transcriptPath: string) => {
+    const revealTranscript = ({ transcriptPath, label }: { transcriptPath: string; label: string }) => {
       if (opening || settled) {
         return;
       }
@@ -91,13 +92,13 @@ function waitForChoice({
       opening = true;
       process.stdin.setRawMode(false);
       process.stdout.write(LEAVE_SCREEN);
-      process.stdout.write("Opening transcript…\n");
+      process.stdout.write(`Opening ${label}…\n`);
       void openTranscript(transcriptPath)
         .then(() => {
-          notice = "opened the transcript in the browser";
+          notice = `opened the ${label} in the browser`;
         })
         .catch((error: unknown) => {
-          notice = error instanceof Error ? error.message : "could not open the transcript";
+          notice = error instanceof Error ? error.message : `could not open the ${label}`;
         })
         .finally(() => {
           opening = false;
@@ -110,6 +111,23 @@ function waitForChoice({
           process.stdin.setRawMode(true);
           paint();
         });
+    };
+
+    const openChosen = (action: "transcript" | "judge"): boolean => {
+      const chosen = matchingChoices({ choices, query: state.query })[state.selected];
+      const judge = action === "judge";
+      const transcriptPath = judge ? chosen?.judgeTranscriptPath : chosen?.transcriptPath;
+      const label = judge ? "judge transcript" : "run transcript";
+
+      if (!chosen || !transcriptPath) {
+        notice = chosen ? `no ${label} for this run` : "";
+
+        return false;
+      }
+
+      revealTranscript({ transcriptPath, label });
+
+      return true;
     };
 
     const onData = (input: string) => {
@@ -155,17 +173,14 @@ function waitForChoice({
           return;
         }
 
-        if (result.action === "transcript") {
-          const chosen = matchingChoices({ choices, query: state.query })[state.selected];
+        if (result.action === "transcript" || result.action === "judge") {
+          const opened = openChosen(result.action);
 
-          if (!chosen || !chosen.transcriptPath) {
-            notice = chosen ? "no transcript for this run" : "";
-            break;
+          if (opened) {
+            return;
           }
 
-          revealTranscript(chosen.transcriptPath);
-
-          return;
+          break;
         }
 
         notice = "";

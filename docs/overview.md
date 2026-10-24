@@ -53,7 +53,7 @@ src/main.ts
         5. copyTranscript              ~/.claude/projects/**/<session>.jsonl → runs/<run_id>/
         6. commitRunChanges            commit submodule checkouts, then the superproject
         7. finishRun                   duration, turns, cost, tokens, denials, changed files, raw result
-        8. judgeRun                    read-only claude -p, task judge prompt, decimal score 0–1
+        8. judgeRun                    read-only claude -p, copies judge-transcript.jsonl, decimal score 0–1
         9. saveJudgeRun                judge_runs row: cost, tokens, decimal score, success
 ```
 
@@ -61,27 +61,27 @@ The runner creates the branch and the commit. The agent is not asked to: it only
 
 The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session scores the checkout. That session is its own `judge_runs` row: model, duration, turns, cost, token counts, a decimal `score` from 0 to 1 (such as 0.2 or 0.743), and `success` (1 when the score is at least the task's `successThreshold`). The agent's metrics stay on `runs`.
 
-To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
+To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
 
 ## Project layout
 
-| Path                           | Job                                                                                                            |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `src/main.ts`                  | Entry point: CLI args, task/config selection, the run loop, progress output                                    |
-| `src/inspect/main.ts`          | Pick a run from the database, open its transcript, or check out its branch                                     |
-| `src/paths.ts`                 | Shared filesystem locations (`BENCH_DIR`, `CHROMIUM_SRC`, `HOOK_SETTINGS`, `RUNS_DIR`)                         |
-| `src/db/db.ts` / `db.types.ts` | Opens SQLite, applies the schema, and holds every query helper / row types                                     |
-| `src/runner/bench-config/`     | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash            |
-| `src/runner/chromium/`         | git/gclient on the Chromium checkout: reset, run branch, submodules, artifact commit, changed files            |
-| `src/runner/claude/claude.ts`  | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                  |
-| `src/runner/judge/`            | Read-only scoring session: judge prompt, worktree diff, and the decimal verdict                                |
-| `src/runner/run-one/`          | One run end to end (the steps above)                                                                           |
-| `hooks/tool-log.ts`            | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)           |
-| `hooks/settings.example.json`  | The hook registration passed to `claude --settings`. It's part of `config_hash`                                |
-| `db/schema.sql`                | SQLite schema, applied idempotently on every open                                                              |
-| `data/bench.sqlite`            | The results DB (gitignored)                                                                                    |
-| `runs/<run_id>/`               | Per-run artifacts: `command.json`, `result.json`, `stderr.log`, `transcript.jsonl` and `session/` (gitignored) |
-| `.claude/skills/`              | Agent skills: `bun` (tooling and APIs) and `code-styling` (style rules)                                        |
+| Path                           | Job                                                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `src/main.ts`                  | Entry point: CLI args, task/config selection, the run loop, progress output                                       |
+| `src/inspect/main.ts`          | Pick a run from the database, open its transcript or the judge session, or check out its branch                   |
+| `src/paths.ts`                 | Shared filesystem locations (`BENCH_DIR`, `CHROMIUM_SRC`, `HOOK_SETTINGS`, `RUNS_DIR`)                            |
+| `src/db/db.ts` / `db.types.ts` | Opens SQLite, applies the schema, and holds every query helper / row types                                        |
+| `src/runner/bench-config/`     | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash               |
+| `src/runner/chromium/`         | git/gclient on the Chromium checkout: reset, run branch, submodules, artifact commit, changed files               |
+| `src/runner/claude/claude.ts`  | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                     |
+| `src/runner/judge/`            | Read-only scoring session: judge prompt, worktree diff, and the decimal verdict                                   |
+| `src/runner/run-one/`          | One run end to end (the steps above)                                                                              |
+| `hooks/tool-log.ts`            | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)              |
+| `hooks/settings.example.json`  | The hook registration passed to `claude --settings`. It's part of `config_hash`                                   |
+| `db/schema.sql`                | SQLite schema, applied idempotently on every open                                                                 |
+| `data/bench.sqlite`            | The results DB (gitignored)                                                                                       |
+| `runs/<run_id>/`               | Per-run artifacts: agent `transcript.jsonl`, judge `judge-transcript.jsonl`, command and result logs (gitignored) |
+| `.claude/skills/`              | Agent skills: `bun` (tooling and APIs) and `code-styling` (style rules)                                           |
 
 ## Input files
 

@@ -48,6 +48,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     present: true,
     current: false,
     transcriptPath: null,
+    judgeTranscriptPath: null,
     ...overrides,
   };
 }

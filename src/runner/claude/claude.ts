@@ -3,7 +3,7 @@ import { cpSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import type { ClaudeResult, Task } from "../../db/db.types";
-import { BENCH_DIR, CHROMIUM_SRC, HOOK_SETTINGS } from "../../paths";
+import { BENCH_DIR, CHROMIUM_SRC, HOOK_SETTINGS, TRANSCRIPT_FILE } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
 
 /** Output of `claude --version`, stored on every run. */
@@ -115,19 +115,34 @@ export async function runClaude({
   return result;
 }
 
-/** Finds <sessionId>.jsonl (and its subagent dir, if any) under ~/.claude/projects. */
-export function copyTranscript({ sessionId, destDir }: { sessionId: string; destDir: string }): boolean {
+/** Finds <sessionId>.jsonl (and its subagent dir, if any) under ~/.claude/projects and copies them into destDir. */
+export function copyTranscript({
+  sessionId,
+  destDir,
+  fileName = TRANSCRIPT_FILE,
+  sessionDirName = "session",
+}: {
+  sessionId: string;
+  destDir: string;
+  /** File name inside destDir. Defaults to the agent run's transcript. */
+  fileName?: string;
+  /** Directory name inside destDir for subagent logs. Defaults to session. */
+  sessionDirName?: string;
+}): boolean {
   const projects = join(homedir(), ".claude", "projects");
+
   for (const projectDir of readdirSync(projects)) {
     const file = join(projects, projectDir, `${sessionId}.jsonl`);
+
     if (!existsSync(file)) {
       continue;
     }
 
-    cpSync(file, join(destDir, "transcript.jsonl"));
+    cpSync(file, join(destDir, fileName));
     const sessionDir = join(projects, projectDir, sessionId);
+
     if (existsSync(sessionDir)) {
-      cpSync(sessionDir, join(destDir, "session"), { recursive: true });
+      cpSync(sessionDir, join(destDir, sessionDirName), { recursive: true });
     }
 
     return true;

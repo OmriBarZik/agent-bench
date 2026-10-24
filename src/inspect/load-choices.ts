@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { listRunBranches, openDb } from "../db/db";
 import type { RunBranchRow } from "../db/db.types";
-import { RUNS_DIR } from "../paths";
+import { JUDGE_TRANSCRIPT_FILE, RUNS_DIR, TRANSCRIPT_FILE } from "../paths";
 import { currentBranch, listLocalBranches } from "../runner/chromium/chromium";
 import type { RunChoice } from "./select-state.types";
 
@@ -38,14 +38,15 @@ function toChoice({
     ...row,
     present: branches.has(row.branch),
     current: row.branch === current,
-    transcriptPath: transcriptFile(row),
+    transcriptPath: artifactFile({ row, fileName: TRANSCRIPT_FILE }),
+    judgeTranscriptPath: artifactFile({ row, fileName: JUDGE_TRANSCRIPT_FILE }),
   };
 }
 
-/** The copied session log for a run, or null when that file was not saved. */
-function transcriptFile(row: RunBranchRow): string | null {
+/** A copied session log for a run, or null when that file was not saved. */
+function artifactFile({ row, fileName }: { row: RunBranchRow; fileName: string }): string | null {
   const directory = row.artifactsPath ? row.artifactsPath : join(RUNS_DIR, row.runId);
-  const path = join(directory, "transcript.jsonl");
+  const path = join(directory, fileName);
 
   if (!existsSync(path)) {
     return null;

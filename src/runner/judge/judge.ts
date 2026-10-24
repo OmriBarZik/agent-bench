@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../../db/db.types";
-import { CHROMIUM_SRC } from "../../paths";
+import { CHROMIUM_SRC, JUDGE_TRANSCRIPT_FILE } from "../../paths";
+import { copyTranscript } from "../claude/claude";
 import { buildJudgePrompt } from "./judge-prompt";
 import { judgeMetrics } from "./judge-result";
 import { diffAgainst } from "./worktree-diff";
@@ -24,6 +26,7 @@ const JUDGE_SCHEMA = JSON.stringify({
 /**
  * Scores one finished run with a second, read-only claude session.
  * The session does not set BENCH_RUN_ID, so its tool calls are not recorded as the agent's.
+ * Copies the session log to judge-transcript.jsonl so the TUI can open it.
  * A failed session returns metrics with error set and no numeric score.
  */
 export async function judgeRun({
@@ -51,10 +54,34 @@ export async function judgeRun({
     diff,
     agentReport: reportedText(result),
   });
-  const command = judgeCommand({ prompt, judgeModel });
+  const sessionId = randomUUID();
+  const command = judgeCommand({ prompt, judgeModel, sessionId });
   const judged = await runJudgeClaude({ command, outDir, timeoutMs });
+  saveJudgeTranscript({ sessionId: judged.session_id ?? sessionId, outDir });
 
   return judgeMetrics({ result: judged, judgeModel, successThreshold });
+}
+
+/** Copies the judge session log. A missing log is only a warning: the score is already in hand. */
+function saveJudgeTranscript({ sessionId, outDir }: { sessionId: string; outDir: string }) {
+  try {
+    const copied = copyTranscript({
+      sessionId,
+      destDir: outDir,
+      fileName: JUDGE_TRANSCRIPT_FILE,
+      sessionDirName: "judge-session",
+    });
+
+    if (copied) {
+      return;
+    }
+
+    console.warn(`  judge transcript for session ${sessionId} not found`);
+  } catch (error) {
+    // The verdict is already computed. A copy failure must not turn a finished judge into a crash.
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn(`  judge transcript for session ${sessionId} was not copied: ${message}`);
+  }
 }
 
 function reportedText(result: ClaudeResult): string {
@@ -65,7 +92,16 @@ function reportedText(result: ClaudeResult): string {
   return result.result;
 }
 
-function judgeCommand({ prompt, judgeModel }: { prompt: string; judgeModel: string }): string[] {
+/** The `claude -p` command for the judge. The session is persisted so its jsonl can be opened later. */
+export function judgeCommand({
+  prompt,
+  judgeModel,
+  sessionId,
+}: {
+  prompt: string;
+  judgeModel: string;
+  sessionId: string;
+}): string[] {
   return [
     "claude",
     "-p",
@@ -76,6 +112,8 @@ function judgeCommand({ prompt, judgeModel }: { prompt: string; judgeModel: stri
     JUDGE_SCHEMA,
     "--model",
     judgeModel,
+    "--session-id",
+    sessionId,
     "--tools",
     "Read,Grep,Glob",
     "--restricted",
@@ -84,7 +122,6 @@ function judgeCommand({ prompt, judgeModel }: { prompt: string; judgeModel: stri
     "dontAsk",
     "--permission-prompts",
     "none",
-    "--no-session-persistence",
   ];
 }
 
