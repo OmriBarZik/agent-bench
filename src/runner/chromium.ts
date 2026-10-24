@@ -1,4 +1,5 @@
 import { $ } from "bun";
+import type { ChangedFile, RunArtifact } from "../db.types";
 import { CHROMIUM_SRC } from "../paths";
 
 /** True when tracked files in the Chromium checkout are modified (untracked files are ignored). */
@@ -16,4 +17,74 @@ export async function resetChromium({ sha, sync = false }: { sha: string; sync?:
   if (sync) {
     await $`gclient sync -D --force`.cwd(CHROMIUM_SRC).quiet();
   }
+}
+
+/** Points `branch` at the current HEAD (the task SHA) and checks it out. Call after resetChromium. */
+export async function createRunBranch(branch: string) {
+  await $`git switch --quiet -C ${branch}`.cwd(CHROMIUM_SRC).quiet();
+}
+
+/**
+ * Commits the checkout onto `branch` and returns every path that differs from `baseSha`.
+ * The agent is not asked to do this. Hooks and signing are skipped: depot_tools rejects
+ * anything that is not a Chromium CL, and a signing prompt would stall the run.
+ */
+export async function commitRunChanges({
+  branch,
+  baseSha,
+  message,
+}: {
+  branch: string;
+  baseSha: string;
+  message: string;
+}): Promise<RunArtifact> {
+  await $`git switch --quiet ${branch}`.cwd(CHROMIUM_SRC).quiet();
+  await $`git add -A`.cwd(CHROMIUM_SRC).quiet();
+  // Index vs the task SHA, so files the agent already committed on this branch are included.
+  const raw = await $`git diff --cached --name-status -z ${baseSha} --`.cwd(CHROMIUM_SRC).text();
+  const staged = await $`git diff --cached --quiet`.cwd(CHROMIUM_SRC).nothrow().quiet();
+
+  if (staged.exitCode === 1) {
+    await $`git -c user.name=agent-bench -c user.email=agent-bench@localhost -c commit.gpgsign=false commit --no-verify -m ${message}`
+      .cwd(CHROMIUM_SRC)
+      .quiet();
+  } else if (staged.exitCode !== 0) {
+    throw new Error(`git diff --cached --quiet failed in ${CHROMIUM_SRC} (exit ${staged.exitCode})`);
+  }
+
+  const head = (await $`git rev-parse --verify HEAD`.cwd(CHROMIUM_SRC).text()).trim();
+  const base = (await $`git rev-parse --verify ${baseSha}`.cwd(CHROMIUM_SRC).text()).trim();
+
+  return { commitSha: head === base ? null : head, changedFiles: parseNameStatus(raw) };
+}
+
+/** Parses `git diff --name-status -z` into the file list stored on a run. */
+export function parseNameStatus(raw: string): ChangedFile[] {
+  const parts = raw.split("\0");
+
+  if (parts.at(-1) === "") {
+    parts.pop();
+  }
+
+  const changedFiles: ChangedFile[] = [];
+  let index = 0;
+  while (index < parts.length) {
+    const kind = (parts[index] ?? "").charAt(0);
+
+    if (kind === "R" || kind === "C") {
+      changedFiles.push({
+        status: kind,
+        path: parts[index + 2] ?? "",
+        previousPath: parts[index + 1] ?? "",
+      });
+      index += 3;
+
+      continue;
+    }
+
+    changedFiles.push({ status: kind, path: parts[index + 1] ?? "" });
+    index += 2;
+  }
+
+  return changedFiles;
 }

@@ -27,6 +27,8 @@ bun run db:shell                              # query data/bench.sqlite
 ```
 
 > ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`). The runner refuses to start if tracked files are modified, unless you pass `--force`.
+>
+> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends. `git switch <run_id>` in `chromium/src` shows that run. Ignored build output is left in place.
 
 | Flag                 | Default                        | Description                                                     |
 | -------------------- | ------------------------------ | --------------------------------------------------------------- |

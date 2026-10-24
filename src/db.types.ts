@@ -26,6 +26,24 @@ export type RunStart = {
   claudeVersion: string;
   model: string;
   artifactsPath?: string;
+  /** Git branch checked out for this run. The same string as runId. */
+  branch: string;
+};
+
+/** One path that differs between the task SHA and the run branch. */
+export type ChangedFile = {
+  /** git name-status letter: M, A, D, R, C, T. */
+  status: string;
+  path: string;
+  /** Set for a rename or copy. */
+  previousPath?: string;
+};
+
+/** The Chromium commit that holds a run's final tree, and the paths in it. */
+export type RunArtifact = {
+  /** NULL when the branch tip is still the task SHA. */
+  commitSha: string | null;
+  changedFiles: ChangedFile[];
 };
 
 /** Shape of `claude -p ... --output-format json` (only the fields we read). */
@@ -44,6 +62,7 @@ export type ClaudeResult = {
 export type ClaudeUsage = {
   input_tokens?: number;
   output_tokens?: number;
+  cache_creation_input_tokens?: number;
   cache_read_input_tokens?: number;
 };
 
