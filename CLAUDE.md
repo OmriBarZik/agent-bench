@@ -19,7 +19,7 @@ bun run db:shell         # sqlite3 on data/bench.sqlite; read-only: sqlite3 -rea
 bun src/main.ts [--tasks f] [--configs f] [--repeats n] [--only-task id] [--only-config id] [--timeout-min 60] [--sync] [--force]
 ```
 
-Both typecheck and format:check must pass before finishing a change. `bun lint` doesn't exist on stable 1.4.4, so the `[lint.rules]` in `bunfig.toml` is inert. There are no tests yet; when adding them use `bun test` with `*.test.ts`, and give DB tests a temp file via `openDb(tmpPath)`.
+Both typecheck and format:check must pass before finishing a change. The husky pre-commit hook (`.husky/pre-commit`, installed by `bun install`) runs `bun fmt --staged` and `bun run typecheck`. `bun lint` doesn't exist on stable 1.4.4, so the `[lint.rules]` in `bunfig.toml` is inert. There are no tests yet; when adding them use `bun test` with `*.test.ts`, and give DB tests a temp file via `openDb(tmpPath)`.
 
 ## Things that will bite you
 

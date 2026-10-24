@@ -26,7 +26,7 @@ The runner defaults `CHROMIUM_SRC` to `../src`. The hooks in `hooks/settings.exa
 ## Quick start
 
 ```sh
-bun install                  # only @types/bun
+bun install                  # @types/bun + husky (installs the pre-commit hook)
 bun src/main.ts              # reads tasks.json + configs.json from the repo root
 bun src/main.ts --only-task t1 --repeats 3
 bun run db:shell             # sqlite3 shell on data/bench.sqlite

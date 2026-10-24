@@ -6,9 +6,11 @@
     "db:shell": "sqlite3 data/bench.sqlite",
     "typecheck": "bun check",
     "format": "bun fmt",
-    "format:check": "bun fmt --check"
+    "format:check": "bun fmt --check",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "husky": "^9.1.7"
   }
 }

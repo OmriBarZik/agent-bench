@@ -29,7 +29,8 @@ Both checks must pass. `bun check` only checks files that `tsconfig.json` `inclu
 - **`bun lint` is canary-only.** It isn't in 1.4.4 stable (`bun lint` prints `Script not found "lint"`). The `[lint.rules]` section in `bunfig.toml` is therefore inert on stable Bun. Also, `"bun/format"` is not a documented rule: formatting is `bun fmt`, not a lint rule.
   - Don't add a lint script or CI step unless the user moves to canary (`bun upgrade --canary`).
   - Rule names follow ESLint, e.g. `"no-console" = "warn"`.
-- `@types/bun` is the only devDependency, and `tsconfig.json` sets `"types": ["bun"]`.
+- The only devDependencies are `@types/bun` and `husky`, and `tsconfig.json` sets `"types": ["bun"]`.
+- `bun install` runs the `prepare` script, which installs the husky hooks. `.husky/pre-commit` runs `bun fmt --staged` (it formats staged files and stages them again) and then `bun run typecheck`.
 
 ## Bun conventions
 
