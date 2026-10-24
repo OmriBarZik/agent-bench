@@ -57,6 +57,8 @@ src/main.ts
         9. saveJudgeRun                judge_runs row: cost, tokens, decimal score, success
 ```
 
+Ctrl+C stops the benchmark. The first press kills the `claude` session in progress and does not start another run. The open `runs` row is stored as `cancelled`: `finished_at`, the wall-clock duration, and any turns, cost, and tokens the session had already reported. Whatever the agent changed is still committed onto the run branch. A judge that had started is stored as `cancelled` with no score. A second press exits immediately. The process exits with code 130.
+
 The runner creates the branch and the commit. The agent is not asked to: it only edits the tree. Edits inside a checked-out submodule are committed there first, and the superproject records the new gitlink. `changed_files` lists those paths with the submodule directory prefixed. `git clean` does not pass `-x`, so ignored build output (`out/`) survives a checkout and switching runs does not force a full rebuild. It also does not pass a second `-f`, so a nested git directory that is not a submodule is left in place.
 
 The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session scores the checkout. That session is its own `judge_runs` row: model, duration, turns, cost, token counts, a decimal `score` from 0 to 1 (such as 0.2 or 0.743), and `success` (1 when the score is at least the task's `successThreshold`). The agent's metrics stay on `runs`.
@@ -126,14 +128,14 @@ Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their conte
 
 ## Data model
 
-| Table / view           | One row per            | Notes                                                                                                                                |
-| ---------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `tasks`                | task                   | `scoring` is JSON text                                                                                                               |
-| `configs`              | config                 | `tools` / `permissions` are JSON text, and `config_hash` identifies the exact setup                                                  |
-| `runs`                 | task × config × repeat | status `running` / `done` / `crashed`, plus the agent's metrics. `branch` equals `run_id`; `changed_files` and `raw_result` are JSON |
-| `judge_runs`           | judge session          | one row per run. The judge's own cost, tokens, duration, decimal `score`, and `success`                                              |
-| `tool_calls`           | hook event             | `phase` is `pre` / `post`. `program` is the actual binary for Bash (`rg`, `head`, …)                                                 |
-| `tool_attempts` (view) | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                                          |
+| Table / view           | One row per            | Notes                                                                                                                                              |
+| ---------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tasks`                | task                   | `scoring` is JSON text                                                                                                                             |
+| `configs`              | config                 | `tools` / `permissions` are JSON text, and `config_hash` identifies the exact setup                                                                |
+| `runs`                 | task × config × repeat | status `running` / `done` / `crashed` / `cancelled`, plus the agent's metrics. `branch` equals `run_id`; `changed_files` and `raw_result` are JSON |
+| `judge_runs`           | judge session          | one row per run. The judge's own cost, tokens, duration, decimal `score`, and `success`. `cancelled` has no score                                  |
+| `tool_calls`           | hook event             | `phase` is `pre` / `post`. `program` is the actual binary for Bash (`rg`, `head`, …)                                                               |
+| `tool_attempts` (view) | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                                                        |
 
 Example: the average cost and turns per config.
 

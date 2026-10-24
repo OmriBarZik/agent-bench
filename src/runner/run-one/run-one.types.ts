@@ -15,5 +15,8 @@ export type RunOneResult = {
   result: ClaudeResult;
   seconds: number;
   artifact: RunArtifact;
-  judge: JudgeMetrics;
+  /** Null when the user stopped the run before the judge started. */
+  judge: JudgeMetrics | null;
+  /** True when this run was stored as cancelled. */
+  cancelled: boolean;
 };

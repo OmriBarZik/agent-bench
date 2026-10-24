@@ -21,6 +21,9 @@ export type Config = {
   permissions?: unknown;
 };
 
+/** Status stored when a run is closed. cancelled means the user stopped it before it was fully recorded. */
+export type FinishedRunStatus = "done" | "crashed" | "cancelled";
+
 /** What startRun needs to insert the runs row before claude is spawned. */
 export type RunStart = {
   runId: string;
@@ -78,7 +81,7 @@ export type ClaudeUsage = {
 /** One judge session, stored as a judge_runs row. Separate from the agent's runs row. */
 export type JudgeMetrics = {
   model: string;
-  status: "done" | "crashed";
+  status: "done" | "crashed" | "cancelled";
   durationMs: number | null;
   numTurns: number | null;
   costUsd: number | null;

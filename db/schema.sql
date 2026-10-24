@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS runs (
     machine            TEXT,
     started_at         TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
     finished_at        TEXT,
-    status             TEXT DEFAULT 'running',   -- running / done / crashed
+    status             TEXT DEFAULT 'running',   -- running / done / crashed / cancelled
     duration_ms        INTEGER,
     num_turns          INTEGER,
     cost_usd           REAL,
@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS judge_runs (
     run_id                 TEXT PRIMARY KEY REFERENCES runs,
     model                  TEXT,
     finished_at            TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
-    status                 TEXT,            -- done / crashed
+    status                 TEXT,            -- done / crashed / cancelled
     duration_ms            INTEGER,
     num_turns              INTEGER,
     cost_usd               REAL,

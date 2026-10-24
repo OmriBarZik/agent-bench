@@ -8,6 +8,7 @@ import { claudeVersion } from "./runner/claude/claude";
 import { hasUncommittedChanges } from "./runner/chromium/chromium";
 import { judgementText } from "./runner/judge/judge-result";
 import { runOne } from "./runner/run-one/run-one";
+import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
 
 const { values: args } = parseArgs({
   options: {
@@ -42,45 +43,122 @@ const { values: args } = parseArgs({
  * second read-only claude session scores the tree with a decimal from 0 to 1 (for example 0.2 or 0.743).
  * That session is a judge_runs row: its own cost, tokens, and duration. success is 1 when the
  * score is at least the task's successThreshold. The judge does not record tool calls.
+ *
+ * Ctrl+C stops the benchmark. The run in progress is stored as cancelled (finished time, duration,
+ * and any cost, turns, and tokens already reported) and later runs are not started. Exit code 130.
+ * A second Ctrl+C exits immediately.
  */
 async function main() {
-  const { tasks, configs } = await loadSelection({
-    tasksPath: args.tasks,
-    configsPath: args.configs,
-    onlyTask: args["only-task"],
-    onlyConfig: args["only-config"],
+  let db: ReturnType<typeof openDb> | undefined;
+  const shutdown = watchForShutdown({
+    onFirst: () => {
+      console.error("\nStopping the benchmark. Press Ctrl+C again to force exit.");
+    },
+    onForce: () => {
+      console.error("\nForced exit.");
+      try {
+        db?.close();
+      } catch {
+        // The process is exiting. A close failure must not replace the cancel.
+      }
+      process.exit(130);
+    },
   });
-  const repeats = Number(args.repeats);
+  let stopped = false;
 
-  if (!args.force && (await hasUncommittedChanges())) {
-    throw new Error(`${CHROMIUM_SRC} has uncommitted changes; commit/stash them or pass --force`);
-  }
+  try {
+    const { tasks, configs } = await loadSelection({
+      tasksPath: args.tasks,
+      configsPath: args.configs,
+      onlyTask: args["only-task"],
+      onlyConfig: args["only-config"],
+    });
+    const repeats = Number(args.repeats);
 
-  const options = {
-    claudeVersion: await claudeVersion(),
-    timeoutMs: Number(args["timeout-min"]) * 60_000,
-    sync: args.sync,
-    judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
-  };
-  const db = openDb();
-  for (const task of tasks) upsertTask({ db, task });
-  for (const benchConfig of configs) upsertConfig({ db, config: await toConfigRow(benchConfig) });
+    if (shutdown.signal.aborted) {
+      stopped = true;
+    } else if (!args.force && (await hasUncommittedChanges())) {
+      throw new Error(`${CHROMIUM_SRC} has uncommitted changes; commit/stash them or pass --force`);
+    } else {
+      const options = {
+        claudeVersion: await claudeVersion(),
+        timeoutMs: Number(args["timeout-min"]) * 60_000,
+        sync: args.sync,
+        judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
+      };
+      db = openDb();
+      for (const task of tasks) upsertTask({ db, task });
+      for (const benchConfig of configs) upsertConfig({ db, config: await toConfigRow(benchConfig) });
 
-  const total = tasks.length * configs.length * repeats;
-  let runIndex = 0;
-  for (const task of tasks) {
-    for (const config of configs) {
-      for (let repeat = 0; repeat < repeats; repeat++) {
-        console.log(`[${++runIndex}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
-        const { runId, result, seconds, artifact, judge } = await runOne({ db, task, config, repeat, options });
-        const cost = result.total_cost_usd != null ? `, $${result.total_cost_usd.toFixed(2)}` : "";
-        const files = artifact.changedFiles.length === 0 ? "no file changes" : `${artifact.changedFiles.length} files`;
-        const judged = judgementText({ judge, successThreshold: task.successThreshold });
-        console.log(`  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}, ${judged}`);
+      const total = tasks.length * configs.length * repeats;
+      let runIndex = 0;
+      for (const task of tasks) {
+        for (const config of configs) {
+          for (let repeat = 0; repeat < repeats; repeat++) {
+            if (shutdown.signal.aborted) {
+              stopped = true;
+              break;
+            }
+
+            console.log(`[${++runIndex}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
+            const { runId, result, seconds, artifact, judge, cancelled } = await runOne({
+              db,
+              task,
+              config,
+              repeat,
+              options,
+              signal: shutdown.signal,
+            });
+            const cost = result.total_cost_usd != null ? `, $${result.total_cost_usd.toFixed(2)}` : "";
+            const files =
+              artifact.changedFiles.length === 0 ? "no file changes" : `${artifact.changedFiles.length} files`;
+
+            if (cancelled || !judge) {
+              const judgeNote = judge ? ", judge cancelled" : "";
+              console.log(`  ${runId} cancelled in ${seconds}s${cost}, ${files}${judgeNote}`);
+              stopped = true;
+              break;
+            }
+
+            const judged = judgementText({ judge, successThreshold: task.successThreshold });
+            console.log(
+              `  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}, ${judged}`,
+            );
+
+            if (shutdown.signal.aborted) {
+              stopped = true;
+              break;
+            }
+          }
+
+          if (stopped) {
+            break;
+          }
+        }
+
+        if (stopped) {
+          break;
+        }
       }
     }
+  } catch (error) {
+    if (!shutdown.signal.aborted) {
+      throw error;
+    }
+
+    if (!(error instanceof BenchmarkShutdown)) {
+      console.error(error instanceof Error ? error.message : error);
+    }
+
+    stopped = true;
+  } finally {
+    db?.close();
+    shutdown.stop();
   }
-  db.close();
+
+  if (stopped) {
+    process.exit(130);
+  }
 }
 
 if (import.meta.main) {

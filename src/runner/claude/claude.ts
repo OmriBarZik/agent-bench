@@ -5,6 +5,7 @@ import { join, resolve } from "node:path";
 import type { ClaudeResult, Task } from "../../db/db.types";
 import { BENCH_DIR, CHROMIUM_SRC, HOOK_SETTINGS, TRANSCRIPT_FILE } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
+import { captureClaude } from "./claude-process";
 
 /** Output of `claude --version`, stored on every run. */
 export async function claudeVersion(): Promise<string> {
@@ -63,56 +64,34 @@ export function claudeArgs({
 /**
  * Runs `command` in the Chromium checkout with BENCH_RUN_ID set (so the tool-log hooks record it),
  * saves stdout/stderr into `outDir`, and returns the parsed result. Never throws on a failed run:
- * a crash, timeout or unparseable output becomes a result with `is_error: true`.
+ * a crash, timeout, cancel, or unparseable output becomes a result with `is_error: true`.
  */
 export async function runClaude({
   command,
   runId,
   outDir,
   timeoutMs,
+  signal,
 }: {
   command: string[];
   runId: string;
   outDir: string;
   timeoutMs: number;
+  /** Aborted on Ctrl+C. The process is killed and the result is marked cancelled. */
+  signal?: AbortSignal;
 }): Promise<ClaudeResult> {
   writeFileSync(join(outDir, "command.json"), JSON.stringify(command, null, 2));
-
-  const started = Date.now();
-  const claudeProcess = Bun.spawn(command, {
+  const captured = await captureClaude({
+    command,
     cwd: CHROMIUM_SRC,
     env: { ...process.env, BENCH_RUN_ID: runId },
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: timeoutMs,
+    timeoutMs,
+    signal,
   });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(claudeProcess.stdout).text(),
-    new Response(claudeProcess.stderr).text(),
-    claudeProcess.exited,
-  ]);
-  writeFileSync(join(outDir, "result.json"), stdout);
-  writeFileSync(join(outDir, "stderr.log"), stderr);
+  writeFileSync(join(outDir, "result.json"), captured.stdout);
+  writeFileSync(join(outDir, "stderr.log"), captured.stderr);
 
-  let result: ClaudeResult;
-  try {
-    result = JSON.parse(stdout);
-  } catch {
-    result = {
-      is_error: true,
-      duration_ms: Date.now() - started,
-      error: claudeProcess.signalCode
-        ? `killed (${claudeProcess.signalCode}), timeout?`
-        : `exit ${exitCode}, unparseable output`,
-      stderr: stderr.slice(-2000),
-    };
-  }
-  if (exitCode !== 0) {
-    result.is_error = true;
-  }
-
-  return result;
+  return captured.result;
 }
 
 /** Finds <sessionId>.jsonl (and its subagent dir, if any) under ~/.claude/projects and copies them into destDir. */

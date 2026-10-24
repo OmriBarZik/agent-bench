@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { judgeMetrics, judgementText } from "./judge-result";
+import { cancelledJudgeMetrics, judgeMetrics, judgementText } from "./judge-result";
 
 test("a decimal score succeeds when it reaches the threshold", () => {
   const judge = judgeMetrics({
@@ -25,6 +25,39 @@ test("a decimal score succeeds when it reaches the threshold", () => {
   expect(judge.reason).toBe("most of the hat");
   expect(judge.error).toBeNull();
   expect(judgementText({ judge, successThreshold: 0.7 })).toBe("score 0.743 success, judge 12s $0.041");
+});
+
+test("cancelledJudgeMetrics drops the score and keeps the usage already captured", () => {
+  const judge = cancelledJudgeMetrics({
+    judgeModel: "claude-sonnet-5-5",
+    successThreshold: 0.8,
+    judge: {
+      model: "claude-sonnet-5-5",
+      status: "crashed",
+      durationMs: 3_000,
+      numTurns: 2,
+      costUsd: 0.02,
+      inputTokens: 5,
+      outputTokens: 1,
+      cacheCreationTokens: null,
+      cacheReadTokens: null,
+      totalTokens: 6,
+      successThreshold: 0.8,
+      score: 0.4,
+      success: false,
+      reason: "partial",
+      error: "killed",
+    },
+  });
+
+  expect(judge.status).toBe("cancelled");
+  expect(judge.score).toBeNull();
+  expect(judge.success).toBeNull();
+  expect(judge.reason).toBeNull();
+  expect(judge.error).toBe("cancelled");
+  expect(judge.durationMs).toBe(3_000);
+  expect(judge.costUsd).toBe(0.02);
+  expect(judge.totalTokens).toBe(6);
 });
 
 test("a decimal score below the threshold is not success", () => {

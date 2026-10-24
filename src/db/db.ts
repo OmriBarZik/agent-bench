@@ -7,6 +7,7 @@ import type {
   ClaudeResult,
   ClaudeUsage,
   Config,
+  FinishedRunStatus,
   JudgeMetrics,
   RunArtifact,
   RunBranchRow,
@@ -217,11 +218,14 @@ export function finishRun({
   runId,
   result,
   artifact = { commitSha: null, changedFiles: [] },
+  status,
 }: {
   db: Database;
   runId: string;
   result: ClaudeResult;
   artifact?: RunArtifact;
+  /** Set when the user stopped the run. Otherwise an error is crashed and a clean session is done. */
+  status?: FinishedRunStatus;
 }) {
   const usage = result.usage ?? {};
   db.query(
@@ -243,7 +247,7 @@ export function finishRun({
      WHERE run_id = $runId`,
   ).run({
     runId,
-    status: result.is_error ? "crashed" : "done",
+    status: status ?? (result.is_error ? "crashed" : "done"),
     durationMs: result.duration_ms ?? null,
     numTurns: result.num_turns ?? null,
     costUsd: result.total_cost_usd ?? null,
@@ -257,6 +261,16 @@ export function finishRun({
     commitSha: artifact.commitSha,
     changedFiles: toJson(artifact.changedFiles),
   });
+}
+
+/** Marks a run the user stopped. Keeps the metrics finishRun already stored and fills finished_at when it is still empty. */
+export function cancelRun({ db, runId }: { db: Database; runId: string }) {
+  db.query(
+    `UPDATE runs SET
+       status = 'cancelled',
+       finished_at = COALESCE(finished_at, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+     WHERE run_id = $runId`,
+  ).run({ runId });
 }
 
 /** Writes one judge session for a run that finishRun already closed. A second judge of the same run replaces the first. */

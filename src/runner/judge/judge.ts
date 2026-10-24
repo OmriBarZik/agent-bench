@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../../db/db.types";
 import { CHROMIUM_SRC, JUDGE_TRANSCRIPT_FILE } from "../../paths";
 import { copyTranscript } from "../claude/claude";
+import { captureClaude } from "../claude/claude-process";
 import { buildJudgePrompt } from "./judge-prompt";
 import { judgeMetrics } from "./judge-result";
 import { diffAgainst } from "./worktree-diff";
@@ -37,6 +38,7 @@ export async function judgeRun({
   judgeModel,
   successThreshold,
   timeoutMs,
+  signal,
 }: {
   task: Task;
   result: ClaudeResult;
@@ -45,6 +47,7 @@ export async function judgeRun({
   judgeModel: string;
   successThreshold: number;
   timeoutMs: number;
+  signal?: AbortSignal;
 }): Promise<JudgeMetrics> {
   const diff = await diffAgainst(task.chromiumSha);
   const prompt = buildJudgePrompt({
@@ -56,7 +59,7 @@ export async function judgeRun({
   });
   const sessionId = randomUUID();
   const command = judgeCommand({ prompt, judgeModel, sessionId });
-  const judged = await runJudgeClaude({ command, outDir, timeoutMs });
+  const judged = await runJudgeClaude({ command, outDir, timeoutMs, signal });
   saveJudgeTranscript({ sessionId: judged.session_id ?? sessionId, outDir });
 
   return judgeMetrics({ result: judged, judgeModel, successThreshold });
@@ -133,49 +136,25 @@ async function runJudgeClaude({
   command,
   outDir,
   timeoutMs,
+  signal,
 }: {
   command: string[];
   outDir: string;
   timeoutMs: number;
+  signal?: AbortSignal;
 }): Promise<ClaudeResult> {
   await Bun.write(join(outDir, "judge-command.json"), JSON.stringify(command, null, 2));
-  const env: Record<string, string | undefined> = { ...process.env };
+  const env: NodeJS.ProcessEnv = { ...process.env };
   delete env.BENCH_RUN_ID;
-
-  const started = Date.now();
-  const claudeProcess = Bun.spawn(command, {
+  const captured = await captureClaude({
+    command,
     cwd: CHROMIUM_SRC,
     env,
-    stdin: "ignore",
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: timeoutMs,
+    timeoutMs,
+    signal,
   });
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(claudeProcess.stdout).text(),
-    new Response(claudeProcess.stderr).text(),
-    claudeProcess.exited,
-  ]);
-  await Bun.write(join(outDir, "judge-result.json"), stdout);
-  await Bun.write(join(outDir, "judge-stderr.log"), stderr);
+  await Bun.write(join(outDir, "judge-result.json"), captured.stdout);
+  await Bun.write(join(outDir, "judge-stderr.log"), captured.stderr);
 
-  let result: ClaudeResult;
-  try {
-    result = JSON.parse(stdout);
-  } catch {
-    result = {
-      is_error: true,
-      duration_ms: Date.now() - started,
-      error: claudeProcess.signalCode
-        ? `killed (${claudeProcess.signalCode}), timeout?`
-        : `exit ${exitCode}, unparseable output`,
-      stderr: stderr.slice(-2000),
-    };
-  }
-
-  if (exitCode !== 0) {
-    result.is_error = true;
-  }
-
-  return result;
+  return captured.result;
 }

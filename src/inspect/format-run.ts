@@ -4,7 +4,7 @@ import type { RunChoice } from "./select-state.types";
 /** One list row: when, status, score, file count, and task × config. */
 export function choiceLabel(choice: RunChoice): string {
   const started = startedLabel(choice.startedAt);
-  const status = choice.status.slice(0, 7).padEnd(7);
+  const status = choice.status.slice(0, 9).padEnd(9);
   const scoreText = scoreLabel(choice.score);
   const files = filesLabel(choice).padEnd(8);
 

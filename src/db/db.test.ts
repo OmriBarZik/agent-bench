@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  cancelRun,
   deleteRun,
   finishRun,
   listRunBranches,
@@ -120,6 +121,135 @@ test("finishRun stores the branch commit and the files it changed", () => {
     expect(row.branch).toBe(runId);
     expect(row.commit_sha).toBe("def");
     expect(JSON.parse(row.changed_files)).toEqual([{ status: "M", path: "chrome/foo.cc" }]);
+  } finally {
+    db.close();
+  }
+});
+
+test("finishRun stores a cancelled run with the usage already reported", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({
+      db,
+      task: {
+        taskId: "t1",
+        prompt: "do the thing",
+        judgePrompt: "score it",
+        successThreshold: 0.8,
+        chromiumSha: "abc",
+      },
+    });
+    upsertConfig({ db, config: { configId: "baseline", configHash: "hash" } });
+    const runId = "t1__baseline__r0__abc";
+    startRun({
+      db,
+      run: {
+        runId,
+        taskId: "t1",
+        configId: "baseline",
+        repeat: 0,
+        claudeVersion: "test",
+        model: "test",
+        branch: runId,
+      },
+    });
+    finishRun({
+      db,
+      runId,
+      status: "cancelled",
+      result: {
+        is_error: true,
+        error: "cancelled",
+        duration_ms: 12_000,
+        num_turns: 3,
+        total_cost_usd: 0.25,
+        usage: { input_tokens: 10, output_tokens: 4 },
+        permission_denials: [],
+      },
+      artifact: { commitSha: null, changedFiles: [] },
+    });
+    const row = db
+      .query(
+        `SELECT status, finished_at, duration_ms, num_turns, cost_usd, input_tokens, output_tokens,
+                total_tokens, permission_denials, changed_files, raw_result
+         FROM runs WHERE run_id = $runId`,
+      )
+      .get({ runId }) as {
+      status: string;
+      finished_at: string;
+      duration_ms: number;
+      num_turns: number;
+      cost_usd: number;
+      input_tokens: number;
+      output_tokens: number;
+      total_tokens: number;
+      permission_denials: number;
+      changed_files: string;
+      raw_result: string;
+    };
+
+    expect(row.status).toBe("cancelled");
+    expect(row.finished_at).not.toBeNull();
+    expect(row.duration_ms).toBe(12_000);
+    expect(row.num_turns).toBe(3);
+    expect(row.cost_usd).toBe(0.25);
+    expect(row.input_tokens).toBe(10);
+    expect(row.output_tokens).toBe(4);
+    expect(row.total_tokens).toBe(14);
+    expect(row.permission_denials).toBe(0);
+    expect(JSON.parse(row.changed_files)).toEqual([]);
+    expect(JSON.parse(row.raw_result).error).toBe("cancelled");
+  } finally {
+    db.close();
+  }
+});
+
+test("cancelRun marks a finished run cancelled without clearing its metrics", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({
+      db,
+      task: {
+        taskId: "t1",
+        prompt: "do the thing",
+        judgePrompt: "score it",
+        successThreshold: 0.8,
+        chromiumSha: "abc",
+      },
+    });
+    upsertConfig({ db, config: { configId: "baseline", configHash: "hash" } });
+    const runId = "t1__baseline__r0__done";
+    startRun({
+      db,
+      run: {
+        runId,
+        taskId: "t1",
+        configId: "baseline",
+        repeat: 0,
+        claudeVersion: "test",
+        model: "test",
+        branch: runId,
+      },
+    });
+    finishRun({ db, runId, result: { is_error: false, total_cost_usd: 1.5, duration_ms: 90_000, num_turns: 12 } });
+    cancelRun({ db, runId });
+    const row = db
+      .query("SELECT status, cost_usd, duration_ms, num_turns, finished_at FROM runs WHERE run_id = $runId")
+      .get({
+        runId,
+      }) as {
+      status: string;
+      cost_usd: number;
+      duration_ms: number;
+      num_turns: number;
+      finished_at: string;
+    };
+
+    expect(row.status).toBe("cancelled");
+    expect(row.cost_usd).toBe(1.5);
+    expect(row.duration_ms).toBe(90_000);
+    expect(row.num_turns).toBe(12);
+    expect(row.finished_at).not.toBeNull();
   } finally {
     db.close();
   }

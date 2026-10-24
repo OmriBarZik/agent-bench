@@ -34,6 +34,38 @@ export function judgeMetrics({
   };
 }
 
+/**
+ * A judge session the user stopped. Drops the score so an aborted verdict is not stored as success.
+ * Keeps whatever duration, cost, and tokens were already captured.
+ */
+export function cancelledJudgeMetrics({
+  judgeModel,
+  successThreshold,
+  judge,
+}: {
+  judgeModel: string;
+  successThreshold: number;
+  judge?: JudgeMetrics;
+}): JudgeMetrics {
+  return {
+    model: judge?.model ?? judgeModel,
+    status: "cancelled",
+    durationMs: judge?.durationMs ?? null,
+    numTurns: judge?.numTurns ?? null,
+    costUsd: judge?.costUsd ?? null,
+    inputTokens: judge?.inputTokens ?? null,
+    outputTokens: judge?.outputTokens ?? null,
+    cacheCreationTokens: judge?.cacheCreationTokens ?? null,
+    cacheReadTokens: judge?.cacheReadTokens ?? null,
+    totalTokens: judge?.totalTokens ?? null,
+    successThreshold: judge?.successThreshold ?? successThreshold,
+    score: null,
+    success: null,
+    reason: null,
+    error: "cancelled",
+  };
+}
+
 /** A judge session that threw before it returned JSON. The agent run is already stored. */
 export function failedJudgeMetrics({
   judgeModel,

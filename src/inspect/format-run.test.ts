@@ -11,6 +11,10 @@ test("choiceLabel shows when the run happened and how many files it changed", ()
   expect(label).toContain("dino × haiku");
 });
 
+test("choiceLabel shows a cancelled run in full", () => {
+  expect(choiceLabel(choice({ status: "cancelled", score: null, success: null }))).toContain("cancelled");
+});
+
 test("choiceLabel marks a run the judge did not score", () => {
   expect(choiceLabel(choice({ score: null, success: null }))).toContain("n/a");
 });
