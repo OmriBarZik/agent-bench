@@ -77,8 +77,19 @@ The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` 
 `configs/benchmark-tasks.json`:
 
 ```json
-[{ "taskId": "t1", "prompt": "…", "chromiumSha": "abc123", "title": "…", "difficulty": "simple", "scoring": {} }]
+[
+  {
+    "taskId": "t1",
+    "promptFile": "prompts/t1.md",
+    "chromiumSha": "abc123",
+    "title": "…",
+    "difficulty": "simple",
+    "scoring": {}
+  }
+]
 ```
+
+`promptFile` is relative to the tasks file and holds the whole prompt as plain text (leading/trailing whitespace is trimmed). Editing it changes the prompt stored for that task on the next run.
 
 `configs/benchmark-setup.json`:
 

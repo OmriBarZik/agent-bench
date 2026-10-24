@@ -1,17 +1,18 @@
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { hashFiles } from "../db";
 import type { Config, Task } from "../db.types";
 import { BENCH_DIR, HOOK_SETTINGS } from "../paths";
-import type { BenchConfig, Selection, SelectionSource } from "./bench-config.types";
+import type { BenchConfig, Selection, SelectionSource, TaskEntry } from "./bench-config.types";
 
-/** Reads benchmark-tasks.json and benchmark-setup.json and applies the --only-* filters. */
+/** Reads benchmark-tasks.json (loading each task's prompt from its promptFile) and benchmark-setup.json, then applies the --only-* filters. */
 export async function loadSelection({
   tasksPath,
   configsPath,
   onlyTask,
   onlyConfig,
 }: SelectionSource): Promise<Selection> {
-  const tasks: Task[] = await Bun.file(tasksPath).json();
+  const taskEntries: TaskEntry[] = await Bun.file(tasksPath).json();
+  const tasks = await Promise.all(taskEntries.map((entry) => loadTask({ entry, tasksDir: dirname(tasksPath) })));
   const configs: BenchConfig[] = await Bun.file(configsPath).json();
   const selectedTasks = tasks.filter((task) => !onlyTask || task.taskId === onlyTask);
   const selectedConfigs = configs.filter((config) => !onlyConfig || config.configId === onlyConfig);
@@ -21,6 +22,19 @@ export async function loadSelection({
   }
 
   return { tasks: selectedTasks, configs: selectedConfigs };
+}
+
+/** Turns a benchmark-tasks.json entry into a Task by reading its prompt file, which is relative to the tasks file. */
+async function loadTask({
+  entry: { promptFile, ...task },
+  tasksDir,
+}: {
+  entry: TaskEntry;
+  tasksDir: string;
+}): Promise<Task> {
+  const prompt = (await Bun.file(resolve(tasksDir, promptFile)).text()).trim();
+
+  return { ...task, prompt };
 }
 
 /** The configs row: config_hash covers the hook settings, MCP configs and extraFiles. */

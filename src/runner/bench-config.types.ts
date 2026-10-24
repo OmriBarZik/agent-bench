@@ -1,5 +1,11 @@
 import type { Task } from "../db.types";
 
+/** One entry in benchmark-tasks.json: a Task whose prompt lives in a markdown file instead of inline. */
+export type TaskEntry = Omit<Task, "prompt"> & {
+  /** Path to the prompt markdown file, relative to the tasks file (e.g. prompts/dino-hat.md). */
+  promptFile: string;
+};
+
 /** One entry in benchmark-setup.json. */
 export type BenchConfig = {
   configId: string;

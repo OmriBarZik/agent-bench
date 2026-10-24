@@ -27,7 +27,7 @@ const { values: args } = parseArgs({
  *   bun src/main.ts [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
  *                     [--only-task id] [--only-config id] [--timeout-min 60] [--sync] [--force]
  *
- * configs/benchmark-tasks.json: [{ "taskId", "prompt", "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
+ * configs/benchmark-tasks.json: [{ "taskId", "promptFile", "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
  * configs/benchmark-setup.json: [{ "configId", "description"?, "model"?, "mcpConfig"?: [paths],
  *                              "strictMcpConfig"?, "allowedTools"?: [..], "disallowedTools"?: [..],
  *                              "permissionMode"?, "extraFiles"?: [paths hashed into config_hash] }]
