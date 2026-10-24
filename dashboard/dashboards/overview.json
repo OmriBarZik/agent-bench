@@ -4,7 +4,7 @@
   "tags": ["agent-bench"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 17,
+  "version": 18,
   "refresh": "30s",
   "time": {
     "from": "now-7d",
@@ -733,8 +733,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at DESC LIMIT 100",
-          "rawQueryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at DESC LIMIT 100",
+          "queryText": "SELECT task_id, config_id, score, success, substr(json_extract(score_details, '$.reason'), 1, 160) AS judge, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at DESC LIMIT 100",
+          "rawQueryText": "SELECT task_id, config_id, score, success, substr(json_extract(score_details, '$.reason'), 1, 160) AS judge, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at DESC LIMIT 100",
           "queryType": "table"
         }
       ],
@@ -763,6 +763,10 @@
                 "value": 3
               }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "score" },
+            "properties": [{ "id": "decimals", "value": 3 }]
           }
         ]
       }

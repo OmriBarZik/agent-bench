@@ -28,9 +28,9 @@ bun run inspect                               # list runs; enter opens the trans
 bun run inspect -- <branch>                   # check out that run's branch
 ```
 
-> ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`). The runner refuses to start if tracked files are modified, unless you pass `--force`.
+> ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`), including checked-out submodules. The runner refuses to start if tracked files are modified, unless you pass `--force`.
 >
-> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends. `bun run inspect` lists those runs from the database. Enter opens the run's transcript in the browser, and Tab checks the branch out in `chromium/src` so you can build it. Ignored build output is left in place. `bun run inspect -- --force` discards uncommitted tracked changes that block the switch.
+> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends, including files inside submodules. `bun run inspect` lists those runs from the database. Enter opens the run's transcript in the browser, and Tab checks the branch out in `chromium/src` so you can build it. Ignored build output is left in place. `bun run inspect -- --force` discards uncommitted tracked changes that block the switch.
 
 | Flag                 | Default                        | Description                                                     |
 | -------------------- | ------------------------------ | --------------------------------------------------------------- |

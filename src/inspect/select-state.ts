@@ -1,3 +1,4 @@
+import { scoreLabel } from "./format-run";
 import type { RunChoice, SelectResult, SelectState } from "./select-state.types";
 
 /** Applies one keypress. Letters always filter, including q; ctrl-c quits. */
@@ -149,6 +150,8 @@ function haystack(choice: RunChoice): string {
     choice.model,
     choice.branch,
     choice.runId,
+    scoreLabel(choice.score).trim(),
+    choice.judgeNote ?? "",
     paths,
   ]
     .join("\n")

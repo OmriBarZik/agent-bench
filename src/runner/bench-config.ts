@@ -4,7 +4,7 @@ import type { Config, Task } from "../db.types";
 import { BENCH_DIR, HOOK_SETTINGS } from "../paths";
 import type { BenchConfig, Selection, SelectionSource, TaskEntry } from "./bench-config.types";
 
-/** Reads benchmark-tasks.json (loading each task's prompt from its promptFile) and benchmark-setup.json, then applies the --only-* filters. */
+/** Reads benchmark-tasks.json (loading each task's prompt and judge prompt) and benchmark-setup.json, then applies the --only-* filters. */
 export async function loadSelection({
   tasksPath,
   configsPath,
@@ -24,17 +24,60 @@ export async function loadSelection({
   return { tasks: selectedTasks, configs: selectedConfigs };
 }
 
-/** Turns a benchmark-tasks.json entry into a Task by reading its prompt file, which is relative to the tasks file. */
-async function loadTask({
-  entry: { promptFile, ...task },
-  tasksDir,
-}: {
-  entry: TaskEntry;
-  tasksDir: string;
-}): Promise<Task> {
-  const prompt = (await Bun.file(resolve(tasksDir, promptFile)).text()).trim();
+/** Turns a benchmark-tasks.json entry into a Task by reading its prompt files, which are relative to the tasks file. */
+async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: string }): Promise<Task> {
+  if (!entry.promptFile || !entry.judgePromptFile) {
+    throw new Error(`${entry.taskId} needs promptFile and judgePromptFile`);
+  }
 
-  return { ...task, prompt };
+  const prompt = await readTrimmed({
+    path: resolve(tasksDir, entry.promptFile),
+    taskId: entry.taskId,
+    label: "prompt",
+  });
+  const judgePrompt = await readTrimmed({
+    path: resolve(tasksDir, entry.judgePromptFile),
+    taskId: entry.taskId,
+    label: "judge prompt",
+  });
+
+  return {
+    taskId: entry.taskId,
+    title: entry.title,
+    difficulty: entry.difficulty,
+    prompt,
+    judgePrompt,
+    successThreshold: requireThreshold(entry),
+    chromiumSha: entry.chromiumSha,
+    scoring: entry.scoring,
+  };
+}
+
+/** The task's own cutoff. A judge score at or above it is success. */
+function requireThreshold(entry: TaskEntry): number {
+  const threshold = entry.successThreshold;
+
+  if (typeof threshold !== "number" || !Number.isFinite(threshold) || threshold < 0 || threshold > 1) {
+    throw new Error(`${entry.taskId} successThreshold must be a decimal from 0 to 1`);
+  }
+
+  return threshold;
+}
+
+async function readTrimmed({ path, taskId, label }: { path: string; taskId: string; label: string }): Promise<string> {
+  const file = Bun.file(path);
+
+  if (!(await file.exists())) {
+    throw new Error(`${taskId} ${label} not found: ${path}`);
+  }
+
+  const text = (await file.text()).trim();
+
+  if (text === "") {
+    throw new Error(`${taskId} ${label} is empty: ${path}`);
+  }
+
+  return text;
 }
 
 /** The configs row: config_hash covers the hook settings, MCP configs and extraFiles. */

@@ -2,6 +2,10 @@
 export type Task = {
   taskId: string;
   prompt: string;
+  /** Rubric the judge uses to score the run from 0 to 1. */
+  judgePrompt: string;
+  /** Decimal from 0 to 1. A judge score at or above this is stored as success. */
+  successThreshold: number;
   chromiumSha: string;
   title?: string;
   difficulty?: "simple" | "medium" | "complex" | string;
@@ -55,6 +59,11 @@ export type ClaudeResult = {
   session_id?: string;
   permission_denials?: unknown[];
   usage?: ClaudeUsage;
+  /** Final assistant text from `claude -p --output-format json`. */
+  result?: unknown;
+  /** Set when the session was started with `--json-schema`. */
+  structured_output?: unknown;
+  error?: string;
   [key: string]: unknown;
 };
 
@@ -66,11 +75,22 @@ export type ClaudeUsage = {
   cache_read_input_tokens?: number;
 };
 
-/** Scoring outcome stored on a finished run (all optional until scoring exists). */
+/** JSON stored in runs.score_details after the judge runs. */
+export type ScoreDetails = {
+  reason?: string;
+  judgeModel?: string;
+  judgeCostUsd?: number | null;
+  /** Decimal cutoff used for `success`. A score at or above it passed. */
+  successThreshold?: number;
+  judgeError?: string;
+};
+
+/** Scoring outcome stored on a finished run. success is true when score is at least the threshold. */
 export type Score = {
   success?: boolean;
+  /** Decimal judge score from 0 to 1, such as 0.2 or 0.743. Absent when the judge did not return one. */
   score?: number;
-  details?: unknown;
+  details?: ScoreDetails;
 };
 
 /** Columns read by listRunBranches. Snake case, matching the query. */
@@ -86,6 +106,9 @@ export type RunBranchSql = {
   commit_sha: string | null;
   changed_files: string | null;
   artifacts_path: string | null;
+  score: number | null;
+  success: number | null;
+  score_details: string | null;
   title: string | null;
 };
 
@@ -103,6 +126,14 @@ export type RunBranchRow = {
   commitSha: string | null;
   changedFiles: ChangedFile[];
   artifactsPath: string | null;
+  /** Decimal judge score from 0 to 1, or null when this run was not scored. */
+  score: number | null;
+  /** True when score was at least the threshold stored for that run. */
+  success: boolean | null;
+  /** Why the judge gave that score, or the error when it did not return one. */
+  judgeNote: string | null;
+  /** Cutoff used for success, or null when this run was not scored. */
+  successThreshold: number | null;
 };
 
 /** One PreToolUse/PostToolUse hook event, stored as a tool_calls row. */

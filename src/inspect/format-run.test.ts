@@ -7,8 +7,12 @@ test("choiceLabel shows when the run happened and how many files it changed", ()
 
   expect(label).toContain("2026-10-24 14:02");
   expect(label).toContain("done");
-  expect(label).toContain("1 file");
+  expect(label).toContain("0.743");
   expect(label).toContain("dino × haiku");
+});
+
+test("choiceLabel marks a run the judge did not score", () => {
+  expect(choiceLabel(choice({ score: null, success: null }))).toContain("n/a");
 });
 
 test("choiceLabel marks a branch the checkout does not have", () => {
@@ -33,6 +37,10 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     commitSha: "abc123def456",
     changedFiles: [{ status: "M", path: "chrome/foo.cc" }],
     artifactsPath: null,
+    score: 0.743,
+    success: true,
+    judgeNote: null,
+    successThreshold: 0.8,
     present: true,
     current: false,
     transcriptPath: null,

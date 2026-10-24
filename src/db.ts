@@ -12,6 +12,7 @@ import type {
   RunBranchSql,
   RunStart,
   Score,
+  ScoreDetails,
   Task,
   ToolCall,
 } from "./db.types";
@@ -42,9 +43,27 @@ export function openDb(path = DB_PATH): Database {
   db.run("PRAGMA foreign_keys = ON");
   db.run(SCHEMA);
   // CREATE TABLE IF NOT EXISTS will not add columns to a database that already exists.
+  ensureTaskColumns(db);
   ensureRunColumns(db);
 
   return db;
+}
+
+/** Columns added after the first bench.sqlite. Idempotent so opening an old file keeps working. */
+function ensureTaskColumns(db: Database) {
+  const present = new Set((db.query("PRAGMA table_info(tasks)").all() as { name: string }[]).map((row) => row.name));
+  const added = [
+    ["judge_prompt", "TEXT"],
+    ["success_threshold", "REAL"],
+  ] as const;
+
+  for (const [name, definition] of added) {
+    if (present.has(name)) {
+      continue;
+    }
+
+    db.run(`ALTER TABLE tasks ADD COLUMN ${name} ${definition}`);
+  }
 }
 
 /** Columns added after the first bench.sqlite. Idempotent so opening an old file keeps working. */
@@ -116,16 +135,19 @@ function totalTokens(usage: ClaudeUsage): number | null {
 
 export function upsertTask({ db, task }: { db: Database; task: Task }) {
   db.query(
-    `INSERT INTO tasks (task_id, title, difficulty, prompt, chromium_sha, scoring)
-     VALUES ($taskId, $title, $difficulty, $prompt, $chromiumSha, $scoring)
+    `INSERT INTO tasks (task_id, title, difficulty, prompt, judge_prompt, success_threshold, chromium_sha, scoring)
+     VALUES ($taskId, $title, $difficulty, $prompt, $judgePrompt, $successThreshold, $chromiumSha, $scoring)
      ON CONFLICT (task_id) DO UPDATE SET
        title = excluded.title, difficulty = excluded.difficulty, prompt = excluded.prompt,
+       judge_prompt = excluded.judge_prompt, success_threshold = excluded.success_threshold,
        chromium_sha = excluded.chromium_sha, scoring = excluded.scoring`,
   ).run({
     taskId: task.taskId,
     title: task.title ?? null,
     difficulty: task.difficulty ?? null,
     prompt: task.prompt,
+    judgePrompt: task.judgePrompt,
+    successThreshold: task.successThreshold,
     chromiumSha: task.chromiumSha,
     scoring: toJson(task.scoring),
   });
@@ -232,6 +254,18 @@ export function finishRun({
   });
 }
 
+/** Writes the judge outcome onto a run that finishRun already closed. */
+export function saveScore({ db, runId, score }: { db: Database; runId: string; score: Score }) {
+  db.query(
+    `UPDATE runs SET success = $success, score = $score, score_details = $scoreDetails WHERE run_id = $runId`,
+  ).run({
+    runId,
+    success: score.success ?? null,
+    score: score.score ?? null,
+    scoreDetails: toJson(score.details),
+  });
+}
+
 export function logToolCall({ db, call }: { db: Database; call: ToolCall }) {
   db.query(
     `INSERT INTO tool_calls (run_id, session_id, tool_use_id, phase, tool, program,
@@ -257,7 +291,7 @@ export function listRunBranches(db: Database): RunBranchRow[] {
     .query(
       `SELECT runs.run_id, runs.task_id, runs.config_id, runs.repeat, runs.status, runs.started_at,
             runs.branch, runs.model, runs.commit_sha, runs.changed_files, runs.artifacts_path,
-            tasks.title AS title
+            runs.score, runs.success, runs.score_details, tasks.title AS title
      FROM runs
      LEFT JOIN tasks ON tasks.task_id = runs.task_id
      WHERE runs.branch IS NOT NULL AND runs.branch != ''
@@ -269,6 +303,8 @@ export function listRunBranches(db: Database): RunBranchRow[] {
 }
 
 function toRunBranchRow(row: RunBranchSql): RunBranchRow {
+  const details = scoreDetails(row.score_details);
+
   return {
     runId: row.run_id,
     taskId: row.task_id ?? "",
@@ -282,7 +318,54 @@ function toRunBranchRow(row: RunBranchSql): RunBranchRow {
     commitSha: row.commit_sha,
     changedFiles: parseChangedFiles(row.changed_files),
     artifactsPath: row.artifacts_path,
+    score: row.score,
+    success: row.success == null ? null : row.success === 1,
+    judgeNote: noteFrom(details),
+    successThreshold: thresholdFrom(details),
   };
+}
+
+function scoreDetails(raw: string | null): ScoreDetails | null {
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as ScoreDetails;
+
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    // One corrupt cell should not stop the run list from opening.
+    return null;
+  }
+}
+
+function noteFrom(details: ScoreDetails | null): string | null {
+  const reason = details?.reason?.trim();
+
+  if (reason) {
+    return reason;
+  }
+
+  const judgeError = details?.judgeError?.trim();
+
+  if (!judgeError) {
+    return null;
+  }
+
+  return judgeError;
+}
+
+function thresholdFrom(details: ScoreDetails | null): number | null {
+  if (typeof details?.successThreshold !== "number" || !Number.isFinite(details.successThreshold)) {
+    return null;
+  }
+
+  return details.successThreshold;
 }
 
 function parseChangedFiles(raw: string | null): ChangedFile[] {

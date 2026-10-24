@@ -18,6 +18,9 @@ test("renderFrame shows the run from the database and the files it changed", () 
 
   expect(frame).toContain("dino × haiku");
   expect(frame).toContain("Hat");
+  expect(frame).toContain("0.743");
+  expect(frame).toContain("success");
+  expect(frame).toContain("most of the hat");
   expect(frame).toContain("chrome/foo.cc");
   expect(frame).toContain("/chromium/src");
 });
@@ -51,6 +54,10 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     commitSha: "abc123def456",
     changedFiles: [{ status: "M", path: "chrome/foo.cc" }],
     artifactsPath: null,
+    score: 0.743,
+    success: true,
+    judgeNote: "most of the hat",
+    successThreshold: 0.8,
     present: true,
     current: false,
     transcriptPath: null,

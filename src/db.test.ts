@@ -3,7 +3,7 @@ import { afterEach, expect, test } from "bun:test";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { finishRun, listRunBranches, openDb, startRun, upsertConfig, upsertTask } from "./db";
+import { finishRun, listRunBranches, openDb, saveScore, startRun, upsertConfig, upsertTask } from "./db";
 
 const directories: string[] = [];
 
@@ -63,7 +63,16 @@ test("openDb adds the artifact columns to a database created before them", () =>
 test("finishRun stores the branch commit and the files it changed", () => {
   const db = openDb(tempDb());
   try {
-    upsertTask({ db, task: { taskId: "t1", prompt: "do the thing", chromiumSha: "abc" } });
+    upsertTask({
+      db,
+      task: {
+        taskId: "t1",
+        prompt: "do the thing",
+        judgePrompt: "score it",
+        successThreshold: 0.8,
+        chromiumSha: "abc",
+      },
+    });
     upsertConfig({ db, config: { configId: "baseline", configHash: "hash" } });
     const runId = "t1__baseline__r0__abc";
     startRun({
@@ -101,7 +110,17 @@ test("finishRun stores the branch commit and the files it changed", () => {
 test("listRunBranches returns newest runs and skips a corrupt file list", () => {
   const db = openDb(tempDb());
   try {
-    upsertTask({ db, task: { taskId: "dino", prompt: "paint", chromiumSha: "abc", title: "Dino" } });
+    upsertTask({
+      db,
+      task: {
+        taskId: "dino",
+        prompt: "paint",
+        judgePrompt: "score it",
+        successThreshold: 0.8,
+        chromiumSha: "abc",
+        title: "Dino",
+      },
+    });
     upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
     seedRun({ db, runId: "older", startedAt: "2026-10-24T12:00:00.000Z" });
     seedRun({ db, runId: "newer", startedAt: "2026-10-24T14:00:00.000Z" });
@@ -130,6 +149,82 @@ test("listRunBranches returns newest runs and skips a corrupt file list", () => 
       changedFiles: [{ status: "M", path: "chrome/foo.cc" }],
     });
     expect(rows[1]?.changedFiles).toEqual([]);
+    expect(rows[0]?.score).toBeNull();
+    expect(rows[0]?.success).toBeNull();
+  } finally {
+    db.close();
+  }
+});
+
+test("saveScore keeps a decimal score and the threshold decision", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({
+      db,
+      task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", successThreshold: 0.8, chromiumSha: "abc" },
+    });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    const runId = "dino__haiku__r0";
+    startRun({
+      db,
+      run: {
+        runId,
+        taskId: "dino",
+        configId: "haiku",
+        repeat: 0,
+        claudeVersion: "test",
+        model: "test",
+        branch: runId,
+      },
+    });
+    finishRun({ db, runId, result: { is_error: false } });
+    saveScore({
+      db,
+      runId,
+      score: {
+        score: 0.743,
+        success: true,
+        details: { reason: "most of the hat", successThreshold: 0.7 },
+      },
+    });
+    const row = db.query("SELECT success, score, score_details FROM runs WHERE run_id = $runId").get({ runId }) as {
+      score: number;
+      score_details: string;
+      success: number;
+    };
+
+    expect(row.success).toBe(1);
+    expect(row.score).toBeCloseTo(0.743);
+    expect(JSON.parse(row.score_details)).toMatchObject({ reason: "most of the hat", successThreshold: 0.7 });
+    expect(listRunBranches(db)[0]).toMatchObject({
+      score: row.score,
+      success: true,
+      judgeNote: "most of the hat",
+      successThreshold: 0.7,
+    });
+  } finally {
+    db.close();
+  }
+});
+
+test("openDb adds judge_prompt to a tasks table created before it", () => {
+  const path = tempDb();
+  const created = new Database(path);
+  created.run(`CREATE TABLE tasks (
+    task_id TEXT PRIMARY KEY,
+    title TEXT,
+    difficulty TEXT,
+    prompt TEXT NOT NULL,
+    chromium_sha TEXT NOT NULL,
+    scoring TEXT
+  )`);
+  created.close();
+
+  const db = openDb(path);
+  try {
+    const names = (db.query("PRAGMA table_info(tasks)").all() as { name: string }[]).map((row) => row.name);
+    expect(names).toContain("judge_prompt");
+    expect(names).toContain("success_threshold");
   } finally {
     db.close();
   }

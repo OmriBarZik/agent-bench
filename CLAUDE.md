@@ -24,7 +24,7 @@ Both typecheck and format:check must pass before finishing a change. The husky p
 
 ## Things that will bite you
 
-- **The runner is destructive.** `bun src/main.ts` runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`), and it spawns real, billed `claude` sessions. Never run it without the user's go-ahead. `configs/benchmark-tasks.json` and `configs/benchmark-setup.json` hold the benchmark tasks and tool setups (the "configs").
+- **The runner is destructive.** `bun src/main.ts` runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`), and the same reset and clean inside every checked-out submodule. It also spawns real, billed `claude` sessions. Never run it without the user's go-ahead. `configs/benchmark-tasks.json` and `configs/benchmark-setup.json` hold the benchmark tasks and tool setups (the "configs").
 - **Never import `src/main.ts`.** It's a CLI entry point, so it's only ever run with `bun src/main.ts`. An `if (import.meta.main)` guard means importing it won't start a benchmark, but don't rely on that: put anything another module or a test needs into `src/runner/` or another module.
 - **Never delete `data/` or `data/bench.sqlite*`** (including the `-wal`/`-shm` files). They hold the results.
 - **`db/schema.sql` runs on every `openDb()`**, so every statement must be idempotent (`IF NOT EXISTS`). To change an existing table, also give the user the `ALTER TABLE` to run.
@@ -35,10 +35,10 @@ Both typecheck and format:check must pass before finishing a change. The husky p
 
 The dependency direction is `src/main.ts` (CLI and run loop) → `src/runner/*` → `src/db.ts` / `src/paths.ts`. `hooks/tool-log.ts` is a separate process that also imports `src/db.ts`.
 
-- `runOne` (`src/runner/run-one.ts`) resets Chromium to the task SHA, checks out a branch named after the run id, then inserts the `runs` row with `startRun` **before** spawning `claude`. The hook processes then insert `tool_calls` rows whose `run_id` foreign key must already exist. The runner passes `BENCH_RUN_ID` to them through the environment and `--settings hooks/settings.example.json`. When the session ends, the runner (not the agent) commits the checkout onto that branch and stores the changed paths on the run.
+- `runOne` (`src/runner/run-one.ts`) resets Chromium to the task SHA, checks out a branch named after the run id, then inserts the `runs` row with `startRun` **before** spawning `claude`. The hook processes then insert `tool_calls` rows whose `run_id` foreign key must already exist. The runner passes `BENCH_RUN_ID` to them through the environment and `--settings hooks/settings.example.json`. When the session ends, the runner (not the agent) commits the checkout onto that branch, including a commit inside each dirty submodule, and stores the changed paths on the run. Paths inside a submodule are prefixed with the submodule directory.
 - SQLite runs in WAL mode with `busy_timeout`, so the many short-lived hook processes can write while the runner holds the DB open. Don't remove either setting.
 - `src/db.ts` owns every query, as small **synchronous** helpers. Always open the DB with `openDb()`, which uses `strict: true`: use named `$params` in SQL, bind keys without the `$`, and bind `?? null` for optional fields.
-- `runClaude` never throws on a failed session. A crash, timeout or unparseable output becomes a result with `is_error: true`, and the run is stored with status `crashed`. Scoring doesn't exist yet, so `success` and `score` stay `NULL`.
+- `runClaude` never throws on a failed session. A crash, timeout or unparseable output becomes a result with `is_error: true`, and the run is stored with status `crashed`. After that, a read-only judge scores the checkout with a decimal from 0 to 1. `success` is 1 when the score is at least the task's `successThreshold` from `benchmark-tasks.json`.
 - The `tool_attempts` view joins `pre` and `post` hook rows on `tool_use_id`; `ran = 0` means the call was blocked or denied. For Bash, the `pre` phase writes one row per program in a pipeline (`bashPrograms`).
 - Shell commands use Bun Shell with an explicit `.cwd(...)` on every call, never a global `$.cwd()`. Repo paths come from `src/paths.ts`.
 

@@ -33,7 +33,7 @@ bun run db:shell             # sqlite3 shell on data/bench.sqlite
 bun run inspect              # pick a run: enter opens its transcript, tab checks out its branch
 ```
 
-> ⚠️ The runner **wipes uncommitted work** in the Chromium checkout (`git reset --hard` + `git clean -fd`) before every run. It refuses to start if tracked files are modified, unless you pass `--force`.
+> ⚠️ The runner **wipes uncommitted work** in the Chromium checkout (`git reset --hard` + `git clean -fd`), including every checked-out submodule, before every run. It refuses to start if tracked files are modified, unless you pass `--force`.
 
 Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--timeout-min` (default 60), `--sync` (run `gclient sync -D` after each checkout) and `--force`.
 
@@ -45,19 +45,21 @@ src/main.ts
   ├─ hasUncommittedChanges → refuse unless --force
   ├─ upsertTask / upsertConfig (config_hash = sha256 of hook settings + MCP configs + extraFiles)
   └─ for each task × config × repeat → runOne
-        1. resetChromium(sha)          git reset/clean/checkout --detach [+ gclient sync]
+        1. resetChromium(sha)          git reset/clean/checkout, then the same in each submodule [+ gclient sync]
         2. createRunBranch(runId)      branch at that SHA, named after the run id
         3. startRun                    insert the runs row (status = running)
         4. runClaude                   claude -p … --output-format json --settings hooks/settings.example.json
         │     └─ hooks/tool-log.ts     PreToolUse/PostToolUse → tool_calls rows (only when BENCH_RUN_ID is set)
         5. copyTranscript              ~/.claude/projects/**/<session>.jsonl → runs/<run_id>/
-        6. commitRunChanges            commit the checkout onto the run branch
+        6. commitRunChanges            commit submodule checkouts, then the superproject
         7. finishRun                   duration, turns, cost, tokens, denials, changed files, raw result
+        8. judgeRun                    read-only claude -p, task judge prompt, decimal score 0–1
+        9. saveScore                   success when score >= the task's successThreshold
 ```
 
-The runner creates the branch and the commit. The agent is not asked to: it only edits the tree. `git clean` does not pass `-x`, so ignored build output (`out/`) survives a checkout and switching runs does not force a full rebuild.
+The runner creates the branch and the commit. The agent is not asked to: it only edits the tree. Edits inside a checked-out submodule are committed there first, and the superproject records the new gitlink. `changed_files` lists those paths with the submodule directory prefixed. `git clean` does not pass `-x`, so ignored build output (`out/`) survives a checkout and switching runs does not force a full rebuild. It also does not pass a second `-f`, so a nested git directory that is not a submodule is left in place.
 
-The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. Scoring isn't done yet, so `success` and `score` stay `NULL` for now.
+The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session scores the checkout. `score` is a decimal from 0 to 1, such as 0.2 or 0.743. `success` is 1 when that score is at least the task's `successThreshold`.
 
 To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
 
@@ -89,6 +91,8 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
   {
     "taskId": "t1",
     "promptFile": "prompts/t1.md",
+    "judgePromptFile": "prompts/t1-judge.md",
+    "successThreshold": 0.8,
     "chromiumSha": "abc123",
     "title": "…",
     "difficulty": "simple",
@@ -97,7 +101,7 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 ]
 ```
 
-`promptFile` is relative to the tasks file and holds the whole prompt as plain text (leading/trailing whitespace is trimmed). Editing it changes the prompt stored for that task on the next run.
+`promptFile` and `judgePromptFile` are relative to the tasks file. Leading and trailing whitespace is trimmed. `successThreshold` is a decimal from 0 to 1: a judge score at or above it is stored as success for that task.
 
 `configs/benchmark-setup.json`:
 
@@ -136,7 +140,7 @@ SELECT config_id, count(*) runs, avg(cost_usd) cost, avg(num_turns) turns
 FROM runs WHERE status = 'done' GROUP BY config_id;
 ```
 
-Example: the files a run committed, relative to the task SHA.
+Example: the files a run committed, relative to the task SHA. A path inside a submodule includes the submodule directory.
 
 ```sql
 SELECT run_id, commit_sha, json_extract(file.value, '$.status') AS status,

@@ -6,6 +6,7 @@ import { BENCH_DIR, CHROMIUM_SRC } from "./paths";
 import { loadSelection, toConfigRow } from "./runner/bench-config";
 import { hasUncommittedChanges } from "./runner/chromium";
 import { claudeVersion } from "./runner/claude";
+import { judgementText } from "./runner/judge-result";
 import { runOne } from "./runner/run-one";
 
 const { values: args } = parseArgs({
@@ -16,6 +17,7 @@ const { values: args } = parseArgs({
     "only-task": { type: "string" },
     "only-config": { type: "string" },
     "timeout-min": { type: "string", default: "60" },
+    "judge-model": { type: "string", default: "claude-sonnet-5-5" },
     sync: { type: "boolean", default: false }, // run `gclient sync -D` after each checkout
     force: { type: "boolean", default: false }, // allow wiping uncommitted changes in src/
   },
@@ -25,17 +27,20 @@ const { values: args } = parseArgs({
  * Benchmark runner: tasks × configs × repeats, one `claude -p` session per run.
  *
  *   bun src/main.ts [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
- *                     [--only-task id] [--only-config id] [--timeout-min 60] [--sync] [--force]
+ *                     [--only-task id] [--only-config id] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
+ *                     [--sync] [--force]
  *
- * configs/benchmark-tasks.json: [{ "taskId", "promptFile", "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
+ * configs/benchmark-tasks.json: [{ "taskId", "promptFile", "judgePromptFile", "successThreshold",
+ *                              "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
  * configs/benchmark-setup.json: [{ "configId", "description"?, "model"?, "mcpConfig"?: [paths],
  *                              "strictMcpConfig"?, "allowedTools"?: [..], "disallowedTools"?: [..],
  *                              "permissionMode"?, "extraFiles"?: [paths hashed into config_hash] }]
  *
  * Per run (src/runner/run-one.ts): reset src/ to the task's SHA, check out a branch named
  * after the run id, startRun, run claude with BENCH_RUN_ID + the tool-log hooks, copy the
- * transcript into runs/<run_id>/, commit the checkout onto that branch, finishRun.
- * Scoring is not done here: success/score stay NULL.
+ * transcript into runs/<run_id>/, commit the checkout onto that branch, finishRun, then a
+ * second read-only claude session scores the tree with a decimal from 0 to 1 (for example 0.2 or 0.743).
+ * success is 1 when that score is at least the task's successThreshold. The judge does not record tool calls.
  */
 async function main() {
   const { tasks, configs } = await loadSelection({
@@ -54,6 +59,7 @@ async function main() {
     claudeVersion: await claudeVersion(),
     timeoutMs: Number(args["timeout-min"]) * 60_000,
     sync: args.sync,
+    judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
   };
   const db = openDb();
   for (const task of tasks) upsertTask({ db, task });
@@ -65,10 +71,11 @@ async function main() {
     for (const config of configs) {
       for (let repeat = 0; repeat < repeats; repeat++) {
         console.log(`[${++runIndex}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
-        const { runId, result, seconds, artifact } = await runOne({ db, task, config, repeat, options });
+        const { runId, result, seconds, artifact, score } = await runOne({ db, task, config, repeat, options });
         const cost = result.total_cost_usd != null ? `, $${result.total_cost_usd.toFixed(2)}` : "";
         const files = artifact.changedFiles.length === 0 ? "no file changes" : `${artifact.changedFiles.length} files`;
-        console.log(`  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}`);
+        const judged = judgementText({ score, successThreshold: task.successThreshold });
+        console.log(`  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}, ${judged}`);
       }
     }
   }

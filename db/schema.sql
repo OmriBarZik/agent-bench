@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     title         TEXT,
     difficulty    TEXT,            -- e.g. simple / medium / complex
     prompt        TEXT NOT NULL,
-    chromium_sha  TEXT NOT NULL,
+    judge_prompt       TEXT,            -- rubric the judge uses to score a run from 0 to 1
+    success_threshold  REAL,            -- score at or above this decimal is success
+    chromium_sha       TEXT NOT NULL,
     scoring       TEXT             -- JSON: how success is checked for this task
 );
 
@@ -40,14 +42,14 @@ CREATE TABLE IF NOT EXISTS runs (
     cache_read_tokens      INTEGER,     -- input served from the prompt cache
     total_tokens           INTEGER,     -- fresh input + cache write + cache read + output
     permission_denials INTEGER,
-    success            INTEGER,    -- boolean
-    score              REAL,
-    score_details      TEXT,       -- JSON
+    success            INTEGER,    -- 1 when score >= the run's success threshold
+    score              REAL,       -- decimal judge score from 0 to 1, such as 0.2 or 0.743
+    score_details      TEXT,       -- JSON: reason, judgeModel, judgeCostUsd, successThreshold, judgeError
     raw_result         TEXT,       -- JSON: full claude -p output
     artifacts_path     TEXT,       -- folder with transcript + hook logs for this run
     branch             TEXT,       -- git branch in the Chromium checkout, named after run_id
     commit_sha         TEXT,       -- tip of that branch; NULL when the tree still matches the task SHA
-    changed_files      TEXT        -- JSON: [{ "status", "path", "previousPath"? }] vs the task SHA
+    changed_files      TEXT        -- JSON: [{ "status", "path", "previousPath"? }] vs the task SHA; submodule paths are prefixed
 );
 
 CREATE TABLE IF NOT EXISTS tool_calls (

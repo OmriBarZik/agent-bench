@@ -1,4 +1,4 @@
-import { changedFileLine } from "./format-run";
+import { changedFileLine, scoreLabel } from "./format-run";
 import type { RunChoice } from "./select-state.types";
 import { colorLine, fit } from "./terminal-text";
 import type { LineKind } from "./terminal-text.types";
@@ -29,6 +29,11 @@ export function detailLines({
 
   plain.push(titleLine(choice));
   plain.push(metaLine(choice));
+
+  if (choice.judgeNote) {
+    plain.push(choice.judgeNote.replace(/\s+/g, " ").trim());
+  }
+
   plain.push(choice.branch);
   plain.push(choice.commitSha ? choice.commitSha.slice(0, 12) : "no changes committed");
   plain.push(choice.transcriptPath ? "transcript ready" : "no transcript");
@@ -106,5 +111,23 @@ function titleLine(choice: RunChoice): string {
 function metaLine(choice: RunChoice): string {
   const model = choice.model === "" ? "default model" : choice.model;
 
-  return `${model} · ${choice.status} · repeat ${choice.repeat}`;
+  return `${model} · ${choice.status} · repeat ${choice.repeat} · ${scoreText(choice)}`;
+}
+
+function scoreText(choice: RunChoice): string {
+  const label = scoreLabel(choice.score).trim();
+
+  if (choice.success == null) {
+    return `score ${label}`;
+  }
+
+  if (choice.success) {
+    return `score ${label} · success`;
+  }
+
+  if (choice.successThreshold == null) {
+    return `score ${label} · below threshold`;
+  }
+
+  return `score ${label} · below ${choice.successThreshold}`;
 }
