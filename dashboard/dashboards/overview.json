@@ -4,7 +4,7 @@
   "tags": ["agent-bench"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 6,
+  "version": 17,
   "refresh": "30s",
   "time": {
     "from": "now-7d",
@@ -580,8 +580,8 @@
     },
     {
       "id": 9,
-      "type": "timeseries",
-      "title": "Cost per run over time",
+      "type": "piechart",
+      "title": "Cost share by task / config",
       "datasource": {
         "type": "frser-sqlite-datasource",
         "uid": "bench-sqlite"
@@ -599,55 +599,39 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT CAST(strftime('%s', started_at) AS INTEGER) AS time, cost_usd AS \"cost (USD)\", CAST(num_turns AS REAL) AS turns FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at",
-          "rawQueryText": "SELECT CAST(strftime('%s', started_at) AS INTEGER) AS time, cost_usd AS \"cost (USD)\", CAST(num_turns AS REAL) AS turns FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY started_at",
-          "queryType": "table",
-          "timeColumns": ["time"]
+          "queryText": "SELECT task_id || ' / ' || config_id AS setup, sum(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
+          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, sum(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
+          "queryType": "table"
         }
       ],
       "options": {
+        "pieType": "pie",
+        "displayLabels": ["percent"],
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
         "legend": {
-          "showLegend": true
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": ["value", "percent"]
+        },
+        "reduceOptions": {
+          "values": true,
+          "calcs": ["lastNotNull"],
+          "fields": ""
         }
       },
       "fieldConfig": {
         "defaults": {
-          "custom": {
-            "drawStyle": "points",
-            "pointSize": 9,
-            "lineWidth": 0
+          "unit": "currencyUSD",
+          "decimals": 2,
+          "color": {
+            "mode": "palette-classic"
           }
         },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "turns"
-            },
-            "properties": [
-              {
-                "id": "custom.axisPlacement",
-                "value": "right"
-              },
-              {
-                "id": "unit",
-                "value": "none"
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "cost (USD)"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "currencyUSD"
-              }
-            ]
-          }
-        ]
+        "overrides": []
       }
     },
     {

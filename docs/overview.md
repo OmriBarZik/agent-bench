@@ -30,6 +30,7 @@ bun install                  # @types/bun + husky (installs the pre-commit hook)
 bun src/main.ts              # reads configs/benchmark-tasks.json + configs/benchmark-setup.json
 bun src/main.ts --only-task t1 --repeats 3
 bun run db:shell             # sqlite3 shell on data/bench.sqlite
+bun run inspect              # pick a run: enter opens its transcript, tab checks out its branch
 ```
 
 > ⚠️ The runner **wipes uncommitted work** in the Chromium checkout (`git reset --hard` + `git clean -fd`) before every run. It refuses to start if tracked files are modified, unless you pass `--force`.
@@ -58,17 +59,18 @@ The runner creates the branch and the commit. The agent is not asked to: it only
 
 The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. Scoring isn't done yet, so `success` and `score` stay `NULL` for now.
 
-To inspect a run, check out its branch in the Chromium tree (`git switch <run_id>`). `commit_sha` is NULL when the tree still matches the task SHA.
+To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
 
 ## Project layout
 
 | Path                                       | Job                                                                                                            |
 | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
 | `src/main.ts`                              | Entry point: CLI args, task/config selection, the run loop, progress output                                    |
+| `src/inspect/main.ts`                      | Pick a run from the database, open its transcript, or check out its branch                                     |
 | `src/paths.ts`                             | Shared filesystem locations (`BENCH_DIR`, `CHROMIUM_SRC`, `HOOK_SETTINGS`, `RUNS_DIR`)                         |
 | `src/db.ts` / `db.types.ts`                | Opens SQLite, applies the schema, and holds every query helper / row types                                     |
 | `src/runner/bench-config.ts` / `.types.ts` | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash            |
-| `src/runner/chromium.ts`                   | git/gclient on the Chromium checkout: reset, run branch, artifact commit                                       |
+| `src/runner/chromium.ts`                   | git/gclient on the Chromium checkout: reset, run branch, artifact commit, checkout                             |
 | `src/runner/claude.ts`                     | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                  |
 | `src/runner/run-one.ts` / `.types.ts`      | One run end to end (the steps above)                                                                           |
 | `hooks/tool-log.ts`                        | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)           |
