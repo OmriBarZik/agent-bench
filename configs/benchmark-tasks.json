@@ -9,6 +9,7 @@
       "checks": [
         "change is in the offline dino game sources (components/neterror/resources/dino_game)",
         "hat rendered in all dino states and sprite scales",
+        "hat bounces off the head during a jump and lands back on it, and sits still otherwise",
         "collision boxes and game logic unchanged"
       ]
     }
