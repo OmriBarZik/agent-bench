@@ -1,13 +1,13 @@
 #!/usr/bin/env bun
 import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { openDb, upsertConfig, upsertTask } from "./db";
+import { openDb, upsertConfig, upsertTask } from "./db/db";
 import { BENCH_DIR, CHROMIUM_SRC } from "./paths";
-import { loadSelection, toConfigRow } from "./runner/bench-config";
-import { hasUncommittedChanges } from "./runner/chromium";
-import { claudeVersion } from "./runner/claude";
-import { judgementText } from "./runner/judge-result";
-import { runOne } from "./runner/run-one";
+import { loadSelection, toConfigRow } from "./runner/bench-config/bench-config";
+import { claudeVersion } from "./runner/claude/claude";
+import { hasUncommittedChanges } from "./runner/chromium/chromium";
+import { judgementText } from "./runner/judge/judge-result";
+import { runOne } from "./runner/run-one/run-one";
 
 const { values: args } = parseArgs({
   options: {
@@ -36,7 +36,7 @@ const { values: args } = parseArgs({
  *                              "strictMcpConfig"?, "allowedTools"?: [..], "disallowedTools"?: [..],
  *                              "permissionMode"?, "extraFiles"?: [paths hashed into config_hash] }]
  *
- * Per run (src/runner/run-one.ts): reset src/ to the task's SHA, check out a branch named
+ * Per run (src/runner/run-one/run-one.ts): reset src/ to the task's SHA, check out a branch named
  * after the run id, startRun, run claude with BENCH_RUN_ID + the tool-log hooks, copy the
  * transcript into runs/<run_id>/, commit the checkout onto that branch, finishRun, then a
  * second read-only claude session scores the tree with a decimal from 0 to 1 (for example 0.2 or 0.743).

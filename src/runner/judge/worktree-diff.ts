@@ -1,5 +1,5 @@
 import { $ } from "bun";
-import { CHROMIUM_SRC } from "../paths";
+import { CHROMIUM_SRC } from "../../paths";
 
 const DIFF_MAX_CHARS = 60_000;
 

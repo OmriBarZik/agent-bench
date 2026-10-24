@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { listRunBranches, openDb } from "../db";
-import type { RunBranchRow } from "../db.types";
+import { listRunBranches, openDb } from "../db/db";
+import type { RunBranchRow } from "../db/db.types";
 import { RUNS_DIR } from "../paths";
-import { currentBranch, listLocalBranches } from "../runner/chromium";
+import { currentBranch, listLocalBranches } from "../runner/chromium/chromium";
 import type { RunChoice } from "./select-state.types";
 
 /** Runs from SQLite, marked with whether the Chromium checkout still has that branch. */

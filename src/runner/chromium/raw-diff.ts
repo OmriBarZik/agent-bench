@@ -1,4 +1,4 @@
-import type { ChangedFile } from "../db.types";
+import type { ChangedFile } from "../../db/db.types";
 import type { RawDiffEntry } from "./raw-diff.types";
 
 /** Parses `git diff --raw -z` (with `--abbrev=40`) into one entry per path. */

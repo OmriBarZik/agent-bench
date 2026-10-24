@@ -1,4 +1,4 @@
-import type { RunBranchRow } from "../db.types";
+import type { RunBranchRow } from "../db/db.types";
 
 /** A run from the database, plus whether its branch and transcript are on this machine. */
 export type RunChoice = RunBranchRow & {

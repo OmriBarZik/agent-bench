@@ -1,4 +1,4 @@
-import type { ClaudeResult, JudgeMetrics, RunArtifact } from "../db.types";
+import type { ClaudeResult, JudgeMetrics, RunArtifact } from "../../db/db.types";
 
 /** Options shared by every run in a benchmark. */
 export type RunOptions = {

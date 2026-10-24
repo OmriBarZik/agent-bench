@@ -1,4 +1,4 @@
-import type { ChangedFile } from "../db.types";
+import type { ChangedFile } from "../db/db.types";
 import type { RunChoice } from "./select-state.types";
 
 /** One list row: when, status, score, file count, and task × config. */

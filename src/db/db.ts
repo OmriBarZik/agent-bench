@@ -15,7 +15,7 @@ import type {
   Task,
   ToolCall,
 } from "./db.types";
-import { BENCH_DIR } from "./paths";
+import { BENCH_DIR } from "../paths";
 
 export const DB_PATH = process.env.BENCH_DB_PATH ?? join(BENCH_DIR, "data", "bench.sqlite");
 const SCHEMA = readFileSync(join(BENCH_DIR, "db", "schema.sql"), "utf8");

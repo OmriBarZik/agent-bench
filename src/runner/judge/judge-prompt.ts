@@ -1,4 +1,4 @@
-import type { ChangedFile } from "../db.types";
+import type { ChangedFile } from "../../db/db.types";
 import type { JudgePromptInput } from "./judge-prompt.types";
 
 const REPORT_MAX_CHARS = 4_000;

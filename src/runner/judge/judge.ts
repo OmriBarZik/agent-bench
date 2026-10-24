@@ -1,6 +1,6 @@
 import { join } from "node:path";
-import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../db.types";
-import { CHROMIUM_SRC } from "../paths";
+import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../../db/db.types";
+import { CHROMIUM_SRC } from "../../paths";
 import { buildJudgePrompt } from "./judge-prompt";
 import { judgeMetrics } from "./judge-result";
 import { diffAgainst } from "./worktree-diff";

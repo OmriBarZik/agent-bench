@@ -1,9 +1,9 @@
 #!/usr/bin/env bun
 import process from "node:process";
 import { parseArgs } from "node:util";
-import { DB_PATH } from "../db";
+import { DB_PATH } from "../db/db";
 import { CHROMIUM_SRC } from "../paths";
-import { checkoutBranch, hasUncommittedChanges } from "../runner/chromium";
+import { checkoutBranch, hasUncommittedChanges } from "../runner/chromium/chromium";
 import { changedFileLine } from "./format-run";
 import { loadChoices } from "./load-choices";
 import { selectRun } from "./select-run";

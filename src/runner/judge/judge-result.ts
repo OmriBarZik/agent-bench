@@ -1,4 +1,4 @@
-import type { ClaudeResult, ClaudeUsage, JudgeMetrics } from "../db.types";
+import type { ClaudeResult, ClaudeUsage, JudgeMetrics } from "../../db/db.types";
 import type { JudgeVerdict } from "./judge-result.types";
 
 /** Turns a finished judge session into the judge_runs row. A missing score leaves score and success null. */

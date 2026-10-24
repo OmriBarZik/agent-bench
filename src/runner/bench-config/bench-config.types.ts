@@ -1,4 +1,4 @@
-import type { Task } from "../db.types";
+import type { Task } from "../../db/db.types";
 
 /** One entry in benchmark-tasks.json: a Task whose prompts live in markdown files instead of inline. */
 export type TaskEntry = Omit<Task, "prompt" | "judgePrompt"> & {

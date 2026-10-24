@@ -1,7 +1,7 @@
 import { $ } from "bun";
 import { existsSync } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import type { ChangedFile } from "../db.types";
+import type { ChangedFile } from "../../db/db.types";
 import { changedFileFromEntry, parseRawDiff } from "./raw-diff";
 import type { RawDiffEntry } from "./raw-diff.types";
 

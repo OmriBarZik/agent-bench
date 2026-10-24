@@ -1,7 +1,7 @@
 import { dirname, resolve } from "node:path";
-import { hashFiles } from "../db";
-import type { Config, Task } from "../db.types";
-import { BENCH_DIR, HOOK_SETTINGS } from "../paths";
+import { hashFiles } from "../../db/db";
+import type { Config, Task } from "../../db/db.types";
+import { BENCH_DIR, HOOK_SETTINGS } from "../../paths";
 import type { BenchConfig, Selection, SelectionSource, TaskEntry } from "./bench-config.types";
 
 /** Reads benchmark-tasks.json (loading each task's prompt and judge prompt) and benchmark-setup.json, then applies the --only-* filters. */

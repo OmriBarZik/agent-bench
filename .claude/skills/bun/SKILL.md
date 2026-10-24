@@ -52,7 +52,7 @@ For file structure, naming, comments and when to split a file, see the `code-sty
 
 ## SQLite (`bun:sqlite`) rules
 
-`src/db.ts` owns every query. Add new queries there as small exported **synchronous** `function x(db: Database, ...)` helpers. `bun:sqlite` is synchronous, so don't make them `async`.
+`src/db/db.ts` owns every query. Add new queries there as small exported **synchronous** `function x(db: Database, ...)` helpers. `bun:sqlite` is synchronous, so don't make them `async`.
 
 - Always open the DB through `openDb(path = DB_PATH)`, never with `new Database()` elsewhere. It does the following:
   - creates `data/` and the file if needed;
@@ -95,9 +95,9 @@ For file structure, naming, comments and when to split a file, see the `code-sty
 ## Runner (`src/main.ts` + `src/runner/`)
 
 - **It is destructive.** It runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`). Never run it for a quick test without the user's go-ahead.
-- Short commands (git, gclient, `claude --version` in `src/runner/chromium.ts` and `claude.ts`) use Bun Shell with an explicit `.cwd(...)` on each call. Never use a global `$.cwd()`, because it leaks across modules. A non-zero exit throws a `ShellError` that carries stderr.
+- Short commands (git, gclient, `claude --version` in `src/runner/chromium/chromium.ts` and `src/runner/claude/claude.ts`) use Bun Shell with an explicit `.cwd(...)` on each call. Never use a global `$.cwd()`, because it leaks across modules. A non-zero exit throws a `ShellError` that carries stderr.
   - Use `.text()` (implies quiet; `.trim()` it) or `.quiet()`. Interpolated values like `${sha}` are escaped. Don't add a `spawnSync` wrapper back.
-- `runClaude` in `src/runner/claude.ts` spawns `claude -p ... --output-format json` with `Bun.spawn({ timeout, env: { ...process.env, BENCH_RUN_ID } })` and reads stdout/stderr with `new Response(proc.stdout).text()` in parallel with `proc.exited`.
+- `runClaude` in `src/runner/claude/claude.ts` spawns `claude -p ... --output-format json` with `Bun.spawn({ timeout, env: { ...process.env, BENCH_RUN_ID } })` and reads stdout/stderr with `new Response(proc.stdout).text()` in parallel with `proc.exited`.
 - Run artifacts go to `runs/<run_id>/` (gitignored).
 
 ## Tests

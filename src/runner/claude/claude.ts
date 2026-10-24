@@ -2,9 +2,9 @@ import { $ } from "bun";
 import { cpSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import type { ClaudeResult, Task } from "../db.types";
-import { BENCH_DIR, CHROMIUM_SRC, HOOK_SETTINGS } from "../paths";
-import type { BenchConfig } from "./bench-config.types";
+import type { ClaudeResult, Task } from "../../db/db.types";
+import { BENCH_DIR, CHROMIUM_SRC, HOOK_SETTINGS } from "../../paths";
+import type { BenchConfig } from "../bench-config/bench-config.types";
 
 /** Output of `claude --version`, stored on every run. */
 export async function claudeVersion(): Promise<string> {

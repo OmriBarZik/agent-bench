@@ -65,22 +65,23 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 
 ## Project layout
 
-| Path                                       | Job                                                                                                            |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `src/main.ts`                              | Entry point: CLI args, task/config selection, the run loop, progress output                                    |
-| `src/inspect/main.ts`                      | Pick a run from the database, open its transcript, or check out its branch                                     |
-| `src/paths.ts`                             | Shared filesystem locations (`BENCH_DIR`, `CHROMIUM_SRC`, `HOOK_SETTINGS`, `RUNS_DIR`)                         |
-| `src/db.ts` / `db.types.ts`                | Opens SQLite, applies the schema, and holds every query helper / row types                                     |
-| `src/runner/bench-config.ts` / `.types.ts` | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash            |
-| `src/runner/chromium.ts`                   | git/gclient on the Chromium checkout: reset, run branch, artifact commit, checkout                             |
-| `src/runner/claude.ts`                     | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                  |
-| `src/runner/run-one.ts` / `.types.ts`      | One run end to end (the steps above)                                                                           |
-| `hooks/tool-log.ts`                        | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)           |
-| `hooks/settings.example.json`              | The hook registration passed to `claude --settings`. It's part of `config_hash`                                |
-| `db/schema.sql`                            | SQLite schema, applied idempotently on every open                                                              |
-| `data/bench.sqlite`                        | The results DB (gitignored)                                                                                    |
-| `runs/<run_id>/`                           | Per-run artifacts: `command.json`, `result.json`, `stderr.log`, `transcript.jsonl` and `session/` (gitignored) |
-| `.claude/skills/`                          | Agent skills: `bun` (tooling and APIs) and `code-styling` (style rules)                                        |
+| Path                           | Job                                                                                                            |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| `src/main.ts`                  | Entry point: CLI args, task/config selection, the run loop, progress output                                    |
+| `src/inspect/main.ts`          | Pick a run from the database, open its transcript, or check out its branch                                     |
+| `src/paths.ts`                 | Shared filesystem locations (`BENCH_DIR`, `CHROMIUM_SRC`, `HOOK_SETTINGS`, `RUNS_DIR`)                         |
+| `src/db/db.ts` / `db.types.ts` | Opens SQLite, applies the schema, and holds every query helper / row types                                     |
+| `src/runner/bench-config/`     | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash            |
+| `src/runner/chromium/`         | git/gclient on the Chromium checkout: reset, run branch, submodules, artifact commit, changed files            |
+| `src/runner/claude/claude.ts`  | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                  |
+| `src/runner/judge/`            | Read-only scoring session: judge prompt, worktree diff, and the decimal verdict                                |
+| `src/runner/run-one/`          | One run end to end (the steps above)                                                                           |
+| `hooks/tool-log.ts`            | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)           |
+| `hooks/settings.example.json`  | The hook registration passed to `claude --settings`. It's part of `config_hash`                                |
+| `db/schema.sql`                | SQLite schema, applied idempotently on every open                                                              |
+| `data/bench.sqlite`            | The results DB (gitignored)                                                                                    |
+| `runs/<run_id>/`               | Per-run artifacts: `command.json`, `result.json`, `stderr.log`, `transcript.jsonl` and `session/` (gitignored) |
+| `.claude/skills/`              | Agent skills: `bun` (tooling and APIs) and `code-styling` (style rules)                                        |
 
 ## Input files
 

@@ -2,8 +2,8 @@
 import { appendFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
-import { logToolCall, openDb } from "../src/db";
-import type { ToolCall } from "../src/db.types";
+import { logToolCall, openDb } from "../src/db/db";
+import type { ToolCall } from "../src/db/db.types";
 
 const WRAPPERS = new Set(["sudo", "time", "nohup", "xargs", "env", "command", "exec"]);
 
