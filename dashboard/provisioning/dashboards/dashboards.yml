@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: agent-bench
+    type: file
+    allowUiUpdates: true
+    options:
+      path: /etc/dashboards

@@ -2,7 +2,7 @@ import { Database } from "bun:sqlite";
 import { mkdirSync, readFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
-import type { ClaudeResult, Config, RunStart, Score, Task, ToolCall } from "./db.types";
+import type { ClaudeResult, ClaudeUsage, Config, RunArtifact, RunStart, Score, Task, ToolCall } from "./db.types";
 import { BENCH_DIR } from "./paths";
 
 export const DB_PATH = process.env.BENCH_DB_PATH ?? join(BENCH_DIR, "data", "bench.sqlite");
@@ -29,8 +29,77 @@ export function openDb(path = DB_PATH): Database {
   db.run("PRAGMA busy_timeout = 5000");
   db.run("PRAGMA foreign_keys = ON");
   db.run(SCHEMA);
+  // CREATE TABLE IF NOT EXISTS will not add columns to a database that already exists.
+  ensureRunColumns(db);
 
   return db;
+}
+
+/** Columns added after the first bench.sqlite. Idempotent so opening an old file keeps working. */
+function ensureRunColumns(db: Database) {
+  const present = new Set((db.query("PRAGMA table_info(runs)").all() as { name: string }[]).map((row) => row.name));
+  const added = [
+    ["branch", "TEXT"],
+    ["commit_sha", "TEXT"],
+    ["changed_files", "TEXT"],
+    ["total_tokens", "INTEGER"],
+    ["cache_creation_tokens", "INTEGER"],
+  ] as const;
+  for (const [name, definition] of added) {
+    if (present.has(name)) {
+      continue;
+    }
+
+    db.run(`ALTER TABLE runs ADD COLUMN ${name} ${definition}`);
+
+    if (name === "total_tokens") {
+      backfillTotalTokens(db);
+    }
+
+    if (name === "cache_creation_tokens") {
+      backfillCacheCreationTokens(db);
+    }
+  }
+}
+
+/** Fills cache_creation_tokens on old runs from the stored Claude JSON. Runs once, when the column is added. */
+function backfillCacheCreationTokens(db: Database) {
+  db.run(
+    `UPDATE runs SET cache_creation_tokens = json_extract(raw_result, '$.usage.cache_creation_input_tokens')
+     WHERE cache_creation_tokens IS NULL AND json_extract(raw_result, '$.usage') IS NOT NULL`,
+  );
+}
+
+/** Fills total_tokens on old runs from the stored Claude JSON. Runs once, when the column is added. */
+function backfillTotalTokens(db: Database) {
+  db.run(
+    `UPDATE runs SET total_tokens =
+       COALESCE(json_extract(raw_result, '$.usage.input_tokens'), 0) +
+       COALESCE(json_extract(raw_result, '$.usage.cache_creation_input_tokens'), 0) +
+       COALESCE(json_extract(raw_result, '$.usage.cache_read_input_tokens'), 0) +
+       COALESCE(json_extract(raw_result, '$.usage.output_tokens'), 0)
+     WHERE total_tokens IS NULL AND json_extract(raw_result, '$.usage') IS NOT NULL`,
+  );
+}
+
+/** Fresh input, cache write, cache read and output: the counts behind total_cost_usd. Null when Claude reported no usage. */
+function totalTokens(usage: ClaudeUsage): number | null {
+  const counts = [
+    usage.input_tokens,
+    usage.cache_creation_input_tokens,
+    usage.cache_read_input_tokens,
+    usage.output_tokens,
+  ];
+  if (counts.every((count) => count == null)) {
+    return null;
+  }
+
+  let total = 0;
+  for (const count of counts) {
+    total += count ?? 0;
+  }
+
+  return total;
 }
 
 export function upsertTask({ db, task }: { db: Database; task: Task }) {
@@ -80,9 +149,9 @@ export async function hashFiles(paths: string[]): Promise<string> {
 export function startRun({ db, run }: { db: Database; run: RunStart }) {
   db.query(
     `INSERT INTO runs (run_id, task_id, config_id, repeat, claude_version, model,
-                       machine, artifacts_path)
+                       machine, artifacts_path, branch)
      VALUES ($runId, $taskId, $configId, $repeat, $claudeVersion, $model,
-             $machine, $artifactsPath)`,
+             $machine, $artifactsPath, $branch)`,
   ).run({
     runId: run.runId,
     taskId: run.taskId,
@@ -92,6 +161,7 @@ export function startRun({ db, run }: { db: Database; run: RunStart }) {
     model: run.model,
     machine: hostname(),
     artifactsPath: run.artifactsPath ?? null,
+    branch: run.branch,
   });
 }
 
@@ -100,11 +170,13 @@ export function finishRun({
   runId,
   result,
   score = {},
+  artifact = { commitSha: null, changedFiles: [] },
 }: {
   db: Database;
   runId: string;
   result: ClaudeResult;
   score?: Score;
+  artifact?: RunArtifact;
 }) {
   const usage = result.usage ?? {};
   db.query(
@@ -114,14 +186,18 @@ export function finishRun({
        duration_ms        = $durationMs,
        num_turns          = $numTurns,
        cost_usd           = $costUsd,
-       input_tokens       = $inputTokens,
-       output_tokens      = $outputTokens,
-       cache_read_tokens  = $cacheReadTokens,
+       input_tokens          = $inputTokens,
+       output_tokens         = $outputTokens,
+       cache_creation_tokens = $cacheCreationTokens,
+       cache_read_tokens     = $cacheReadTokens,
+       total_tokens          = $totalTokens,
        permission_denials = $permissionDenials,
        success            = $success,
        score              = $score,
        score_details      = $scoreDetails,
-       raw_result         = $rawResult
+       raw_result         = $rawResult,
+       commit_sha         = $commitSha,
+       changed_files      = $changedFiles
      WHERE run_id = $runId`,
   ).run({
     runId,
@@ -131,12 +207,16 @@ export function finishRun({
     costUsd: result.total_cost_usd ?? null,
     inputTokens: usage.input_tokens ?? null,
     outputTokens: usage.output_tokens ?? null,
+    cacheCreationTokens: usage.cache_creation_input_tokens ?? null,
     cacheReadTokens: usage.cache_read_input_tokens ?? null,
+    totalTokens: totalTokens(usage),
     permissionDenials: result.permission_denials?.length ?? 0,
     success: score.success ?? null,
     score: score.score ?? null,
     scoreDetails: toJson(score.details),
     rawResult: toJson(result),
+    commitSha: artifact.commitSha,
+    changedFiles: toJson(artifact.changedFiles),
   });
 }
 

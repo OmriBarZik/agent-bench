@@ -32,8 +32,9 @@ const { values: args } = parseArgs({
  *                              "strictMcpConfig"?, "allowedTools"?: [..], "disallowedTools"?: [..],
  *                              "permissionMode"?, "extraFiles"?: [paths hashed into config_hash] }]
  *
- * Per run (src/runner/run-one.ts): reset src/ to the task's SHA, startRun, run claude with
- * BENCH_RUN_ID + the tool-log hooks, copy the transcript into runs/<run_id>/, finishRun.
+ * Per run (src/runner/run-one.ts): reset src/ to the task's SHA, check out a branch named
+ * after the run id, startRun, run claude with BENCH_RUN_ID + the tool-log hooks, copy the
+ * transcript into runs/<run_id>/, commit the checkout onto that branch, finishRun.
  * Scoring is not done here: success/score stay NULL.
  */
 async function main() {
@@ -64,9 +65,10 @@ async function main() {
     for (const config of configs) {
       for (let repeat = 0; repeat < repeats; repeat++) {
         console.log(`[${++runIndex}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
-        const { runId, result, seconds } = await runOne({ db, task, config, repeat, options });
+        const { runId, result, seconds, artifact } = await runOne({ db, task, config, repeat, options });
         const cost = result.total_cost_usd != null ? `, $${result.total_cost_usd.toFixed(2)}` : "";
-        console.log(`  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}`);
+        const files = artifact.changedFiles.length === 0 ? "no file changes" : `${artifact.changedFiles.length} files`;
+        console.log(`  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}`);
       }
     }
   }

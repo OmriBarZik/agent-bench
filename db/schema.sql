@@ -34,15 +34,20 @@ CREATE TABLE IF NOT EXISTS runs (
     duration_ms        INTEGER,
     num_turns          INTEGER,
     cost_usd           REAL,
-    input_tokens       INTEGER,
-    output_tokens      INTEGER,
-    cache_read_tokens  INTEGER,
+    input_tokens           INTEGER,     -- fresh input, not served from cache
+    output_tokens          INTEGER,
+    cache_creation_tokens  INTEGER,     -- input written into the prompt cache
+    cache_read_tokens      INTEGER,     -- input served from the prompt cache
+    total_tokens           INTEGER,     -- fresh input + cache write + cache read + output
     permission_denials INTEGER,
     success            INTEGER,    -- boolean
     score              REAL,
     score_details      TEXT,       -- JSON
     raw_result         TEXT,       -- JSON: full claude -p output
-    artifacts_path     TEXT        -- folder with transcript + hook logs for this run
+    artifacts_path     TEXT,       -- folder with transcript + hook logs for this run
+    branch             TEXT,       -- git branch in the Chromium checkout, named after run_id
+    commit_sha         TEXT,       -- tip of that branch; NULL when the tree still matches the task SHA
+    changed_files      TEXT        -- JSON: [{ "status", "path", "previousPath"? }] vs the task SHA
 );
 
 CREATE TABLE IF NOT EXISTS tool_calls (

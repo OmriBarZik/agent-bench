@@ -1,0 +1,11 @@
+apiVersion: 1
+datasources:
+  - name: bench
+    uid: bench-sqlite
+    type: frser-sqlite-datasource
+    access: proxy
+    isDefault: true
+    jsonData:
+      path: /snapshot/bench.sqlite
+      pathPrefix: "file:"
+      pathOptions: mode=ro&immutable=1

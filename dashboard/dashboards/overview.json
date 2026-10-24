@@ -1,0 +1,801 @@
+{
+  "uid": "bench-overview",
+  "title": "agent-bench overview",
+  "tags": ["agent-bench"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 4,
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "task",
+        "label": "Task",
+        "type": "query",
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "bench-sqlite"
+        },
+        "query": "SELECT DISTINCT task_id FROM runs ORDER BY task_id",
+        "definition": "SELECT DISTINCT task_id FROM runs ORDER BY task_id",
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "config",
+        "label": "Config",
+        "type": "query",
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "bench-sqlite"
+        },
+        "query": "SELECT DISTINCT config_id FROM runs ORDER BY config_id",
+        "definition": "SELECT DISTINCT config_id FROM runs ORDER BY config_id",
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Runs",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT count(*) AS runs FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT count(*) AS runs FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Done",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT count(*) AS done FROM runs WHERE status = 'done' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT count(*) AS done FROM runs WHERE status = 'done' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Crashed",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT count(*) AS crashed FROM runs WHERE status = 'crashed' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT count(*) AS crashed FROM runs WHERE status = 'crashed' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Avg cost / run",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT coalesce(avg(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT coalesce(avg(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Total cost",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT coalesce(sum(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT coalesce(sum(cost_usd), 0) AS cost FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Avg turns / run",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 20,
+        "y": 0,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT coalesce(avg(num_turns), 0) AS turns FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT coalesce(avg(num_turns), 0) AS turns FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "type": "stat",
+      "title": "Avg tokens / run",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT coalesce(avg(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT coalesce(avg(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "type": "stat",
+      "title": "Total tokens",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT coalesce(sum(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT coalesce(sum(total_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 17,
+      "type": "stat",
+      "title": "Read from cache",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 4,
+        "w": 4,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT CASE WHEN coalesce(sum(total_tokens), 0) = 0 THEN 0 ELSE 100.0 * coalesce(sum(cache_read_tokens), 0) / sum(total_tokens) END AS percent FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT CASE WHEN coalesce(sum(total_tokens), 0) = 0 THEN 0 ELSE 100.0 * coalesce(sum(cache_read_tokens), 0) / sum(total_tokens) END AS percent FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 16,
+      "type": "barchart",
+      "title": "Tokens by type",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 4,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT type, tokens FROM (SELECT 1 AS ord, 'fresh input' AS type, coalesce(sum(input_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 2, 'cache write', coalesce(sum(cache_creation_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 3, 'cache read', coalesce(sum(cache_read_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 4, 'output', coalesce(sum(output_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})) ORDER BY ord",
+          "rawQueryText": "SELECT type, tokens FROM (SELECT 1 AS ord, 'fresh input' AS type, coalesce(sum(input_tokens), 0) AS tokens FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 2, 'cache write', coalesce(sum(cache_creation_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 3, 'cache read', coalesce(sum(cache_read_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) UNION ALL SELECT 4, 'output', coalesce(sum(output_tokens), 0) FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote})) ORDER BY ord",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "type",
+        "orientation": "horizontal",
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "Avg cost by task / config",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT task_id || ' / ' || config_id AS setup, avg(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
+          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, avg(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "setup",
+        "orientation": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 3
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Avg duration by task / config",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 12,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT task_id || ' / ' || config_id AS setup, avg(duration_ms) / 1000.0 AS seconds FROM runs WHERE duration_ms IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY task_id, config_id ORDER BY seconds DESC",
+          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, avg(duration_ms) / 1000.0 AS seconds FROM runs WHERE duration_ms IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY task_id, config_id ORDER BY seconds DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "setup",
+        "orientation": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Cost per run over time",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT CAST(strftime('%s', started_at) AS INTEGER) AS time, cost_usd AS \"cost (USD)\", CAST(num_turns AS REAL) AS turns FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at",
+          "rawQueryText": "SELECT CAST(strftime('%s', started_at) AS INTEGER) AS time, cost_usd AS \"cost (USD)\", CAST(num_turns AS REAL) AS turns FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at",
+          "queryType": "table",
+          "timeColumns": ["time"]
+        }
+      ],
+      "options": {
+        "legend": {
+          "showLegend": true
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "points",
+            "pointSize": 9,
+            "lineWidth": 0
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "turns"
+            },
+            "properties": [
+              {
+                "id": "custom.axisPlacement",
+                "value": "right"
+              },
+              {
+                "id": "unit",
+                "value": "none"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cost (USD)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "type": "barchart",
+      "title": "Tool calls by tool",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
+          "rawQueryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "tool",
+        "orientation": "horizontal",
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "barchart",
+      "title": "Calls by action type",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 20,
+        "w": 6,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY action ORDER BY calls DESC",
+          "rawQueryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) GROUP BY action ORDER BY calls DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "action",
+        "orientation": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Runs (newest first)",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC LIMIT 100",
+          "rawQueryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC LIMIT 100",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cost_usd"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 13,
+      "type": "table",
+      "title": "Latest tool calls (live)",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
+          "rawQueryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    }
+  ]
+}
