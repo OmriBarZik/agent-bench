@@ -4,7 +4,7 @@
   "tags": ["agent-bench"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 4,
+  "version": 5,
   "refresh": "30s",
   "time": {
     "from": "now-7d",
@@ -729,8 +729,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC LIMIT 100",
-          "rawQueryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC LIMIT 100",
+          "queryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC LIMIT 100",
+          "rawQueryText": "SELECT task_id, config_id, input_tokens AS fresh, cache_creation_tokens AS cache_write, cache_read_tokens AS cache_read, output_tokens AS output, total_tokens AS tokens, cost_usd, num_turns AS turns, status, COALESCE(json_array_length(changed_files), 0) AS files, substr(commit_sha, 1, 12) AS \"commit\", round(duration_ms / 1000.0) AS seconds, model, started_at, run_id, branch, permission_denials AS denials FROM runs WHERE task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) ORDER BY started_at DESC LIMIT 100",
           "queryType": "table"
         }
       ],
@@ -764,6 +764,45 @@
       }
     },
     {
+      "id": 18,
+      "type": "table",
+      "title": "Changed files",
+      "description": "Paths that differ from the task commit. branch is the git branch in the Chromium checkout, and it is the same as the run id.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
+          "rawQueryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
       "id": 13,
       "type": "table",
       "title": "Latest tool calls (live)",
@@ -773,7 +812,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 46,
         "w": 24,
         "h": 10
       },
