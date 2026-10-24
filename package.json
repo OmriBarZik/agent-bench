@@ -1,0 +1,14 @@
+{
+  "name": "agent-bench",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:shell": "sqlite3 data/bench.sqlite",
+    "typecheck": "bun check",
+    "format": "bun fmt",
+    "format:check": "bun fmt --check"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

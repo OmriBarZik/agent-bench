@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Local data (SQLite results DB, benchmark runs)
+data/
+runs/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Local hook config (settings.example.json is the template)
+hooks/settings.json
+
+# Logs
+*.log
+logs/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/

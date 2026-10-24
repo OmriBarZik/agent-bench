@@ -1,0 +1,5 @@
+[lint.rules]
+"bun/format" = "error" # or "warn"
+
+[fmt]
+printWidth = 120
