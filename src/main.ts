@@ -28,7 +28,7 @@ const { values: args } = parseArgs({
 /**
  * Benchmark runner: tasks × configs × repeats, one `claude -p` session per run.
  *
- *   bun src/main.ts [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
+ *   bun run start [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
  *                     [--only-task id] [--only-config id] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
  *                     [--sync] [--force]
  *

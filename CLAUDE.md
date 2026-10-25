@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-agent-bench benchmarks Claude Code on real tasks in a Chromium checkout under different tool setups ("configs"). For every task × config × repeat it resets Chromium to a fixed SHA, runs one headless `claude -p` session, and records the result plus every tool call in a local SQLite DB (`data/bench.sqlite`). Configs are compared with plain SQL.
+agent-bench benchmarks Claude Code on real tasks in a Chromium checkout under different tool setups ("configs"). For every task × config × repeat it resets Chromium to a fixed SHA, runs one headless `claude -p` session, and records the result plus every tool call in a local SQLite DB (`data/bench.sqlite`). Configs are compared in the dashboard (`bun run start:dashboard`). Runs are removed in the inspect TUI (`bun run start:inspect`).
 
 The repo expects to live at `chromium/agent-bench/`, next to the Chromium checkout at `chromium/src/`. `CHROMIUM_SRC` defaults to `../src`, and the hook commands in `hooks/settings.example.json` resolve `"$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts`, so don't rename the folder or hardcode absolute paths.
 
@@ -13,21 +13,20 @@ Read `docs/overview.md` for the full layout, data model and input file shapes. L
 Bun 1.4.4 only: no Node, `tsc`, Prettier, or ESLint. The only runtime dependency is `unbash`, used by the baseline Bash guard. Ask before adding another.
 
 ```sh
-bun run typecheck        # bun check (src/ + hooks/ per tsconfig include); bun check path/to/file.ts for one file
-bun run format:check     # bun fmt --check; fix with bun fmt (printWidth 120 in bunfig.toml [fmt])
-bun run db:shell         # sqlite3 on data/bench.sqlite; read-only: sqlite3 -readonly data/bench.sqlite "SELECT ..."
-bun src/main.ts [--tasks f] [--configs f] [--repeats n] [--only-task id] [--only-config id] [--timeout-min 60] [--sync] [--force]
-bun run inspect [--force] [branch]    # TUI over the runs table; enter opens the run transcript, right arrow opens the judge session, ctrl-x twice removes the run from the database, tab checks the branch out in CHROMIUM_SRC
+bun run lint:ts          # bun check (src/ + hooks/ per tsconfig include); bun check path/to/file.ts for one file
+bun run lint:fmt         # bun fmt --check; fix with bun run lint:fmt:fix (printWidth 120 in bunfig.toml [fmt])
+bun run start [--tasks f] [--configs f] [--repeats n] [--only-task id] [--only-config id] [--timeout-min 60] [--sync] [--force]
+bun run start:inspect [--force] [branch]    # TUI over the runs table; enter opens the run transcript, right arrow opens the judge session, ctrl-x twice removes the run from the database, tab checks the branch out in CHROMIUM_SRC
 ```
 
-Both typecheck and format:check must pass before finishing a change. The husky pre-commit hook (`.husky/pre-commit`, installed by `bun install`) runs `bun fmt --staged` and `bun run typecheck`. `bun lint` doesn't exist on stable 1.4.4, so the `[lint.rules]` in `bunfig.toml` is inert. There are no tests yet; when adding them use `bun test` with `*.test.ts`, and give DB tests a temp file via `openDb(tmpPath)`.
+Both `lint:ts` and `lint:fmt` must pass before finishing a change. The husky pre-commit hook (`.husky/pre-commit`, installed by `bun install`) runs `bun fmt --staged` and `bun run lint:ts`. `bun lint` doesn't exist on stable 1.4.4, so the `[lint.rules]` in `bunfig.toml` is inert. There are no tests yet; when adding them use `bun test` with `*.test.ts`, and give DB tests a temp file via `openDb(tmpPath)`.
 
 ## Things that will bite you
 
-- **The runner is destructive.** `bun src/main.ts` runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`), and the same reset and clean inside every checked-out submodule. It also spawns real, billed `claude` sessions. Never run it without the user's go-ahead. `configs/benchmark-tasks.json` and `configs/benchmark-setup.json` hold the benchmark tasks and tool setups (the "configs").
-- **Never import `src/main.ts`.** It's a CLI entry point, so it's only ever run with `bun src/main.ts`. An `if (import.meta.main)` guard means importing it won't start a benchmark, but don't rely on that: put anything another module or a test needs into `src/runner/` or another module.
+- **The runner is destructive.** `bun run start` runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`), and the same reset and clean inside every checked-out submodule. It also spawns real, billed `claude` sessions. Never run it without the user's go-ahead. `configs/benchmark-tasks.json` and `configs/benchmark-setup.json` hold the benchmark tasks and tool setups (the "configs").
+- **Never import `src/main.ts`.** It's a CLI entry point, so it's only ever run with `bun run start`. An `if (import.meta.main)` guard means importing it won't start a benchmark, but don't rely on that: put anything another module or a test needs into `src/runner/` or another module.
 - **Never delete `data/` or `data/bench.sqlite*`** (including the `-wal`/`-shm` files). They hold the results.
-- **`db/schema.sql` runs on every `openDb()`**, so every statement must be idempotent (`IF NOT EXISTS`). To change an existing table, also give the user the `ALTER TABLE` to run.
+- **`db/schema.sql` runs on every `openDb()`**, so every statement must be idempotent (`IF NOT EXISTS`). To change an existing table, add an idempotent migration in `openDb()` (`src/db/db.ts`). The user alters runs with `bun run start:inspect` and views them with `bun run start:dashboard`.
 - **tool-log must never block a tool.** `hooks/tool-log.ts` must always exit 0, do nothing unless `BENCH_RUN_ID` is set, and fall back to `~/.claude/bench-hook-fallback.jsonl` when the DB write fails. `hooks/baseline-guard.ts` is the exception that may deny a Bash call: it is the shared baseline (no `cd`, no shell file edits), not a config.
 - **Editing the baseline changes every config's `config_hash`.** The hash covers `hooks/settings.example.json`, the guard sources, `src/baseline-policy.ts`, and each config's `mcpConfig` and `extraFiles`. Editing those creates a new config version.
 

@@ -7,17 +7,17 @@ import { loadSelection } from "./bench-config";
 test("loadSelection reads the task prompt and the judge prompt", async () => {
   const directory = mkdtempSync(join(tmpdir(), "agent-bench-tasks-"));
   try {
-    const prompts = join(directory, "prompts");
-    mkdirSync(prompts);
-    await Bun.write(join(prompts, "task.md"), "  do the thing  \n");
-    await Bun.write(join(prompts, "judge.md"), "  score the thing  \n");
+    const taskDir = join(directory, "tasks", "t1");
+    mkdirSync(taskDir, { recursive: true });
+    await Bun.write(join(taskDir, "prompt.md"), "  do the thing  \n");
+    await Bun.write(join(taskDir, "judge.md"), "  score the thing  \n");
     await Bun.write(
       join(directory, "tasks.json"),
       JSON.stringify([
         {
           taskId: "t1",
-          promptFile: "prompts/task.md",
-          judgePromptFile: "prompts/judge.md",
+          promptFile: "tasks/t1/prompt.md",
+          judgePromptFile: "tasks/t1/judge.md",
           chromiumSha: "abc",
         },
       ]),

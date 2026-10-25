@@ -230,7 +230,7 @@ const h = new Bun.CryptoHasher("sha256");
 
 ## Formatting
 
-Run `bun fmt` and never hand-format (`printWidth = 120` from `bunfig.toml` `[fmt]`, otherwise Prettier defaults: double quotes, semicolons, trailing commas). Import order is:
+Run `bun run lint:fmt:fix` (or `bun fmt`) and never hand-format (`printWidth = 120` from `bunfig.toml` `[fmt]`, otherwise Prettier defaults: double quotes, semicolons, trailing commas). Import order is:
 
 1. `bun` / `bun:*`
 2. `node:*`

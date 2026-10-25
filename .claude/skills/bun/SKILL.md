@@ -1,6 +1,6 @@
 ---
 name: bun
-description: Rules for writing, checking and running TypeScript in agent-bench with Bun 1.4.4 (bun check, bun fmt, bun:sqlite results DB, Bun.spawn, Claude Code hooks). Use before editing src/ or hooks/, adding dependencies, touching db/schema.sql or bunfig.toml, writing tests, or running typecheck/format.
+description: Rules for writing, checking and running TypeScript in agent-bench with Bun 1.4.4 (bun check, bun fmt, bun:sqlite results DB, Bun.spawn, Claude Code hooks). Use before editing src/ or hooks/, adding dependencies, touching db/schema.sql or bunfig.toml, writing tests, or running lint:ts or lint:fmt.
 ---
 
 # Bun in agent-bench
@@ -12,9 +12,9 @@ agent-bench runs Claude Code sessions against a Chromium checkout and stores the
 ## Before you finish any change
 
 ```sh
-bun run typecheck      # = bun check (uses tsconfig.json: src/ + hooks/)
-bun run format:check   # = bun fmt --check (exits 1 if anything needs formatting)
-bun fmt                # fix formatting; or `bun fmt --changed` / `bun fmt --staged`
+bun run lint:ts        # = bun check (uses tsconfig.json: src/ + hooks/)
+bun run lint:fmt       # = bun fmt --check (exits 1 if anything needs formatting)
+bun run lint:fmt:fix   # fix formatting; or `bun fmt --changed` / `bun fmt --staged`
 ```
 
 Both checks must pass. `bun check` only checks files that `tsconfig.json` `include`s (`src`, `hooks`), so add a new top-level code folder to `include`. To check a single file and its imports, run `bun check path/to/file.ts`.
@@ -24,13 +24,13 @@ Both checks must pass. `bun check` only checks files that `tsconfig.json` `inclu
 - **`bun check`** (added in 1.4.3) is a built-in type checker ported from typescript-go and reports the same errors as `tsc`. It never emits JS or `.d.ts` files. Don't add `typescript` back as a dependency or run `tsc`/`npx tsc`.
   - Other forms: `bun run --check file.ts` type-checks and then runs, and `bun test --check` does the same for tests.
 - **`bun fmt`** (added in 1.4.4) is a Prettier-compatible formatter for TS, JSON, YAML, Markdown, TOML and more.
-  - `bunfig.toml` `[fmt]` sets `printWidth = 120`, and everything else is a Prettier default (double quotes, semicolons, trailing commas). Change formatting options there, not with CLI flags or a `.prettierrc`. `.editorconfig` mirrors these settings for editors (and `bun fmt` reads it too), so change both together. Don't hand-format; run `bun fmt`.
-  - `bun format` runs the package.json `format` script, while `bun fmt` is the formatter itself. Both work here.
-- **`bun lint` is canary-only.** It isn't in 1.4.4 stable (`bun lint` prints `Script not found "lint"`). The `[lint.rules]` section in `bunfig.toml` is therefore inert on stable Bun. Also, `"bun/format"` is not a documented rule: formatting is `bun fmt`, not a lint rule.
-  - Don't add a lint script or CI step unless the user moves to canary (`bun upgrade --canary`).
+  - `bunfig.toml` `[fmt]` sets `printWidth = 120`, and everything else is a Prettier default (double quotes, semicolons, trailing commas). Change formatting options there, not with CLI flags or a `.prettierrc`. `.editorconfig` mirrors these settings for editors (and `bun fmt` reads it too), so change both together. Don't hand-format; run `bun run lint:fmt:fix` (or `bun fmt`).
+  - `bun fmt` is the formatter. `bun run lint:fmt` checks and `bun run lint:fmt:fix` writes. There is no `format` script, so `bun format` does not run the formatter.
+- **`bun lint` is canary-only.** It isn't in 1.4.4 stable (`bun lint` prints `Script not found "lint"`). The `[lint.rules]` section in `bunfig.toml` is therefore inert on stable Bun. Also, `"bun/format"` is not a documented rule: formatting is `bun fmt`, not a lint rule. The package.json `lint:*` scripts call `bun check` and `bun fmt`.
+  - Don't add a `bun lint` script or CI step unless the user moves to canary (`bun upgrade --canary`).
   - Rule names follow ESLint, e.g. `"no-console" = "warn"`.
 - The only devDependencies are `@types/bun` and `husky`, and `tsconfig.json` sets `"types": ["bun"]`.
-- `bun install` runs the `prepare` script, which installs the husky hooks. `.husky/pre-commit` runs `bun fmt --staged` (it formats staged files and stages them again) and then `bun run typecheck`.
+- `bun install` runs the `prepare` script, which installs the husky hooks. `.husky/pre-commit` runs `bun fmt --staged` (it formats staged files and stages them again) and then `bun run lint:ts`.
 
 ## Bun conventions
 
@@ -47,7 +47,7 @@ For file structure, naming, comments and when to split a file, see the `code-sty
 - Repo paths come from `src/paths.ts` (built on `import.meta.path`). Never use `__dirname` or redefine them.
 - Entry scripts (`src/main.ts`, `hooks/tool-log.ts`) are ESM TypeScript run directly with `bun file.ts`, with a `#!/usr/bin/env bun` shebang and a usage JSDoc on `main()`.
   - A file that is both imported and executed must guard its entry point with `if (import.meta.main)`. `bashPrograms` lives in `hooks/bash-programs.ts`; `hooks/tool-log.ts` imports it there and does not re-export it.
-  - `src/main.ts` is a CLI entry point that's only run with `bun src/main.ts`. It guards `await main()` with `if (import.meta.main)`, so an import won't start a benchmark, but never import it from other modules or tests.
+  - `src/main.ts` is a CLI entry point that's only run with `bun run start`. It guards `await main()` with `if (import.meta.main)`, so an import won't start a benchmark, but never import it from other modules or tests.
 - Read env config with `process.env.X ?? default`. The variables are `BENCH_DB_PATH`, `BENCH_RUN_ID`, `BENCH_HOOK_DUMP` and `CHROMIUM_SRC`.
 
 ## SQLite (`bun:sqlite`) rules
@@ -77,9 +77,10 @@ For file structure, naming, comments and when to split a file, see the `code-sty
 
 - `db/schema.sql` is applied on **every** `openDb()`, so each statement must be idempotent (`CREATE TABLE/INDEX/VIEW IF NOT EXISTS`). SQLite has no `CREATE OR REPLACE VIEW`.
 - To add a table or index, add it to `schema.sql`.
-- To change an existing table, also give the user the `ALTER TABLE` to run with `bun run db:shell`, because `CREATE ... IF NOT EXISTS` won't alter it. `db:shell` needs the `sqlite3` CLI, which is preinstalled on macOS.
+- To change an existing table, add an idempotent migration in `openDb()` (`src/db/db.ts`, next to `ensureRunColumns`). `CREATE ... IF NOT EXISTS` leaves an existing database as it is, so the migration runs there when the file is opened.
 - **Never delete `data/` or `data/bench.sqlite*` without asking**, because they hold the benchmark results. The `-wal`/`-shm` sidecar files belong to the DB; don't delete them while anything has it open.
-- For ad-hoc queries, use `bun run db:shell` or `sqlite3 -readonly data/bench.sqlite "SELECT ..."`.
+- The user alters rows in the inspect TUI (`bun run start:inspect`). Ctrl-x twice removes the highlighted run. The Chromium branch and the files under `runs/<run_id>/` stay.
+- The user views results in the dashboard (`bun run start:dashboard`).
 
 ## Hooks (`hooks/tool-log.ts`)
 
@@ -95,7 +96,7 @@ For file structure, naming, comments and when to split a file, see the `code-sty
 
 ## Runner (`src/main.ts` + `src/runner/`)
 
-- **It is destructive.** It runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`). Never run it for a quick test without the user's go-ahead.
+- **It is destructive.** `bun run start` runs `git reset --hard`, `git clean -fdq` and `checkout --detach` in `CHROMIUM_SRC` (default `../src`). Never run it for a quick test without the user's go-ahead.
 - Short commands (git, gclient, `claude --version` in `src/runner/chromium/chromium.ts` and `src/runner/claude/claude.ts`) use Bun Shell with an explicit `.cwd(...)` on each call. Never use a global `$.cwd()`, because it leaks across modules. A non-zero exit throws a `ShellError` that carries stderr.
   - Use `.text()` (implies quiet; `.trim()` it) or `.quiet()`. Interpolated values like `${sha}` are escaped. Don't add a `spawnSync` wrapper back.
 - `runClaude` in `src/runner/claude/claude.ts` spawns `claude -p ... --output-format json` with `Bun.spawn({ timeout, env: { ...process.env, BENCH_RUN_ID } })` and reads stdout/stderr with `new Response(proc.stdout).text()` in parallel with `proc.exited`.

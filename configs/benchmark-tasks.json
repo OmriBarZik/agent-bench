@@ -4,8 +4,8 @@
     "title": "Give the offline T-Rex a hat",
     "difficulty": "simple",
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
-    "promptFile": "prompts/dino-hat.md",
-    "judgePromptFile": "prompts/dino-hat-judge.md",
+    "promptFile": "tasks/dino-hat/prompt.md",
+    "judgePromptFile": "tasks/dino-hat/judge.md",
     "scoring": {
       "checks": [
         "change is in the offline dino game sources (components/neterror/resources/dino_game)",
@@ -20,8 +20,8 @@
     "title": "Make the dino game playable in DevTools",
     "difficulty": "medium",
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
-    "promptFile": "prompts/dino-devtools.md",
-    "judgePromptFile": "prompts/dino-devtools-judge.md",
+    "promptFile": "tasks/dino-devtools/prompt.md",
+    "judgePromptFile": "tasks/dino-devtools/judge.md",
     "scoring": {
       "checks": [
         "a DevTools UI entry (panel or drawer view) that hosts the game",
@@ -36,8 +36,8 @@
     "title": "Built-in AI plays the dino game",
     "difficulty": "complex",
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
-    "promptFile": "prompts/dino-ai-player.md",
-    "judgePromptFile": "prompts/dino-ai-player-judge.md",
+    "promptFile": "tasks/dino-ai-player/prompt.md",
+    "judgePromptFile": "tasks/dino-ai-player/judge.md",
     "scoring": {
       "checks": [
         "AI module reads real game state from the dino game",

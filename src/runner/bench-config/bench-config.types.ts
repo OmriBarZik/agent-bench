@@ -2,7 +2,7 @@ import type { Task } from "../../db/db.types";
 
 /** One entry in benchmark-tasks.json: a Task whose prompts live in markdown files instead of inline. */
 export type TaskEntry = Omit<Task, "prompt" | "judgePrompt"> & {
-  /** Path to the task prompt, relative to the tasks file (e.g. prompts/dino-hat.md). */
+  /** Path to the task prompt, relative to the tasks file (e.g. tasks/dino-hat/prompt.md). */
   promptFile: string;
   /** Path to the judge rubric, relative to the tasks file. The judge picks one decision for the finished tree. */
   judgePromptFile: string;

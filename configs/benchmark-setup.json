@@ -12,5 +12,14 @@
     "model": "claude-haiku-5-5",
     "strictMcpConfig": true,
     "permissionMode": "acceptEdits"
+  },
+  {
+    "configId": "codebase-memory",
+    "description": "Claude Code with the codebase-memory-mcp graph index, default tools",
+    "model": "claude-sonnet-5-5",
+    "mcpConfig": ["configs/setup/codebase-memory/mcp.json"],
+    "strictMcpConfig": true,
+    "allowedTools": ["mcp__codebase-memory-mcp__*"],
+    "permissionMode": "acceptEdits"
   }
 ]

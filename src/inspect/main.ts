@@ -20,9 +20,9 @@ const { values: args, positionals } = parseArgs({
 /**
  * Pick a run from the results database.
  *
- *   bun run inspect
- *   bun run inspect -- <branch>
- *   bun run inspect -- --force
+ *   bun run start:inspect
+ *   bun run start:inspect <branch>
+ *   bun run start:inspect --force
  *
  * The list is the runs table: task, config, status, model, and changed files.
  * Enter runs `uvx claude-code-transcripts` on that run's transcript.jsonl and opens it

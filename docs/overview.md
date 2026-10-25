@@ -6,7 +6,7 @@ agent-bench measures how well Claude Code does real tasks in a Chromium checkout
 2. Runs one headless `claude -p` session.
 3. Records the result and every tool call the agent made in a local SQLite database.
 
-You then compare configs with plain SQL.
+You then compare configs in the dashboard, and remove runs from the inspect TUI.
 
 There's no server and no Docker. Everything runs on [Bun](https://bun.com) 1.4.4 with no runtime npm dependencies.
 
@@ -26,16 +26,16 @@ The runner defaults `CHROMIUM_SRC` to `../src`. The hooks in `hooks/settings.exa
 ## Quick start
 
 ```sh
-bun install                  # @types/bun + husky (installs the pre-commit hook)
-bun src/main.ts              # reads configs/benchmark-tasks.json + configs/benchmark-setup.json
-bun src/main.ts --only-task t1 --repeats 3
-bun run db:shell             # sqlite3 shell on data/bench.sqlite
-bun run inspect              # pick a run: enter opens its transcript, tab checks out its branch
+bun install                        # @types/bun + husky (installs the pre-commit hook)
+bun run start                      # reads configs/benchmark-tasks.json + configs/benchmark-setup.json
+bun run start --only-task t1 --repeats 3
+bun run start:inspect              # pick a run: enter opens its transcript, ctrl-x twice removes it, tab checks out its branch
+bun run start:dashboard            # view results in Grafana at http://localhost:3000
 ```
 
 > ⚠️ The runner **wipes uncommitted work** in the Chromium checkout (`git reset --hard` + `git clean -fd`), including every checked-out submodule, before every run. It refuses to start if tracked files are modified, unless you pass `--force` or answer yes when asked to delete those changes.
 
-Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--timeout-min` (default 60), `--sync` (run `gclient sync -D` after each checkout) and `--force`.
+Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--timeout-min` (default 60), `--sync` (run `gclient sync -D` after each checkout) and `--force`. What to install for each config is in [setup.md](setup.md).
 
 ## How a run works
 
@@ -64,7 +64,7 @@ The runner creates the branch and the commit. The agent is not asked to: it only
 
 The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` rows always have a parent. After the agent finishes, a second read-only session decides the checkout. That session is its own `judge_runs` row: model, duration, turns, cost, token counts, a `decision` (`failed`, `partially-failed`, `partially-pass`, or `pass`), and `success` (1 for `pass` and `partially-pass`). The agent's metrics stay on `runs`.
 
-To inspect a run, `bun run inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Ctrl-x twice removes the highlighted run from the database; the Chromium branch and the files under `runs/<run_id>/` stay. Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run inspect -- <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
+To inspect a run, `bun run start:inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Ctrl-x twice removes the highlighted run from the database; the Chromium branch and the files under `runs/<run_id>/` stay. Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run start:inspect <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA.
 
 ## Project layout
 
@@ -84,6 +84,8 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 | `hooks/settings.example.json`  | Hook registration and the `cd` deny rules, passed to `claude --settings`. Part of `config_hash`                   |
 | `db/schema.sql`                | SQLite schema, applied idempotently on every open                                                                 |
 | `data/bench.sqlite`            | The results DB (gitignored)                                                                                       |
+| `configs/setup/<configId>/`    | One folder per config: its `readme.md`, and any MCP config or other files that config needs                       |
+| `configs/tasks/<taskId>/`      | One folder per task: `prompt.md` and `judge.md`                                                                   |
 | `runs/<run_id>/`               | Per-run artifacts: agent `transcript.jsonl`, judge `judge-transcript.jsonl`, command and result logs (gitignored) |
 | `.claude/skills/`              | Agent skills: `bun` (tooling and APIs) and `code-styling` (style rules)                                           |
 
@@ -95,8 +97,8 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 [
   {
     "taskId": "t1",
-    "promptFile": "prompts/t1.md",
-    "judgePromptFile": "prompts/t1-judge.md",
+    "promptFile": "tasks/t1/prompt.md",
+    "judgePromptFile": "tasks/t1/judge.md",
     "chromiumSha": "abc123",
     "title": "…",
     "difficulty": "simple",
@@ -105,17 +107,17 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 ]
 ```
 
-`promptFile` and `judgePromptFile` are relative to the tasks file. Leading and trailing whitespace is trimmed. The judge returns one decision: `failed`, `partially-failed`, `partially-pass`, or `pass`. `success` is stored for `pass` and `partially-pass`.
+`promptFile` and `judgePromptFile` are relative to the tasks file. Each task is a folder under `configs/tasks/<taskId>/` with `prompt.md` and `judge.md`. Leading and trailing whitespace is trimmed. The judge returns one decision: `failed`, `partially-failed`, `partially-pass`, or `pass`. `success` is stored for `pass` and `partially-pass`.
 
 `configs/benchmark-setup.json`:
 
 ```json
 [
   {
-    "configId": "baseline",
+    "configId": "codebase-memory",
     "description": "…",
     "model": "claude-opus-5-5",
-    "mcpConfig": ["mcp/chromium.json"],
+    "mcpConfig": ["configs/setup/codebase-memory/mcp.json"],
     "strictMcpConfig": true,
     "allowedTools": ["Bash", "Read"],
     "disallowedTools": [],
@@ -125,7 +127,7 @@ To inspect a run, `bun run inspect` lists runs from the database. Enter opens th
 ]
 ```
 
-Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their contents are hashed into `config_hash`, along with the shared baseline (hook settings, the Bash guard, and its prompt). Editing any of them shows up as a new config version. The baseline is not a config in `benchmark-setup.json`: every config gets the same `cd` ban, the same shell-edit ban, and the same appended prompt.
+Each config is a folder under `configs/setup/<configId>/`. That folder holds the config's setup notes and any file the config needs, such as an MCP server definition. Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their contents are hashed into `config_hash`, along with the shared baseline (hook settings, the Bash guard, and its prompt). Editing any of them shows up as a new config version. The baseline guard is not a config in `benchmark-setup.json`: every config gets the same `cd` ban, the same shell-edit ban, and the same appended prompt.
 
 ## Data model
 
@@ -138,38 +140,7 @@ Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their conte
 | `tool_calls`           | hook event             | `phase` is `pre` / `post`. For Bash, `program` is the executable the parsed script runs (`git`, `rg`, `head`), one row per program                 |
 | `tool_attempts` (view) | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                                                        |
 
-Example: the average cost and turns per config.
-
-```sql
-SELECT config_id, count(*) runs, avg(cost_usd) cost, avg(num_turns) turns
-FROM runs WHERE status = 'done' GROUP BY config_id;
-```
-
-Example: the judge's decision and cost, separate from the agent's.
-
-```sql
-SELECT runs.config_id, judge_runs.decision, count(*) runs, avg(judge_runs.cost_usd) judge_cost
-FROM runs
-LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id
-WHERE runs.status = 'done'
-GROUP BY runs.config_id, judge_runs.decision;
-```
-
-Example: the files a run committed, relative to the task SHA. A path inside a submodule includes the submodule directory.
-
-```sql
-SELECT run_id, commit_sha, json_extract(file.value, '$.status') AS status,
-       json_extract(file.value, '$.path') AS path
-FROM runs, json_each(changed_files) AS file
-WHERE run_id = ?;
-```
-
-Example: the most-used Bash programs in one run.
-
-```sql
-SELECT program, count(*) FROM tool_calls
-WHERE run_id = ? AND phase = 'pre' AND tool = 'Bash' GROUP BY program ORDER BY 2 DESC;
-```
+`openDb()` creates `data/bench.sqlite` with `bun:sqlite`. View the results with `bun run start:dashboard`. Remove a run with `bun run start:inspect`: Ctrl-x twice deletes the highlighted row. The Chromium branch and the files under `runs/<run_id>/` stay.
 
 ## Environment variables
 
@@ -189,8 +160,8 @@ WHERE run_id = ? AND phase = 'pre' AND tool = 'Bash' GROUP BY program ORDER BY 2
 
 ## Dashboard
 
-`bun run dashboard` starts Grafana in Docker at <http://localhost:3000> with the [SQLite plugin](https://grafana.com/grafana/plugins/frser-sqlite-datasource/). `bun run dashboard:stop` stops it and the snapshot loop. No login is needed (anonymous admin, bound to localhost only).
+`bun run start:dashboard` starts Grafana in Docker at <http://localhost:3000> with the [SQLite plugin](https://grafana.com/grafana/plugins/frser-sqlite-datasource/). `bun run start:dashboard:stop` stops it and the snapshot loop. No login is needed (anonymous admin, bound to localhost only).
 
-Grafana reads `dashboard/snapshot/bench.sqlite`, a copy of `data/bench.sqlite` that `dashboard/snapshot.sh` refreshes every 5 seconds (`SNAPSHOT_SECONDS` changes it). It doesn't read the live DB because Docker can't share SQLite's WAL index with the host, which causes `database is locked (261)` errors when panels query at once. The dashboard is therefore up to 5 seconds behind.
+Grafana reads `dashboard/snapshot/bench.sqlite`, a copy of `data/bench.sqlite` that `dashboard/snapshot.sh` refreshes every 5 seconds (`SNAPSHOT_SECONDS` changes it). The script shells out to the `sqlite3` CLI, which is preinstalled on macOS. It doesn't read the live DB because Docker can't share SQLite's WAL index with the host, which causes `database is locked (261)` errors when panels query at once. The dashboard is therefore up to 5 seconds behind.
 
 The setup lives in `dashboard/`: `docker-compose.yml`, `provisioning/` (datasource and dashboard provider) and `dashboards/overview.json` (the panels, task, config and run filters, auto-refresh every 30s). The runs table includes each run's branch, short commit, file count, and the tools it called. Bash is listed by the program the script ran (`git ×4, grep ×2, Edit ×5`). The Tools by run table uses that same split, and Bash commands lists each script with those programs. The Changed files table lists every path that differs from the task commit. Edit panels in the Grafana UI, then export the JSON back into `dashboards/` to keep the change.

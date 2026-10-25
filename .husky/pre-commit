@@ -1,2 +1,2 @@
 bun fmt --staged
-bun run typecheck
+bun run lint:ts
