@@ -1,27 +1,10 @@
 #!/usr/bin/env bun
 import { appendFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { logToolCall, openDb } from "../src/db/db";
 import type { ToolCall } from "../src/db/db.types";
-
-const WRAPPERS = new Set(["sudo", "time", "nohup", "xargs", "env", "command", "exec"]);
-
-/** "FOO=1 rg x | head && ./out/mytool y" -> ["rg", "head", "mytool"] */
-export function bashPrograms(command: string): string[] {
-  const programs: string[] = [];
-  for (const segment of command.split(/\|\||&&|\||;|\n/)) {
-    let words = segment.trim().split(/\s+/).filter(Boolean);
-    words = words.filter((word) => !/^\w+=/.test(word)); // drop env assignments
-    while (words.length && WRAPPERS.has(words[0])) words = words.slice(1);
-    const first = words[0]?.replace(/^["'(]+|["')]+$/g, "");
-    if (first) {
-      programs.push(basename(first));
-    }
-  }
-
-  return programs;
-}
+import { bashPrograms } from "./bash-programs";
 
 function looksLikeError(response: any): boolean | null {
   if (response == null) {

@@ -46,7 +46,7 @@ For file structure, naming, comments and when to split a file, see the `code-sty
 - Import Node modules with the `node:` prefix (`node:fs`, `node:path`, `node:os`).
 - Repo paths come from `src/paths.ts` (built on `import.meta.path`). Never use `__dirname` or redefine them.
 - Entry scripts (`src/main.ts`, `hooks/tool-log.ts`) are ESM TypeScript run directly with `bun file.ts`, with a `#!/usr/bin/env bun` shebang and a usage JSDoc on `main()`.
-  - A file that is both imported and executed must guard its entry point with `if (import.meta.main)`. `hooks/tool-log.ts` exports `bashPrograms`, so it needs the guard.
+  - A file that is both imported and executed must guard its entry point with `if (import.meta.main)`. `bashPrograms` lives in `hooks/bash-programs.ts`; `hooks/tool-log.ts` imports it there and does not re-export it.
   - `src/main.ts` is a CLI entry point that's only run with `bun src/main.ts`. It guards `await main()` with `if (import.meta.main)`, so an import won't start a benchmark, but never import it from other modules or tests.
 - Read env config with `process.env.X ?? default`. The variables are `BENCH_DB_PATH`, `BENCH_RUN_ID`, `BENCH_HOOK_DUMP` and `CHROMIUM_SRC`.
 

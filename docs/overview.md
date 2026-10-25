@@ -135,7 +135,7 @@ Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their conte
 | `configs`              | config                 | `tools` / `permissions` are JSON text, and `config_hash` identifies the exact setup                                                                |
 | `runs`                 | task × config × repeat | status `running` / `done` / `crashed` / `cancelled`, plus the agent's metrics. `branch` equals `run_id`; `changed_files` and `raw_result` are JSON |
 | `judge_runs`           | judge session          | one row per run. The judge's own cost, tokens, duration, `decision`, and `success`. `cancelled` has no decision                                    |
-| `tool_calls`           | hook event             | `phase` is `pre` / `post`. `program` is the actual binary for Bash (`rg`, `head`, …)                                                               |
+| `tool_calls`           | hook event             | `phase` is `pre` / `post`. For Bash, `program` is the executable the parsed script runs (`git`, `rg`, `head`), one row per program                 |
 | `tool_attempts` (view) | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                                                        |
 
 Example: the average cost and turns per config.
@@ -193,4 +193,4 @@ WHERE run_id = ? AND phase = 'pre' AND tool = 'Bash' GROUP BY program ORDER BY 2
 
 Grafana reads `dashboard/snapshot/bench.sqlite`, a copy of `data/bench.sqlite` that `dashboard/snapshot.sh` refreshes every 5 seconds (`SNAPSHOT_SECONDS` changes it). It doesn't read the live DB because Docker can't share SQLite's WAL index with the host, which causes `database is locked (261)` errors when panels query at once. The dashboard is therefore up to 5 seconds behind.
 
-The setup lives in `dashboard/`: `docker-compose.yml`, `provisioning/` (datasource and dashboard provider) and `dashboards/overview.json` (the panels, task, config and run filters, auto-refresh every 30s). The runs table includes each run's branch, short commit and file count. The Changed files table lists every path that differs from the task commit. Edit panels in the Grafana UI, then export the JSON back into `dashboards/` to keep the change.
+The setup lives in `dashboard/`: `docker-compose.yml`, `provisioning/` (datasource and dashboard provider) and `dashboards/overview.json` (the panels, task, config and run filters, auto-refresh every 30s). The runs table includes each run's branch, short commit, file count, and the tools it called. Bash is listed by the program the script ran (`git ×4, grep ×2, Edit ×5`). The Tools by run table uses that same split, and Bash commands lists each script with those programs. The Changed files table lists every path that differs from the task commit. Edit panels in the Grafana UI, then export the JSON back into `dashboards/` to keep the change.

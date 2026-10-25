@@ -4,7 +4,7 @@
   "tags": ["agent-bench"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 19,
+  "version": 23,
   "refresh": "30s",
   "time": {
     "from": "now-7d",
@@ -733,8 +733,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT runs.task_id, runs.config_id, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
-          "rawQueryText": "SELECT runs.task_id, runs.config_id, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
+          "queryText": "SELECT runs.task_id, runs.config_id, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
+          "rawQueryText": "SELECT runs.task_id, runs.config_id, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
           "queryType": "table"
         }
       ],
@@ -770,6 +770,99 @@
               { "id": "unit", "value": "currencyUSD" },
               { "id": "decimals", "value": 3 }
             ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "tools" },
+            "properties": [
+              { "id": "custom.width", "value": 280 },
+              { "id": "custom.wrapText", "value": true }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 19,
+      "type": "table",
+      "title": "Tools by run",
+      "description": "For Bash, each row is the program the script actually ran (git, grep, head). calls counts distinct invocations. blocked means the call has no post-hook result, so it was denied or never finished.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.task_id, runs.config_id, runs.run_id, counts.name AS tool, counts.calls, counts.blocked, counts.errors FROM runs JOIN (SELECT pre.run_id, CASE WHEN pre.tool = 'Bash' AND coalesce(pre.program, '') != '' THEN pre.program ELSE pre.tool END AS name, count(DISTINCT pre.tool_use_id) AS calls, count(DISTINCT CASE WHEN post.id IS NULL THEN pre.tool_use_id END) AS blocked, count(DISTINCT CASE WHEN post.is_error = 1 THEN pre.tool_use_id END) AS errors FROM tool_calls pre LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' GROUP BY pre.run_id, name) AS counts ON counts.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, counts.calls DESC LIMIT 500",
+          "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.run_id, counts.name AS tool, counts.calls, counts.blocked, counts.errors FROM runs JOIN (SELECT pre.run_id, CASE WHEN pre.tool = 'Bash' AND coalesce(pre.program, '') != '' THEN pre.program ELSE pre.tool END AS name, count(DISTINCT pre.tool_use_id) AS calls, count(DISTINCT CASE WHEN post.id IS NULL THEN pre.tool_use_id END) AS blocked, count(DISTINCT CASE WHEN post.is_error = 1 THEN pre.tool_use_id END) AS errors FROM tool_calls pre LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' GROUP BY pre.run_id, name) AS counts ON counts.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, counts.calls DESC LIMIT 500",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 20,
+      "type": "table",
+      "title": "Bash commands",
+      "description": "One row per Bash invocation. programs are the executables that script runs, from the same parse the baseline guard uses. A pipe inside quotes stays part of the command.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 46,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.task_id, runs.config_id, runs.run_id, replace(group_concat(DISTINCT pre.program), ',', ', ') AS programs, substr(min(pre.command), 1, 200) AS command, CASE WHEN max(post.id) IS NULL THEN 1 ELSE 0 END AS blocked, max(coalesce(post.is_error, 0)) AS is_error FROM tool_calls pre JOIN runs ON runs.run_id = pre.run_id LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' AND pre.tool = 'Bash' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY pre.tool_use_id ORDER BY max(pre.id) DESC LIMIT 200",
+          "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.run_id, replace(group_concat(DISTINCT pre.program), ',', ', ') AS programs, substr(min(pre.command), 1, 200) AS command, CASE WHEN max(post.id) IS NULL THEN 1 ELSE 0 END AS blocked, max(coalesce(post.is_error, 0)) AS is_error FROM tool_calls pre JOIN runs ON runs.run_id = pre.run_id LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' AND pre.tool = 'Bash' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY pre.tool_use_id ORDER BY max(pre.id) DESC LIMIT 200",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "command" },
+            "properties": [
+              { "id": "custom.width", "value": 640 },
+              { "id": "custom.wrapText", "value": true }
+            ]
           }
         ]
       }
@@ -785,7 +878,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 56,
         "w": 24,
         "h": 10
       },
@@ -823,7 +916,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 46,
+        "y": 66,
         "w": 24,
         "h": 10
       },
@@ -834,8 +927,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
-          "rawQueryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
+          "queryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, program, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
+          "rawQueryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, program, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
           "queryType": "table"
         }
       ],
