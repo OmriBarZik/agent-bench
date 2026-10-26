@@ -2,7 +2,10 @@
   "mcpServers": {
     "codebase-memory-mcp": {
       "type": "stdio",
-      "command": "codebase-memory-mcp"
+      "command": "codebase-memory-mcp",
+      "env": {
+        "CBM_MEM_BUDGET_MB": "18432"
+      }
     }
   }
 }

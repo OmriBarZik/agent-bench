@@ -39,8 +39,13 @@ const { values: args } = parseArgs({
  * configs/benchmark-tasks.json: [{ "taskId", "promptFile", "judgePromptFile",
  *                              "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
  * configs/benchmark-setup.json: [{ "configId", "description"?, "model"?, "mcpConfig"?: [paths],
- *                              "strictMcpConfig"?, "allowedTools"?: [..], "disallowedTools"?: [..],
- *                              "permissionMode"?, "extraFiles"?: [paths hashed into config_hash] }]
+ *                              "toolPromptFile"?: path, "strictMcpConfig"?, "allowedTools"?: [..],
+ *                              "disallowedTools"?: [..], "permissionMode"?,
+ *                              "extraFiles"?: [paths hashed into config_hash] }]
+ *
+ * toolPromptFile is markdown, relative to the repo root. It tells the agent which tools that
+ * config adds and when to use them. The text is appended after the baseline prompt. Its contents
+ * are part of config_hash.
  *
  * Per run (src/runner/run-one/run-one.ts): reset src/ to the task's SHA, check out a branch named
  * after the run id, startRun, run claude with BENCH_RUN_ID, the tool-log hooks, and the

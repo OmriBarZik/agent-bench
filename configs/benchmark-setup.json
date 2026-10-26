@@ -18,8 +18,19 @@
     "description": "Claude Code with the codebase-memory-mcp graph index, default tools",
     "model": "claude-sonnet-5-5",
     "mcpConfig": ["configs/setup/codebase-memory/mcp.json"],
+    "toolPromptFile": "configs/setup/codebase-memory/tools.md",
     "strictMcpConfig": true,
     "allowedTools": ["mcp__codebase-memory-mcp__*"],
+    "permissionMode": "acceptEdits"
+  },
+  {
+    "configId": "serena",
+    "description": "Claude Code with Serena language-server tools, default tools",
+    "model": "claude-sonnet-5-5",
+    "mcpConfig": ["configs/setup/serena/mcp.json"],
+    "toolPromptFile": "configs/setup/serena/tools.md",
+    "strictMcpConfig": true,
+    "allowedTools": ["mcp__serena__*"],
     "permissionMode": "acceptEdits"
   }
 ]

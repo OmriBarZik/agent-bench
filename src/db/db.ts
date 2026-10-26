@@ -58,6 +58,8 @@ function ensureTaskColumns(db: Database) {
   const added = [
     ["judge_prompt", "TEXT"],
     ["success_threshold", "REAL"],
+    ["prompt_version", "TEXT"],
+    ["judge_prompt_version", "TEXT"],
   ] as const;
 
   for (const [name, definition] of added) {
@@ -66,6 +68,30 @@ function ensureTaskColumns(db: Database) {
     }
 
     db.run(`ALTER TABLE tasks ADD COLUMN ${name} ${definition}`);
+
+    if (name === "judge_prompt_version") {
+      backfillTaskPromptVersions(db);
+    }
+  }
+}
+
+/** Fills the prompt versions on tasks stored before them. Runs once, when the column is added. */
+function backfillTaskPromptVersions(db: Database) {
+  const tasks = db.query("SELECT task_id, prompt, judge_prompt FROM tasks").all() as {
+    task_id: string;
+    prompt: string;
+    judge_prompt: string | null;
+  }[];
+  const update = db.query(
+    "UPDATE tasks SET prompt_version = $promptVersion, judge_prompt_version = $judgePromptVersion WHERE task_id = $taskId",
+  );
+
+  for (const task of tasks) {
+    update.run({
+      taskId: task.task_id,
+      promptVersion: promptVersion(task.prompt),
+      judgePromptVersion: task.judge_prompt == null ? null : promptVersion(task.judge_prompt),
+    });
   }
 }
 
@@ -91,6 +117,8 @@ function ensureRunColumns(db: Database) {
     ["changed_files", "TEXT"],
     ["total_tokens", "INTEGER"],
     ["cache_creation_tokens", "INTEGER"],
+    ["prompt_version", "TEXT"],
+    ["judge_prompt_version", "TEXT"],
   ] as const;
   for (const [name, definition] of added) {
     if (present.has(name)) {
@@ -162,20 +190,31 @@ function totalTokens(usage: ClaudeUsage): number | null {
   return total;
 }
 
+/** Short content hash of a prompt. Equal text gives the same version, so the dashboard can tell prompt edits apart. */
+export function promptVersion(prompt: string): string {
+  return new Bun.CryptoHasher("sha256").update(prompt).digest("hex").slice(0, 8);
+}
+
+/** Stores the task with its current prompt versions. Runs keep their own copy, since this row is overwritten on every start. */
 export function upsertTask({ db, task }: { db: Database; task: Task }) {
   db.query(
-    `INSERT INTO tasks (task_id, title, difficulty, prompt, judge_prompt, chromium_sha, scoring)
-     VALUES ($taskId, $title, $difficulty, $prompt, $judgePrompt, $chromiumSha, $scoring)
+    `INSERT INTO tasks (task_id, title, difficulty, prompt, prompt_version, judge_prompt, judge_prompt_version,
+                        chromium_sha, scoring)
+     VALUES ($taskId, $title, $difficulty, $prompt, $promptVersion, $judgePrompt, $judgePromptVersion,
+             $chromiumSha, $scoring)
      ON CONFLICT (task_id) DO UPDATE SET
        title = excluded.title, difficulty = excluded.difficulty, prompt = excluded.prompt,
-       judge_prompt = excluded.judge_prompt,
+       prompt_version = excluded.prompt_version,
+       judge_prompt = excluded.judge_prompt, judge_prompt_version = excluded.judge_prompt_version,
        chromium_sha = excluded.chromium_sha, scoring = excluded.scoring`,
   ).run({
     taskId: task.taskId,
     title: task.title ?? null,
     difficulty: task.difficulty ?? null,
     prompt: task.prompt,
+    promptVersion: promptVersion(task.prompt),
     judgePrompt: task.judgePrompt,
+    judgePromptVersion: promptVersion(task.judgePrompt),
     chromiumSha: task.chromiumSha,
     scoring: toJson(task.scoring),
   });
@@ -210,15 +249,17 @@ export async function hashFiles(paths: string[]): Promise<string> {
 
 export function startRun({ db, run }: { db: Database; run: RunStart }) {
   db.query(
-    `INSERT INTO runs (run_id, task_id, config_id, repeat, claude_version, model,
-                       machine, artifacts_path, branch)
-     VALUES ($runId, $taskId, $configId, $repeat, $claudeVersion, $model,
-             $machine, $artifactsPath, $branch)`,
+    `INSERT INTO runs (run_id, task_id, config_id, repeat, prompt_version, judge_prompt_version,
+                       claude_version, model, machine, artifacts_path, branch)
+     VALUES ($runId, $taskId, $configId, $repeat, $promptVersion, $judgePromptVersion,
+             $claudeVersion, $model, $machine, $artifactsPath, $branch)`,
   ).run({
     runId: run.runId,
     taskId: run.taskId,
     configId: run.configId,
     repeat: run.repeat,
+    promptVersion: run.promptVersion,
+    judgePromptVersion: run.judgePromptVersion,
     claudeVersion: run.claudeVersion,
     model: run.model,
     machine: hostname(),

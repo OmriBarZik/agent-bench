@@ -713,6 +713,40 @@
       }
     },
     {
+      "id": 21,
+      "type": "table",
+      "title": "Prompt versions",
+      "description": "One row per task and prompt version. prompt and judge_prompt are the first 8 hex chars of the sha256 of prompt.md and judge.md, so any edit gives a new version. current marks the version in configs/tasks today. unknown is a run from before versions were recorded. first_run and last_run show when each version was in use.",
+      "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
+      "gridPos": { "x": 0, "y": 28, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
+          "queryText": "SELECT runs.task_id, coalesce(runs.prompt_version, 'unknown') AS prompt, coalesce(runs.judge_prompt_version, 'unknown') AS judge_prompt, CASE WHEN runs.prompt_version = tasks.prompt_version AND runs.judge_prompt_version = tasks.judge_prompt_version THEN 'yes' ELSE '' END AS current, count(*) AS runs, count(judge_runs.decision) AS judged, coalesce(sum(judge_runs.success), 0) AS passed, round(100.0 * avg(judge_runs.success)) AS pass_rate, avg(runs.cost_usd) AS avg_cost, round(avg(runs.duration_ms) / 1000.0) AS avg_seconds, min(runs.started_at) AS first_run, max(runs.started_at) AS last_run FROM runs LEFT JOIN tasks ON tasks.task_id = runs.task_id LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.prompt_version, runs.judge_prompt_version ORDER BY runs.task_id, first_run DESC",
+          "rawQueryText": "SELECT runs.task_id, coalesce(runs.prompt_version, 'unknown') AS prompt, coalesce(runs.judge_prompt_version, 'unknown') AS judge_prompt, CASE WHEN runs.prompt_version = tasks.prompt_version AND runs.judge_prompt_version = tasks.judge_prompt_version THEN 'yes' ELSE '' END AS current, count(*) AS runs, count(judge_runs.decision) AS judged, coalesce(sum(judge_runs.success), 0) AS passed, round(100.0 * avg(judge_runs.success)) AS pass_rate, avg(runs.cost_usd) AS avg_cost, round(avg(runs.duration_ms) / 1000.0) AS avg_seconds, min(runs.started_at) AS first_run, max(runs.started_at) AS last_run FROM runs LEFT JOIN tasks ON tasks.task_id = runs.task_id LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.prompt_version, runs.judge_prompt_version ORDER BY runs.task_id, first_run DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": { "showHeader": true },
+      "fieldConfig": {
+        "defaults": { "custom": { "filterable": true } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "avg_cost" },
+            "properties": [
+              { "id": "unit", "value": "currencyUSD" },
+              { "id": "decimals", "value": 3 }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "pass_rate" },
+            "properties": [{ "id": "unit", "value": "percent" }]
+          }
+        ]
+      }
+    },
+    {
       "id": 12,
       "type": "table",
       "title": "Runs (newest first)",
@@ -722,7 +756,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 36,
         "w": 24,
         "h": 8
       },
@@ -733,8 +767,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT runs.task_id, runs.config_id, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
-          "rawQueryText": "SELECT runs.task_id, runs.config_id, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
+          "queryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
+          "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
           "queryType": "table"
         }
       ],
@@ -792,7 +826,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 44,
         "w": 24,
         "h": 10
       },
@@ -831,7 +865,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 46,
+        "y": 54,
         "w": 24,
         "h": 10
       },
@@ -878,7 +912,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 56,
+        "y": 64,
         "w": 24,
         "h": 10
       },
@@ -916,7 +950,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 66,
+        "y": 74,
         "w": 24,
         "h": 10
       },

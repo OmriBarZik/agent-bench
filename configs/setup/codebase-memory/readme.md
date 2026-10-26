@@ -2,6 +2,8 @@
 
 [baseline](../baseline/readme.md) plus the [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) graph. [`mcp.json`](mcp.json) starts the `codebase-memory-mcp` binary on stdio. `allowedTools` includes `mcp__codebase-memory-mcp__*`, so a headless session can call every tool from that server without a permission prompt.
 
+[tools.md](tools.md) is appended to the session prompt. It names these tools and when to use them. The checkout is indexed before the run, so that prompt tells the agent not to index it again.
+
 Install the [shared requirements](../../../docs/setup.md#requirements) first, then the binary and the index below.
 
 ```sh
@@ -42,25 +44,11 @@ The bench process inherits the `PATH` of the shell that launches `bun run start`
 
 ```sh
 bun run setup:codebase-memory-mcp
+bun run setup:codebase-memory-subrepos
 ```
 
-Pass the absolute path of `CHROMIUM_SRC` when it is not `../src`. The graph is stored in `~/.cache/codebase-memory-mcp` (override with `CBM_CACHE_DIR`), outside the checkout, so `git clean` does not delete it.
+`setup:codebase-memory-mcp` indexes the whole checkout. `setup:codebase-memory-subrepos` indexes each directory listed in the checkout's `.cbmignore`, one repository at a time. When `.cbmignore` is missing, it indexes every nested git checkout instead. `CHROMIUM_SRC` overrides the path when it is not `../src`. The graph is stored in `~/.cache/codebase-memory-mcp` (override with `CBM_CACHE_DIR`), outside the checkout, so `git clean` does not delete it.
+
+The memory cap is `CBM_MEM_BUDGET_MB`. Both commands set it to all physical RAM (18432 MiB on this machine). `mcp.json` passes the same value into the MCP server. A larger number is clamped down to the machine's RAM. Close other programs first: the last run only had about 6 GiB free, and the indexer warns that a budget above free memory can be killed by the OS.
 
 A command-line index is a snapshot of that tree. Check the task's `chromiumSha` out, then index, when you want the graph to match the commit the agent will see. A later task at another SHA needs its own index.
-
-## Include the experiment's third_party
-
-The DevTools task needs `third_party/devtools-frontend`, where panels and drawer views are registered. The dinosaur game itself is in `components/neterror/resources/dino_game`. The indexer skips `.gitignore`, then `.cbmignore` at the checkout root. `out/` is already gitignored. Write a `.cbmignore` that keeps the DevTools frontend and skips the rest of `third_party/`:
-
-```sh
-cat > ../src/.cbmignore << 'EOF'
-third_party/*
-!third_party/devtools-frontend/
-!third_party/devtools-frontend/**
-out/
-EOF
-exclude="$(git -C ../src rev-parse --git-path info/exclude)"
-grep -qx '.cbmignore' "$exclude" || echo '.cbmignore' >> "$exclude"
-```
-
-`.git/info/exclude` is local to the Chromium clone. `git clean -fd` keeps ignored files, so the exclude entry is what preserves `.cbmignore` across runs. Re-run `bun run setup:codebase-memory-mcp` after writing `.cbmignore` so the graph includes `third_party/devtools-frontend`.

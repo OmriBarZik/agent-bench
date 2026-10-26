@@ -8,8 +8,8 @@ export type TaskEntry = Omit<Task, "prompt" | "judgePrompt"> & {
   judgePromptFile: string;
 };
 
-/** One entry in benchmark-setup.json. */
-export type BenchConfig = {
+/** One entry in benchmark-setup.json, before its tool prompt is read. */
+export type BenchConfigEntry = {
   configId: string;
   description?: string;
   model?: string;
@@ -18,7 +18,18 @@ export type BenchConfig = {
   allowedTools?: string[];
   disallowedTools?: string[];
   permissionMode?: string;
+  /**
+   * Markdown that tells the agent which tools this config adds and when to use them.
+   * Relative to the repo root. Hashed into config_hash.
+   */
+  toolPromptFile?: string;
   extraFiles?: string[];
+};
+
+/** A benchmark-setup.json entry with its tool prompt loaded. */
+export type BenchConfig = BenchConfigEntry & {
+  /** Trimmed text of toolPromptFile. Appended after the baseline prompt. Absent when the entry has no file. */
+  toolPrompt?: string;
 };
 
 /** Tasks and configs left after the --only-task / --only-config filters. */

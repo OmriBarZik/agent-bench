@@ -30,6 +30,10 @@ export type RunStart = {
   taskId: string;
   configId: string;
   repeat: number;
+  /** promptVersion of the task prompt this run was given. */
+  promptVersion: string;
+  /** promptVersion of the judge rubric this run will be decided with. */
+  judgePromptVersion: string;
   claudeVersion: string;
   model: string;
   artifactsPath?: string;

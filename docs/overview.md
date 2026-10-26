@@ -43,12 +43,12 @@ Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--t
 src/main.ts
   ├─ loadSelection        benchmark-tasks.json × benchmark-setup.json, filtered by --only-*
   ├─ uncommittedStatus → ask to delete them; refuse unless --force or the user says yes
-  ├─ upsertTask / upsertConfig (config_hash = sha256 of the shared baseline + MCP configs + extraFiles)
+  ├─ upsertTask / upsertConfig (config_hash = sha256 of the shared baseline + MCP configs + tool prompt + extraFiles)
   └─ for each task × config × repeat → runOne
         1. resetChromium(sha)          git reset/clean/checkout, then the same in each submodule [+ gclient sync]
         2. createRunBranch(runId)      branch at that SHA, named after the run id
         3. startRun                    insert the runs row (status = running)
-        4. runClaude                   claude -p … --append-system-prompt (baseline) --settings hooks/settings.example.json
+        4. runClaude                   claude -p … --append-system-prompt (baseline, then the config tool prompt) --settings hooks/settings.example.json
         │     ├─ hooks/tool-log.ts        PreToolUse/PostToolUse → tool_calls rows (only when BENCH_RUN_ID is set)
         │     └─ hooks/baseline-guard.ts  PreToolUse Bash: deny cd and shell file edits for every config
         5. copyTranscript              ~/.claude/projects/**/<session>.jsonl → runs/<run_id>/
@@ -84,7 +84,7 @@ To inspect a run, `bun run start:inspect` lists runs from the database. Enter op
 | `hooks/settings.example.json`  | Hook registration and the `cd` deny rules, passed to `claude --settings`. Part of `config_hash`                   |
 | `db/schema.sql`                | SQLite schema, applied idempotently on every open                                                                 |
 | `data/bench.sqlite`            | The results DB (gitignored)                                                                                       |
-| `configs/setup/<configId>/`    | One folder per config: its `readme.md`, and any MCP config or other files that config needs                       |
+| `configs/setup/<configId>/`    | One folder per config: its `readme.md`, optional `tools.md`, and any MCP config or other files it needs           |
 | `configs/tasks/<taskId>/`      | One folder per task: `prompt.md` and `judge.md`                                                                   |
 | `runs/<run_id>/`               | Per-run artifacts: agent `transcript.jsonl`, judge `judge-transcript.jsonl`, command and result logs (gitignored) |
 | `.claude/skills/`              | Agent skills: `bun` (tooling and APIs) and `code-styling` (style rules)                                           |
@@ -107,7 +107,7 @@ To inspect a run, `bun run start:inspect` lists runs from the database. Enter op
 ]
 ```
 
-`promptFile` and `judgePromptFile` are relative to the tasks file. Each task is a folder under `configs/tasks/<taskId>/` with `prompt.md` and `judge.md`. Leading and trailing whitespace is trimmed. The judge returns one decision: `failed`, `partially-failed`, `partially-pass`, or `pass`. `success` is stored for `pass` and `partially-pass`.
+`promptFile` and `judgePromptFile` are relative to the tasks file. Each task is a folder under `configs/tasks/<taskId>/` with `prompt.md` and `judge.md`. Leading and trailing whitespace is trimmed. Each prompt's version is the first 8 hex characters of the sha256 of its trimmed text, so editing a prompt gives it a new version with nothing to bump by hand. Every run stores the `prompt_version` and `judge_prompt_version` it was given, and the dashboard's Prompt versions panel groups runs by them. The judge returns one decision: `failed`, `partially-failed`, `partially-pass`, or `pass`. `success` is stored for `pass` and `partially-pass`.
 
 `configs/benchmark-setup.json`:
 
@@ -118,6 +118,7 @@ To inspect a run, `bun run start:inspect` lists runs from the database. Enter op
     "description": "…",
     "model": "claude-opus-5-5",
     "mcpConfig": ["configs/setup/codebase-memory/mcp.json"],
+    "toolPromptFile": "configs/setup/codebase-memory/tools.md",
     "strictMcpConfig": true,
     "allowedTools": ["Bash", "Read"],
     "disallowedTools": [],
@@ -127,13 +128,13 @@ To inspect a run, `bun run start:inspect` lists runs from the database. Enter op
 ]
 ```
 
-Each config is a folder under `configs/setup/<configId>/`. That folder holds the config's setup notes and any file the config needs, such as an MCP server definition. Paths in `mcpConfig` and `extraFiles` are relative to the repo root. Their contents are hashed into `config_hash`, along with the shared baseline (hook settings, the Bash guard, and its prompt). Editing any of them shows up as a new config version. The baseline guard is not a config in `benchmark-setup.json`: every config gets the same `cd` ban, the same shell-edit ban, and the same appended prompt.
+Each config is a folder under `configs/setup/<configId>/`. That folder holds the config's setup notes and any file the config needs, such as an MCP server definition. `toolPromptFile` is optional markdown, relative to the repo root, that tells the agent which tools that config adds and when to use them. The runner appends it after the baseline prompt. Paths in `mcpConfig`, `toolPromptFile`, and `extraFiles` are relative to the repo root. Their contents are hashed into `config_hash`, along with the shared baseline (hook settings, the Bash guard, and its prompt). Editing any of them shows up as a new config version. The baseline guard is not a config in `benchmark-setup.json`: every config gets the same `cd` ban, the same shell-edit ban, and the same baseline prompt. A config adds its own tool prompt only when `toolPromptFile` is set.
 
 ## Data model
 
 | Table / view           | One row per            | Notes                                                                                                                                              |
 | ---------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `tasks`                | task                   | `scoring` is JSON text                                                                                                                             |
+| `tasks`                | task                   | `scoring` is JSON text. `prompt_version` / `judge_prompt_version` are the current prompts' versions                                                |
 | `configs`              | config                 | `tools` / `permissions` are JSON text, and `config_hash` identifies the exact setup                                                                |
 | `runs`                 | task × config × repeat | status `running` / `done` / `crashed` / `cancelled`, plus the agent's metrics. `branch` equals `run_id`; `changed_files` and `raw_result` are JSON |
 | `judge_runs`           | judge session          | one row per run. The judge's own cost, tokens, duration, `decision`, and `success`. `cancelled` has no decision                                    |
@@ -164,4 +165,4 @@ Each config is a folder under `configs/setup/<configId>/`. That folder holds the
 
 Grafana reads `dashboard/snapshot/bench.sqlite`, a copy of `data/bench.sqlite` that `dashboard/snapshot.sh` refreshes every 5 seconds (`SNAPSHOT_SECONDS` changes it). The script shells out to the `sqlite3` CLI, which is preinstalled on macOS. It doesn't read the live DB because Docker can't share SQLite's WAL index with the host, which causes `database is locked (261)` errors when panels query at once. The dashboard is therefore up to 5 seconds behind.
 
-The setup lives in `dashboard/`: `docker-compose.yml`, `provisioning/` (datasource and dashboard provider) and `dashboards/overview.json` (the panels, task, config and run filters, auto-refresh every 30s). The runs table includes each run's branch, short commit, file count, and the tools it called. Bash is listed by the program the script ran (`git ×4, grep ×2, Edit ×5`). The Tools by run table uses that same split, and Bash commands lists each script with those programs. The Changed files table lists every path that differs from the task commit. Edit panels in the Grafana UI, then export the JSON back into `dashboards/` to keep the change.
+The setup lives in `dashboard/`: `docker-compose.yml`, `provisioning/` (datasource and dashboard provider) and `dashboards/overview.json` (the panels, task, config and run filters, auto-refresh every 30s). The Prompt versions table has one row per task and prompt version, with when that version was first and last run and how it scored. The runs table includes each run's prompt versions, branch, short commit, file count, and the tools it called. Bash is listed by the program the script ran (`git ×4, grep ×2, Edit ×5`). The Tools by run table uses that same split, and Bash commands lists each script with those programs. The Changed files table lists every path that differs from the task commit. Edit panels in the Grafana UI, then export the JSON back into `dashboards/` to keep the change.

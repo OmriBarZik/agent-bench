@@ -28,7 +28,7 @@ Both `lint:ts` and `lint:fmt` must pass before finishing a change. The husky pre
 - **Never delete `data/` or `data/bench.sqlite*`** (including the `-wal`/`-shm` files). They hold the results.
 - **`db/schema.sql` runs on every `openDb()`**, so every statement must be idempotent (`IF NOT EXISTS`). To change an existing table, add an idempotent migration in `openDb()` (`src/db/db.ts`). The user alters runs with `bun run start:inspect` and views them with `bun run start:dashboard`.
 - **tool-log must never block a tool.** `hooks/tool-log.ts` must always exit 0, do nothing unless `BENCH_RUN_ID` is set, and fall back to `~/.claude/bench-hook-fallback.jsonl` when the DB write fails. `hooks/baseline-guard.ts` is the exception that may deny a Bash call: it is the shared baseline (no `cd`, no shell file edits), not a config.
-- **Editing the baseline changes every config's `config_hash`.** The hash covers `hooks/settings.example.json`, the guard sources, `src/baseline-policy.ts`, and each config's `mcpConfig` and `extraFiles`. Editing those creates a new config version.
+- **Editing the baseline changes every config's `config_hash`.** The hash covers `hooks/settings.example.json`, the guard sources, `src/baseline-policy.ts`, and each config's `mcpConfig`, `toolPromptFile`, and `extraFiles`. Editing those creates a new config version.
 
 ## Architecture
 

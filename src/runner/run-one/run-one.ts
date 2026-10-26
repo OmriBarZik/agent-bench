@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { cancelRun, startRun } from "../../db/db";
+import { cancelRun, promptVersion, startRun } from "../../db/db";
 import type { Task } from "../../db/db.types";
 import { RUNS_DIR } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
@@ -39,6 +39,8 @@ export async function runOne({
       taskId: task.taskId,
       configId: config.configId,
       repeat,
+      promptVersion: promptVersion(task.prompt),
+      judgePromptVersion: promptVersion(task.judgePrompt),
       claudeVersion: options.claudeVersion,
       model: config.model ?? "default",
       artifactsPath: outDir,

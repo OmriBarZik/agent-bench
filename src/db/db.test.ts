@@ -10,6 +10,7 @@ import {
   listRunBranches,
   logToolCall,
   openDb,
+  promptVersion,
   saveJudgeRun,
   startRun,
   upsertConfig,
@@ -100,6 +101,8 @@ test("finishRun stores the branch commit and the files it changed", () => {
         taskId: "t1",
         configId: "baseline",
         repeat: 0,
+        promptVersion: "p1",
+        judgePromptVersion: "j1",
         claudeVersion: "test",
         model: "test",
         branch: runId,
@@ -146,6 +149,8 @@ test("finishRun stores a cancelled run with the usage already reported", () => {
         taskId: "t1",
         configId: "baseline",
         repeat: 0,
+        promptVersion: "p1",
+        judgePromptVersion: "j1",
         claudeVersion: "test",
         model: "test",
         branch: runId,
@@ -223,6 +228,8 @@ test("cancelRun marks a finished run cancelled without clearing its metrics", ()
         taskId: "t1",
         configId: "baseline",
         repeat: 0,
+        promptVersion: "p1",
+        judgePromptVersion: "j1",
         claudeVersion: "test",
         model: "test",
         branch: runId,
@@ -316,6 +323,8 @@ test("saveJudgeRun keeps the judge metrics apart from the agent run", () => {
         taskId: "dino",
         configId: "haiku",
         repeat: 0,
+        promptVersion: "p1",
+        judgePromptVersion: "j1",
         claudeVersion: "test",
         model: "test",
         branch: runId,
@@ -392,7 +401,17 @@ test("deleteRun removes the run, its judge, and its tool calls", () => {
     const keptId = "dino__haiku__r1";
     startRun({
       db,
-      run: { runId, taskId: "dino", configId: "haiku", repeat: 0, claudeVersion: "test", model: "test", branch: runId },
+      run: {
+        runId,
+        taskId: "dino",
+        configId: "haiku",
+        repeat: 0,
+        promptVersion: "p1",
+        judgePromptVersion: "j1",
+        claudeVersion: "test",
+        model: "test",
+        branch: runId,
+      },
     });
     startRun({
       db,
@@ -401,6 +420,8 @@ test("deleteRun removes the run, its judge, and its tool calls", () => {
         taskId: "dino",
         configId: "haiku",
         repeat: 1,
+        promptVersion: "p1",
+        judgePromptVersion: "j1",
         claudeVersion: "test",
         model: "test",
         branch: keptId,
@@ -438,6 +459,75 @@ test("openDb adds judge_prompt to a tasks table created before it", () => {
     const names = (db.query("PRAGMA table_info(tasks)").all() as { name: string }[]).map((row) => row.name);
     expect(names).toContain("judge_prompt");
     expect(names).toContain("success_threshold");
+  } finally {
+    db.close();
+  }
+});
+
+test("upsertTask stores a prompt version that changes only with the prompt text", () => {
+  const db = openDb(tempDb());
+  try {
+    const readVersions = () =>
+      db.query("SELECT prompt_version, judge_prompt_version FROM tasks WHERE task_id = 'dino'").get() as {
+        prompt_version: string;
+        judge_prompt_version: string;
+      };
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc" } });
+    const first = readVersions();
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "def" } });
+    const unchanged = readVersions();
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint a hat", judgePrompt: "score it", chromiumSha: "def" } });
+    const edited = readVersions();
+
+    expect(first).toEqual({ prompt_version: promptVersion("paint"), judge_prompt_version: promptVersion("score it") });
+    expect(first.prompt_version).toMatch(/^[0-9a-f]{8}$/);
+    expect(unchanged).toEqual(first);
+    expect(edited.prompt_version).not.toBe(first.prompt_version);
+    expect(edited.judge_prompt_version).toBe(first.judge_prompt_version);
+  } finally {
+    db.close();
+  }
+});
+
+test("startRun stores the prompt versions the run was given", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc" } });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    seedRun({ db, runId: "dino__haiku__r0", startedAt: "2026-10-24T12:00:00.000Z" });
+    const row = db
+      .query("SELECT prompt_version, judge_prompt_version FROM runs WHERE run_id = 'dino__haiku__r0'")
+      .get();
+
+    expect(row).toEqual({ prompt_version: "p1", judge_prompt_version: "j1" });
+  } finally {
+    db.close();
+  }
+});
+
+test("openDb adds and backfills the prompt versions on tasks stored before them", () => {
+  const path = tempDb();
+  const created = new Database(path);
+  created.run(`CREATE TABLE tasks (
+    task_id TEXT PRIMARY KEY,
+    title TEXT,
+    difficulty TEXT,
+    prompt TEXT NOT NULL,
+    judge_prompt TEXT,
+    chromium_sha TEXT NOT NULL,
+    scoring TEXT
+  )`);
+  created.run(`INSERT INTO tasks (task_id, prompt, judge_prompt, chromium_sha) VALUES ('dino', 'paint', NULL, 'abc')`);
+  created.close();
+
+  const db = openDb(path);
+  try {
+    const row = db.query("SELECT prompt_version, judge_prompt_version FROM tasks WHERE task_id = 'dino'").get();
+    const runColumns = (db.query("PRAGMA table_info(runs)").all() as { name: string }[]).map((column) => column.name);
+
+    expect(row).toEqual({ prompt_version: promptVersion("paint"), judge_prompt_version: null });
+    expect(runColumns).toContain("prompt_version");
+    expect(runColumns).toContain("judge_prompt_version");
   } finally {
     db.close();
   }
@@ -488,6 +578,8 @@ function seedRun({ db, runId, startedAt }: { db: Database; runId: string; starte
       taskId: "dino",
       configId: "haiku",
       repeat: 0,
+      promptVersion: "p1",
+      judgePromptVersion: "j1",
       claudeVersion: "test",
       model: "claude-haiku-5-5",
       branch: runId,

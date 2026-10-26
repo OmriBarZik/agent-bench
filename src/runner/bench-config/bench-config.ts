@@ -2,7 +2,7 @@ import { dirname, resolve } from "node:path";
 import { hashFiles } from "../../db/db";
 import type { Config, Task } from "../../db/db.types";
 import { BASELINE_HASH_FILES, BENCH_DIR } from "../../paths";
-import type { BenchConfig, Selection, SelectionSource, TaskEntry } from "./bench-config.types";
+import type { BenchConfig, BenchConfigEntry, Selection, SelectionSource, TaskEntry } from "./bench-config.types";
 
 /** Reads benchmark-tasks.json (loading each task's prompt and judge prompt) and benchmark-setup.json, then applies the --only-* filters. */
 export async function loadSelection({
@@ -13,7 +13,8 @@ export async function loadSelection({
 }: SelectionSource): Promise<Selection> {
   const taskEntries: TaskEntry[] = await Bun.file(tasksPath).json();
   const tasks = await Promise.all(taskEntries.map((entry) => loadTask({ entry, tasksDir: dirname(tasksPath) })));
-  const configs: BenchConfig[] = await Bun.file(configsPath).json();
+  const configEntries: BenchConfigEntry[] = await Bun.file(configsPath).json();
+  const configs = await Promise.all(configEntries.map((entry) => loadConfig(entry)));
   const selectedTasks = tasks.filter((task) => !onlyTask || task.taskId === onlyTask);
   const selectedConfigs = configs.filter((config) => !onlyConfig || config.configId === onlyConfig);
 
@@ -32,12 +33,12 @@ async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: strin
 
   const prompt = await readTrimmed({
     path: resolve(tasksDir, entry.promptFile),
-    taskId: entry.taskId,
+    owner: entry.taskId,
     label: "prompt",
   });
   const judgePrompt = await readTrimmed({
     path: resolve(tasksDir, entry.judgePromptFile),
-    taskId: entry.taskId,
+    owner: entry.taskId,
     label: "judge prompt",
   });
 
@@ -52,27 +53,45 @@ async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: strin
   };
 }
 
-async function readTrimmed({ path, taskId, label }: { path: string; taskId: string; label: string }): Promise<string> {
+/** Reads toolPromptFile from the repo root and attaches the trimmed text. */
+async function loadConfig(entry: BenchConfigEntry): Promise<BenchConfig> {
+  if (!entry.toolPromptFile) {
+    return entry;
+  }
+
+  const toolPrompt = await readTrimmed({
+    path: resolve(BENCH_DIR, entry.toolPromptFile),
+    owner: entry.configId,
+    label: "tool prompt",
+  });
+
+  return { ...entry, toolPrompt };
+}
+
+async function readTrimmed({ path, owner, label }: { path: string; owner: string; label: string }): Promise<string> {
   const file = Bun.file(path);
 
   if (!(await file.exists())) {
-    throw new Error(`${taskId} ${label} not found: ${path}`);
+    throw new Error(`${owner} ${label} not found: ${path}`);
   }
 
   const text = (await file.text()).trim();
 
   if (text === "") {
-    throw new Error(`${taskId} ${label} is empty: ${path}`);
+    throw new Error(`${owner} ${label} is empty: ${path}`);
   }
 
   return text;
 }
 
-/** The configs row: config_hash covers the shared baseline, MCP configs and extraFiles. */
+/** The configs row: config_hash covers the shared baseline, MCP configs, the tool prompt, and extraFiles. */
 export async function toConfigRow(config: BenchConfig): Promise<Config> {
-  const files = [...BASELINE_HASH_FILES, ...(config.mcpConfig ?? []), ...(config.extraFiles ?? [])].map((path) =>
-    resolve(BENCH_DIR, path),
-  );
+  const files = [
+    ...BASELINE_HASH_FILES,
+    ...(config.mcpConfig ?? []),
+    ...(config.toolPromptFile ? [config.toolPromptFile] : []),
+    ...(config.extraFiles ?? []),
+  ].map((path) => resolve(BENCH_DIR, path));
 
   return {
     configId: config.configId,
@@ -82,6 +101,7 @@ export async function toConfigRow(config: BenchConfig): Promise<Config> {
       model: config.model,
       mcpConfig: config.mcpConfig,
       strictMcpConfig: config.strictMcpConfig,
+      toolPromptFile: config.toolPromptFile,
     },
     permissions: {
       allowedTools: config.allowedTools,

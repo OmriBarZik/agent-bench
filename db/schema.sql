@@ -8,7 +8,9 @@ CREATE TABLE IF NOT EXISTS tasks (
     title         TEXT,
     difficulty    TEXT,            -- e.g. simple / medium / complex
     prompt        TEXT NOT NULL,
+    prompt_version     TEXT,            -- first 8 hex chars of sha256(prompt); changes whenever prompt.md changes
     judge_prompt       TEXT,            -- rubric the judge uses to choose a decision
+    judge_prompt_version TEXT,          -- same for judge_prompt
     success_threshold  REAL,            -- unused; older tasks stored a decimal cutoff
     chromium_sha       TEXT NOT NULL,
     scoring       TEXT             -- JSON: how success is checked for this task
@@ -27,6 +29,8 @@ CREATE TABLE IF NOT EXISTS runs (
     task_id            TEXT REFERENCES tasks,
     config_id          TEXT REFERENCES configs,
     repeat             INTEGER,
+    prompt_version       TEXT,     -- tasks.prompt_version when this run started; NULL on runs from before versions
+    judge_prompt_version TEXT,     -- tasks.judge_prompt_version when this run started
     claude_version     TEXT,
     model              TEXT,
     machine            TEXT,

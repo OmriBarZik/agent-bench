@@ -25,25 +25,28 @@
     "scoring": {
       "checks": [
         "a DevTools UI entry (panel or drawer view) that hosts the game",
-        "existing dino_game sources reused, not duplicated wholesale",
+        "real game code and original sprite/sound assets used, never recreated",
+        "consumes the dino game's build output (or the same build steps), showing it understood how the game is built",
         "keyboard input (jump/duck/restart) reaches the game",
-        "BUILD.gn / grd resources updated so the code is part of the build"
+        "BUILD.gn / grd resources updated so the game and its assets are part of the build"
       ]
     }
   },
   {
     "taskId": "dino-ai-player",
-    "title": "Built-in AI plays the dino game",
+    "title": "Built-in decision model plays the dino game",
     "difficulty": "complex",
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
     "promptFile": "tasks/dino-ai-player/prompt.md",
     "judgePromptFile": "tasks/dino-ai-player/judge.md",
     "scoring": {
       "checks": [
-        "AI module reads real game state from the dino game",
-        "issues jump/duck/restart without user input",
-        "toggle exists and is off by default, behind a feature flag",
-        "BUILD.gn / grd / feature registration updated so it builds"
+        "decision model built into the browser returns jump/duck/nothing with probabilities",
+        "fully offline: no network, no runtime download, packaged in the build",
+        "exposed as a built-in AI JS API following the existing AI API pattern",
+        "dino game reads real state, calls the API and acts without user input, restarting after a crash",
+        "toggle is off by default and the API is behind a feature flag",
+        "BUILD.gn / IDL / grd / feature registration updated so it builds"
       ]
     }
   }

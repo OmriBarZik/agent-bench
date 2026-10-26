@@ -11,7 +11,8 @@
     "lint:ts": "bun check",
     "lint:fmt:fix": "bun fmt",
     "lint:fmt": "bun fmt --check",
-    "setup:codebase-memory-mcp": "codebase-memory-mcp cli --progress index_repository --repo-path \"$(cd ../src && pwd)\""
+    "setup:codebase-memory-mcp": "bun configs/setup/codebase-memory/index-checkout.ts",
+    "setup:codebase-memory-subrepos": "bun configs/setup/codebase-memory/index-subrepos.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

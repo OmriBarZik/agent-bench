@@ -34,7 +34,7 @@ export function claudeArgs({
     "--settings",
     HOOK_SETTINGS,
     "--append-system-prompt",
-    BASELINE_PROMPT,
+    sessionPrompt(config),
   ];
 
   if (config.model) {
@@ -62,6 +62,15 @@ export function claudeArgs({
   }
 
   return args;
+}
+
+/** Baseline rules, then this config's note about its tools when it has one. */
+function sessionPrompt(config: BenchConfig): string {
+  if (!config.toolPrompt) {
+    return BASELINE_PROMPT;
+  }
+
+  return `${BASELINE_PROMPT}\n\n${config.toolPrompt}`;
 }
 
 /**
