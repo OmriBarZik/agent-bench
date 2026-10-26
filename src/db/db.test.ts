@@ -8,6 +8,7 @@ import {
   deleteRun,
   finishRun,
   listRunBranches,
+  listToolTrouble,
   logToolCall,
   openDb,
   promptVersion,
@@ -548,6 +549,55 @@ test("openDb adds decision to a judge_runs table created before it", () => {
   try {
     const names = (db.query("PRAGMA table_info(judge_runs)").all() as { name: string }[]).map((row) => row.name);
     expect(names).toContain("decision");
+    expect(names).toContain("blocked");
+    expect(names).toContain("blockers");
+  } finally {
+    db.close();
+  }
+});
+
+test("saveJudgeRun stores the blockers as JSON", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc" } });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    seedRun({ db, runId: "dino__haiku__r0", startedAt: "2026-10-24T12:00:00.000Z" });
+    const blockers = [{ kind: "missing-tool" as const, tool: "Bash: autoninja", detail: "not installed" }];
+    saveJudgeRun({ db, runId: "dino__haiku__r0", judge: { ...judged, blocked: true, blockers } });
+    const row = db.query("SELECT blocked, blockers FROM judge_runs WHERE run_id = 'dino__haiku__r0'").get() as {
+      blocked: number;
+      blockers: string;
+    };
+
+    expect(row.blocked).toBe(1);
+    expect(JSON.parse(row.blockers)).toEqual(blockers);
+  } finally {
+    db.close();
+  }
+});
+
+test("listToolTrouble lists each blocked or failed call once, oldest first", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc" } });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    const runId = "dino__haiku__r0";
+    seedRun({ db, runId, startedAt: "2026-10-24T12:00:00.000Z" });
+    const command = "cd src && rg hat | head";
+    logToolCall({ db, call: { runId, phase: "pre", toolUseId: "denied", tool: "Bash", program: "cd", command } });
+    logToolCall({ db, call: { runId, phase: "pre", toolUseId: "denied", tool: "Bash", program: "rg", command } });
+    logToolCall({ db, call: { runId, phase: "pre", toolUseId: "ok", tool: "Read" } });
+    logToolCall({ db, call: { runId, phase: "post", toolUseId: "ok", tool: "Read", isError: false } });
+    logToolCall({ db, call: { runId, phase: "pre", toolUseId: "broken", tool: "Bash", command: "autoninja" } });
+    logToolCall({
+      db,
+      call: { runId, phase: "post", toolUseId: "broken", tool: "Bash", isError: true, responsePreview: "not found" },
+    });
+
+    expect(listToolTrouble({ db, runId })).toEqual([
+      { tool: "Bash", command, ran: false, responsePreview: null },
+      { tool: "Bash", command: "autoninja", ran: true, responsePreview: "not found" },
+    ]);
   } finally {
     db.close();
   }
@@ -568,6 +618,8 @@ const judged: JudgeMetrics = {
   success: true,
   reason: "most of the hat",
   error: null,
+  blocked: false,
+  blockers: [],
 };
 
 function seedRun({ db, runId, startedAt }: { db: Database; runId: string; startedAt: string }) {

@@ -72,7 +72,9 @@ CREATE TABLE IF NOT EXISTS judge_runs (
     score                  REAL,            -- unused; older rows stored a decimal
     success                INTEGER,         -- 1 when decision is pass or partially-pass
     reason                 TEXT,
-    error                  TEXT
+    error                  TEXT,
+    blocked                INTEGER,         -- 1 when a missing, denied, or failing tool stopped the agent
+    blockers               TEXT             -- JSON: [{ "kind", "tool", "detail" }]; kind is missing-tool / denied / exec-failed
 );
 
 CREATE TABLE IF NOT EXISTS tool_calls (

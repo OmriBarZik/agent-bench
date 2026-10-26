@@ -1,5 +1,6 @@
 import type { ClaudeResult, ClaudeUsage, JudgeMetrics } from "../../db/db.types";
 import { decisionSucceeds, isJudgeDecision } from "../../db/judge-decision";
+import { readBlockers } from "./judge-blockers";
 import type { JudgeVerdict } from "./judge-result.types";
 
 /** Turns a finished judge session into the judge_runs row. A missing decision leaves decision and success null. */
@@ -23,6 +24,8 @@ export function judgeMetrics({ result, judgeModel }: { result: ClaudeResult; jud
     success: verdict == null ? null : decisionSucceeds(verdict.decision),
     reason: reason === "" ? null : reason,
     error: verdict ? null : judgeError(result),
+    blocked: verdict?.blocked ?? null,
+    blockers: verdict?.blockers ?? [],
   };
 }
 
@@ -52,6 +55,8 @@ export function cancelledJudgeMetrics({
     success: null,
     reason: null,
     error: "cancelled",
+    blocked: null,
+    blockers: [],
   };
 }
 
@@ -72,6 +77,8 @@ export function failedJudgeMetrics({ judgeModel, error }: { judgeModel: string; 
     success: null,
     reason: null,
     error,
+    blocked: null,
+    blockers: [],
   };
 }
 
@@ -90,6 +97,10 @@ export function judgementText({ judge }: { judge: JudgeMetrics }): string {
 function verdictText(judge: JudgeMetrics): string {
   if (judge.decision == null) {
     return "decision n/a";
+  }
+
+  if (judge.blocked) {
+    return `decision ${judge.decision}, BLOCKED`;
   }
 
   return `decision ${judge.decision}`;
@@ -159,15 +170,16 @@ function verdictFromUnknown(value: unknown): JudgeVerdict | null {
     return null;
   }
 
-  const record = value as { decision?: unknown; reason?: unknown };
+  const record = value as { decision?: unknown; reason?: unknown; blocked?: unknown; blockers?: unknown };
 
   if (!isJudgeDecision(record.decision)) {
     return null;
   }
 
   const reason = typeof record.reason === "string" ? record.reason.trim() : "";
+  const blockers = readBlockers(record.blockers);
 
-  return { decision: record.decision, reason };
+  return { decision: record.decision, reason, blocked: record.blocked === true || blockers.length > 0, blockers };
 }
 
 function judgeError(result: ClaudeResult): string {

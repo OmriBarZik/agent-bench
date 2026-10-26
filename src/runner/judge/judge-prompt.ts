@@ -1,5 +1,6 @@
 import type { ChangedFile } from "../../db/db.types";
 import type { JudgePromptInput } from "./judge-prompt.types";
+import { toolTroubleText } from "./tool-trouble-text";
 
 const REPORT_MAX_CHARS = 4_000;
 
@@ -10,6 +11,7 @@ export function buildJudgePrompt({
   changedFiles,
   diff,
   agentReport,
+  toolTrouble,
 }: JudgePromptInput): string {
   const files = changedFiles.length === 0 ? "(no files changed)" : changedFiles.map(changedFileText).join("\n");
   const patch = diff.trim() === "" ? "(no diff; the tree matches the task commit)" : diff.trim();
@@ -33,8 +35,13 @@ export function buildJudgePrompt({
     "## Agent's final message",
     clipReport(agentReport),
     "",
+    "## Agent tool calls that never ran or failed",
+    toolTroubleText(toolTrouble),
+    "",
     "If the diff is truncated, read the changed files.",
     "Judge the checkout, not what the agent claims.",
+    "Also report whether a missing, denied, or failing tool or program stopped the agent from doing part of the task.",
+    "A call the agent worked around is not a blocker.",
   ].join("\n");
 }
 

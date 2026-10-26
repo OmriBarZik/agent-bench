@@ -7,6 +7,7 @@ import { loadSelection, toConfigRow } from "./runner/bench-config/bench-config";
 import { claudeVersion } from "./runner/claude/claude";
 import { confirmDiscardUncommittedChanges } from "./runner/chromium/confirm-discard";
 import { uncommittedStatus } from "./runner/chromium/chromium";
+import { blockerAlert } from "./runner/judge/judge-blockers";
 import { judgementText } from "./runner/judge/judge-result";
 import { runOne } from "./runner/run-one/run-one";
 import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
@@ -53,7 +54,9 @@ const { values: args } = parseArgs({
  * transcript into runs/<run_id>/, commit the checkout onto that branch, finishRun, then a
  * second read-only claude session decides the tree: failed, partially-failed, partially-pass, or pass.
  * That session is a judge_runs row: its own cost, tokens, and duration. success is 1 for pass and
- * partially-pass. The judge does not record tool calls.
+ * partially-pass. The judge does not record tool calls. The judge is also shown the agent's blocked and
+ * failed tool calls and reports whether a missing, denied, or failing tool stopped the agent; the runner
+ * prints a BLOCKED alert for those runs, and they fill the dashboard's Blockers section.
  *
  * Ctrl+C stops the benchmark. The run in progress is stored as cancelled (finished time, duration,
  * and any cost, turns, and tokens already reported) and later runs are not started. Exit code 130.
@@ -149,6 +152,10 @@ async function main() {
             console.log(
               `  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}, ${judged}`,
             );
+
+            for (const line of blockerAlert({ runId, judge })) {
+              console.warn(line);
+            }
 
             if (shutdown.signal.aborted) {
               stopped = true;

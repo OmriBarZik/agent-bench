@@ -1,3 +1,4 @@
+import type { JudgeBlocker } from "./judge-blocker.types";
 import type { JudgeDecision } from "./judge-decision.types";
 
 /** One entry in benchmark-tasks.json. */
@@ -100,6 +101,29 @@ export type JudgeMetrics = {
   success: boolean | null;
   reason: string | null;
   error: string | null;
+  /** True when a missing, denied, or failing tool stopped the agent. Null when the judge did not return a verdict. */
+  blocked: boolean | null;
+  /** What stopped the agent. Empty when nothing did. */
+  blockers: JudgeBlocker[];
+};
+
+/** One blocked or failed tool call of the agent, as the judge is shown it. */
+export type ToolTrouble = {
+  tool: string;
+  /** The Bash command; null for other tools. */
+  command: string | null;
+  /** False when the call never ran: a permission rule or the guard refused it, or the session ended first. */
+  ran: boolean;
+  /** The start of the tool's response, when it ran and failed. */
+  responsePreview: string | null;
+};
+
+/** Columns read by listToolTrouble. Snake case, matching the query. */
+export type ToolTroubleSql = {
+  tool: string | null;
+  command: string | null;
+  ran: number;
+  response_preview: string | null;
 };
 
 /** Columns read by listRunBranches. Snake case, matching the query. */

@@ -75,6 +75,8 @@ test("cancelledJudgeMetrics drops the decision and keeps the usage already captu
       success: false,
       reason: "partial",
       error: "killed",
+      blocked: true,
+      blockers: [{ kind: "denied", tool: "Bash: cd", detail: "guard" }],
     },
   });
 
@@ -83,6 +85,8 @@ test("cancelledJudgeMetrics drops the decision and keeps the usage already captu
   expect(judge.success).toBeNull();
   expect(judge.reason).toBeNull();
   expect(judge.error).toBe("cancelled");
+  expect(judge.blocked).toBeNull();
+  expect(judge.blockers).toEqual([]);
   expect(judge.durationMs).toBe(3_000);
   expect(judge.costUsd).toBe(0.02);
   expect(judge.totalTokens).toBe(6);

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../../db/db.types";
+import type { ClaudeResult, JudgeMetrics, RunArtifact, Task, ToolTrouble } from "../../db/db.types";
+import { JUDGE_BLOCKER_KINDS, JUDGE_BLOCKER_MEANING } from "../../db/judge-blocker";
 import { JUDGE_DECISION_MEANING, JUDGE_DECISIONS } from "../../db/judge-decision";
 import { CHROMIUM_SRC, JUDGE_TRANSCRIPT_FILE } from "../../paths";
 import { copyTranscript } from "../claude/claude";
@@ -23,12 +24,42 @@ const JUDGE_SCHEMA = JSON.stringify({
       type: "string",
       description: "What is present and what is missing.",
     },
+    blocked: {
+      type: "boolean",
+      description:
+        "True when the agent got stuck or gave up on part of the task because a tool, MCP tool, or program it needed was missing, denied, or kept failing. False when there was no such problem or it worked around every one.",
+    },
+    blockers: {
+      type: "array",
+      description: "One entry per tool problem that stopped the agent. Empty when blocked is false.",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          kind: {
+            type: "string",
+            enum: [...JUDGE_BLOCKER_KINDS],
+            description: JUDGE_BLOCKER_KINDS.map((kind) => `${kind}: ${JUDGE_BLOCKER_MEANING[kind]}`).join(" "),
+          },
+          tool: {
+            type: "string",
+            description: "The tool, MCP tool, or program, e.g. 'Bash: autoninja' or 'mcp__serena__find_symbol'.",
+          },
+          detail: {
+            type: "string",
+            description:
+              "One or two plain sentences for a human: what the agent tried, what happened, and what part of the task it could not do because of it.",
+          },
+        },
+        required: ["kind", "tool", "detail"],
+      },
+    },
   },
-  required: ["decision", "reason"],
+  required: ["decision", "reason", "blocked", "blockers"],
 });
 
 /**
- * Scores one finished run with a second, read-only claude session.
+ * Scores one finished run with a second, read-only claude session, and asks it whether a tool problem blocked the agent.
  * The session does not set BENCH_RUN_ID, so its tool calls are not recorded as the agent's.
  * Copies the session log to judge-transcript.jsonl so the TUI can open it.
  * A failed session returns metrics with error set and no decision.
@@ -37,6 +68,7 @@ export async function judgeRun({
   task,
   result,
   artifact,
+  toolTrouble,
   outDir,
   judgeModel,
   timeoutMs,
@@ -45,6 +77,8 @@ export async function judgeRun({
   task: Task;
   result: ClaudeResult;
   artifact: RunArtifact;
+  /** The agent's tool calls that never ran or failed, shown to the judge to spot a blocked agent. */
+  toolTrouble: ToolTrouble[];
   outDir: string;
   judgeModel: string;
   timeoutMs: number;
@@ -57,6 +91,7 @@ export async function judgeRun({
     changedFiles: artifact.changedFiles,
     diff,
     agentReport: reportedText(result),
+    toolTrouble,
   });
   const sessionId = randomUUID();
   const command = judgeCommand({ prompt, judgeModel, sessionId });

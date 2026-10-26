@@ -1,7 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
-import { cancelRun, finishRun, saveJudgeRun } from "../../db/db";
-import type { ClaudeResult, JudgeMetrics, RunArtifact, Task } from "../../db/db.types";
+import { cancelRun, finishRun, listToolTrouble, saveJudgeRun } from "../../db/db";
+import type { ClaudeResult, JudgeMetrics, RunArtifact, Task, ToolTrouble } from "../../db/db.types";
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { claudeArgs, runClaude } from "../claude/claude";
 import { readClaudeOutput } from "../claude/claude-result";
@@ -73,6 +73,7 @@ export async function judgeAndStore({
     task,
     result: committed.result,
     artifact: committed.artifact,
+    toolTrouble: listToolTrouble({ db, runId }),
     outDir,
     options,
     signal,
@@ -145,6 +146,7 @@ async function scoreRun({
   task,
   result,
   artifact,
+  toolTrouble,
   outDir,
   options,
   signal,
@@ -152,6 +154,7 @@ async function scoreRun({
   task: Task;
   result: ClaudeResult;
   artifact: RunArtifact;
+  toolTrouble: ToolTrouble[];
   outDir: string;
   options: RunOptions;
   signal: AbortSignal;
@@ -161,6 +164,7 @@ async function scoreRun({
       task,
       result,
       artifact,
+      toolTrouble,
       outDir,
       judgeModel: options.judgeModel,
       timeoutMs: options.timeoutMs,

@@ -4,7 +4,7 @@
   "tags": ["agent-bench"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 23,
+  "version": 24,
   "refresh": "30s",
   "time": {
     "from": "now-7d",
@@ -356,7 +356,12 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           }
         },
         "overrides": []
@@ -401,7 +406,12 @@
           "decimals": 0,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           }
         },
         "overrides": []
@@ -447,7 +457,12 @@
           "decimals": 1,
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           }
         },
         "overrides": []
@@ -713,35 +728,492 @@
       }
     },
     {
+      "id": 22,
+      "type": "row",
+      "title": "Blockers",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "Blocked runs",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "description": "Runs where the judge found that a missing, denied, or failing tool or program stopped the agent.",
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT count(*) AS blocked FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT count(*) AS blocked FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "background",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 24,
+      "type": "stat",
+      "title": "Blocked share",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "description": "Blocked runs out of the runs the judge checked for blockers.",
+      "gridPos": {
+        "x": 0,
+        "y": 33,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT 100.0 * sum(judge_runs.blocked) / count(*) AS blocked_share FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id WHERE judge_runs.blocked IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote})",
+          "rawQueryText": "SELECT 100.0 * sum(judge_runs.blocked) / count(*) AS blocked_share FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id WHERE judge_runs.blocked IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote})",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": ["lastNotNull"],
+          "fields": ""
+        },
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 25,
+      "type": "barchart",
+      "title": "Blockers by config and kind",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 4,
+        "y": 29,
+        "w": 20,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id, count(CASE json_extract(blocker.value, '$.kind') WHEN 'missing-tool' THEN 1 END) AS \"missing tool\", count(CASE json_extract(blocker.value, '$.kind') WHEN 'denied' THEN 1 END) AS denied, count(CASE json_extract(blocker.value, '$.kind') WHEN 'exec-failed' THEN 1 END) AS \"exec failed\", count(CASE WHEN blocker.value IS NULL THEN 1 END) AS unspecified FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id LEFT JOIN json_each(judge_runs.blockers) AS blocker WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY runs.config_id",
+          "rawQueryText": "SELECT runs.config_id, count(CASE json_extract(blocker.value, '$.kind') WHEN 'missing-tool' THEN 1 END) AS \"missing tool\", count(CASE json_extract(blocker.value, '$.kind') WHEN 'denied' THEN 1 END) AS denied, count(CASE json_extract(blocker.value, '$.kind') WHEN 'exec-failed' THEN 1 END) AS \"exec failed\", count(CASE WHEN blocker.value IS NULL THEN 1 END) AS unspecified FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id LEFT JOIN json_each(judge_runs.blockers) AS blocker WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config_id",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "right"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "missing tool"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "denied"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "exec failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "unspecified"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "text"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 26,
+      "type": "table",
+      "title": "Blockers (newest first)",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "description": "One row per tool problem the judge said stopped the agent. what happened is the judge's own words; when it named no blocker, its reason is shown instead.",
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 24,
+        "h": 16
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.started_at, runs.task_id, runs.config_id, judge_runs.decision, json_extract(blocker.value, '$.kind') AS kind, json_extract(blocker.value, '$.tool') AS tool, COALESCE(json_extract(blocker.value, '$.detail'), judge_runs.reason) AS \"what happened\", runs.run_id FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id LEFT JOIN json_each(judge_runs.blockers) AS blocker WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, blocker.key LIMIT 200",
+          "rawQueryText": "SELECT runs.started_at, runs.task_id, runs.config_id, judge_runs.decision, json_extract(blocker.value, '$.kind') AS kind, json_extract(blocker.value, '$.tool') AS tool, COALESCE(json_extract(blocker.value, '$.detail'), judge_runs.reason) AS \"what happened\", runs.run_id FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id LEFT JOIN json_each(judge_runs.blockers) AS blocker WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, blocker.key LIMIT 200",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "lg"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "filterable": true,
+            "align": "left"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "started_at"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 170
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "task_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "config_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "decision"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "kind"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 120
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "missing-tool": {
+                        "color": "orange",
+                        "index": 0,
+                        "text": "missing tool"
+                      },
+                      "denied": {
+                        "color": "red",
+                        "index": 1,
+                        "text": "denied"
+                      },
+                      "exec-failed": {
+                        "color": "purple",
+                        "index": 2,
+                        "text": "exec failed"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "tool"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 220
+              },
+              {
+                "id": "custom.wrapText",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "what happened"
+            },
+            "properties": [
+              {
+                "id": "custom.minWidth",
+                "value": 400
+              },
+              {
+                "id": "custom.wrapText",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "run_id"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 260
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 27,
+      "type": "row",
+      "title": "Runs and tool calls",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 53,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
       "id": 21,
       "type": "table",
       "title": "Prompt versions",
       "description": "One row per task and prompt version. prompt and judge_prompt are the first 8 hex chars of the sha256 of prompt.md and judge.md, so any edit gives a new version. current marks the version in configs/tasks today. unknown is a run from before versions were recorded. first_run and last_run show when each version was in use.",
-      "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-      "gridPos": { "x": 0, "y": 28, "w": 24, "h": 8 },
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "w": 24,
+        "h": 8
+      },
       "targets": [
         {
           "refId": "A",
-          "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
           "queryText": "SELECT runs.task_id, coalesce(runs.prompt_version, 'unknown') AS prompt, coalesce(runs.judge_prompt_version, 'unknown') AS judge_prompt, CASE WHEN runs.prompt_version = tasks.prompt_version AND runs.judge_prompt_version = tasks.judge_prompt_version THEN 'yes' ELSE '' END AS current, count(*) AS runs, count(judge_runs.decision) AS judged, coalesce(sum(judge_runs.success), 0) AS passed, round(100.0 * avg(judge_runs.success)) AS pass_rate, avg(runs.cost_usd) AS avg_cost, round(avg(runs.duration_ms) / 1000.0) AS avg_seconds, min(runs.started_at) AS first_run, max(runs.started_at) AS last_run FROM runs LEFT JOIN tasks ON tasks.task_id = runs.task_id LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.prompt_version, runs.judge_prompt_version ORDER BY runs.task_id, first_run DESC",
           "rawQueryText": "SELECT runs.task_id, coalesce(runs.prompt_version, 'unknown') AS prompt, coalesce(runs.judge_prompt_version, 'unknown') AS judge_prompt, CASE WHEN runs.prompt_version = tasks.prompt_version AND runs.judge_prompt_version = tasks.judge_prompt_version THEN 'yes' ELSE '' END AS current, count(*) AS runs, count(judge_runs.decision) AS judged, coalesce(sum(judge_runs.success), 0) AS passed, round(100.0 * avg(judge_runs.success)) AS pass_rate, avg(runs.cost_usd) AS avg_cost, round(avg(runs.duration_ms) / 1000.0) AS avg_seconds, min(runs.started_at) AS first_run, max(runs.started_at) AS last_run FROM runs LEFT JOIN tasks ON tasks.task_id = runs.task_id LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.prompt_version, runs.judge_prompt_version ORDER BY runs.task_id, first_run DESC",
           "queryType": "table"
         }
       ],
-      "options": { "showHeader": true },
+      "options": {
+        "showHeader": true
+      },
       "fieldConfig": {
-        "defaults": { "custom": { "filterable": true } },
+        "defaults": {
+          "custom": {
+            "filterable": true
+          }
+        },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "avg_cost" },
+            "matcher": {
+              "id": "byName",
+              "options": "avg_cost"
+            },
             "properties": [
-              { "id": "unit", "value": "currencyUSD" },
-              { "id": "decimals", "value": 3 }
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "pass_rate" },
-            "properties": [{ "id": "unit", "value": "percent" }]
+            "matcher": {
+              "id": "byName",
+              "options": "pass_rate"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              }
+            ]
           }
         ]
       }
@@ -756,7 +1228,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 62,
         "w": 24,
         "h": 8
       },
@@ -767,8 +1239,8 @@
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
-          "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
+          "queryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, judge_runs.blocked, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
+          "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, judge_runs.blocked, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
           "queryType": "table"
         }
       ],
@@ -799,17 +1271,35 @@
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "judge_cost" },
+            "matcher": {
+              "id": "byName",
+              "options": "judge_cost"
+            },
             "properties": [
-              { "id": "unit", "value": "currencyUSD" },
-              { "id": "decimals", "value": 3 }
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
             ]
           },
           {
-            "matcher": { "id": "byName", "options": "tools" },
+            "matcher": {
+              "id": "byName",
+              "options": "tools"
+            },
             "properties": [
-              { "id": "custom.width", "value": 280 },
-              { "id": "custom.wrapText", "value": true }
+              {
+                "id": "custom.width",
+                "value": 280
+              },
+              {
+                "id": "custom.wrapText",
+                "value": true
+              }
             ]
           }
         ]
@@ -826,7 +1316,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 70,
         "w": 24,
         "h": 10
       },
@@ -865,7 +1355,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 54,
+        "y": 80,
         "w": 24,
         "h": 10
       },
@@ -892,10 +1382,19 @@
         },
         "overrides": [
           {
-            "matcher": { "id": "byName", "options": "command" },
+            "matcher": {
+              "id": "byName",
+              "options": "command"
+            },
             "properties": [
-              { "id": "custom.width", "value": 640 },
-              { "id": "custom.wrapText", "value": true }
+              {
+                "id": "custom.width",
+                "value": 640
+              },
+              {
+                "id": "custom.wrapText",
+                "value": true
+              }
             ]
           }
         ]
@@ -912,7 +1411,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 90,
         "w": 24,
         "h": 10
       },
@@ -950,7 +1449,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 74,
+        "y": 100,
         "w": 24,
         "h": 10
       },

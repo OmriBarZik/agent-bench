@@ -15,6 +15,8 @@ import type {
   RunStart,
   Task,
   ToolCall,
+  ToolTrouble,
+  ToolTroubleSql,
 } from "./db.types";
 import { isJudgeDecision } from "./judge-decision";
 import { BENCH_DIR } from "../paths";
@@ -100,12 +102,19 @@ function ensureJudgeColumns(db: Database) {
   const present = new Set(
     (db.query("PRAGMA table_info(judge_runs)").all() as { name: string }[]).map((row) => row.name),
   );
+  const added = [
+    ["decision", "TEXT"],
+    ["blocked", "INTEGER"],
+    ["blockers", "TEXT"],
+  ] as const;
 
-  if (present.has("decision")) {
-    return;
+  for (const [name, definition] of added) {
+    if (present.has(name)) {
+      continue;
+    }
+
+    db.run(`ALTER TABLE judge_runs ADD COLUMN ${name} ${definition}`);
   }
-
-  db.run("ALTER TABLE judge_runs ADD COLUMN decision TEXT");
 }
 
 /** Columns added after the first bench.sqlite. Idempotent so opening an old file keeps working. */
@@ -334,11 +343,11 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
     `INSERT INTO judge_runs (
        run_id, model, status, duration_ms, num_turns, cost_usd,
        input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens,
-       decision, success, reason, error
+       decision, success, reason, error, blocked, blockers
      ) VALUES (
        $runId, $model, $status, $durationMs, $numTurns, $costUsd,
        $inputTokens, $outputTokens, $cacheCreationTokens, $cacheReadTokens, $totalTokens,
-       $decision, $success, $reason, $error
+       $decision, $success, $reason, $error, $blocked, $blockers
      )
      ON CONFLICT (run_id) DO UPDATE SET
        model = excluded.model,
@@ -357,7 +366,9 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
        score = NULL,
        success = excluded.success,
        reason = excluded.reason,
-       error = excluded.error`,
+       error = excluded.error,
+       blocked = excluded.blocked,
+       blockers = excluded.blockers`,
   ).run({
     runId,
     model: judge.model,
@@ -374,7 +385,34 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
     success: judge.success == null ? null : Number(judge.success),
     reason: judge.reason,
     error: judge.error,
+    blocked: judge.blocked == null ? null : Number(judge.blocked),
+    blockers: judge.blockers.length === 0 ? null : toJson(judge.blockers),
   });
+}
+
+/**
+ * The agent's tool calls that never ran or ran and failed, oldest first. A Bash call counts once,
+ * however many programs its pipeline has.
+ */
+export function listToolTrouble({ db, runId }: { db: Database; runId: string }): ToolTrouble[] {
+  const rows = db
+    .query(
+      `SELECT pre.tool, pre.command, (post.id IS NOT NULL) AS ran, post.response_preview, MIN(pre.id) AS first_id
+       FROM tool_calls pre
+       LEFT JOIN tool_calls post
+         ON post.run_id = pre.run_id AND post.tool_use_id = pre.tool_use_id AND post.phase = 'post'
+       WHERE pre.run_id = $runId AND pre.phase = 'pre' AND (post.id IS NULL OR post.is_error = 1)
+       GROUP BY pre.tool_use_id
+       ORDER BY first_id`,
+    )
+    .all({ runId }) as ToolTroubleSql[];
+
+  return rows.map((row) => ({
+    tool: row.tool ?? "unknown",
+    command: row.command,
+    ran: row.ran === 1,
+    responsePreview: row.response_preview,
+  }));
 }
 
 export function logToolCall({ db, call }: { db: Database; call: ToolCall }) {
