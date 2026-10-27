@@ -4,10 +4,10 @@ import { parseArgs } from "node:util";
 import { DB_PATH } from "../db/db";
 import { CHROMIUM_SRC } from "../paths";
 import { checkoutBranch, hasUncommittedChanges } from "../runner/chromium/chromium";
-import { changedFileLine } from "./format-run";
-import { loadChoices } from "./load-choices";
-import { selectRun } from "./select-run";
-import type { RunChoice } from "./select-state.types";
+import { loadChoices } from "./list/load-choices";
+import { selectRun } from "./list/select-run";
+import type { RunChoice } from "./list/select-state.types";
+import { changedFileLine } from "./render/format-run";
 
 const { values: args, positionals } = parseArgs({
   options: {

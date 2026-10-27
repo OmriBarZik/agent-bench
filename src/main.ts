@@ -7,8 +7,8 @@ import { loadSelection, toConfigRow } from "./runner/bench-config/bench-config";
 import { claudeVersion } from "./runner/claude/claude";
 import { confirmDiscardUncommittedChanges } from "./runner/chromium/confirm-discard";
 import { uncommittedStatus } from "./runner/chromium/chromium";
-import { blockerAlert } from "./runner/judge/judge-blockers";
-import { judgementText } from "./runner/judge/judge-result";
+import { blockerAlert } from "./runner/judge/result/judge-blockers";
+import { judgementText } from "./runner/judge/result/judge-result";
 import { runOne } from "./runner/run-one/run-one";
 import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
 

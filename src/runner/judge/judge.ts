@@ -6,8 +6,8 @@ import { JUDGE_DECISION_MEANING, JUDGE_DECISIONS } from "../../db/judge-decision
 import { CHROMIUM_SRC, JUDGE_TRANSCRIPT_FILE } from "../../paths";
 import { copyTranscript } from "../claude/claude";
 import { captureClaude } from "../claude/claude-process";
-import { buildJudgePrompt } from "./judge-prompt";
-import { judgeMetrics } from "./judge-result";
+import { buildJudgePrompt } from "./prompt/judge-prompt";
+import { judgeMetrics } from "./result/judge-result";
 import { diffAgainst } from "./worktree-diff";
 
 /** Structured output the session must return. The schema is enforced; the prompt does not describe it. */

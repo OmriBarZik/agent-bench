@@ -1,9 +1,9 @@
 import { $ } from "bun";
 import type { ChangedFile, RunArtifact } from "../../db/db.types";
 import { CHROMIUM_SRC } from "../../paths";
-import { changedFilesSince } from "./changed-files";
+import { changedFilesSince } from "./diff/changed-files";
 import { commitStaged } from "./git-commit";
-import { commitDirtySubmodules, discardSubmoduleChanges, syncSubmodulesToHead } from "./submodules";
+import { commitDirtySubmodules, discardSubmoduleChanges, syncSubmodulesToHead } from "./submodules/submodules";
 
 /**
  * Tracked changes in the Chromium checkout, including inside a checked-out submodule.

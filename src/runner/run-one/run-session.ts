@@ -6,7 +6,7 @@ import type { BenchConfig } from "../bench-config/bench-config.types";
 import { claudeArgs, runClaude } from "../claude/claude";
 import { readClaudeOutput } from "../claude/claude-result";
 import { judgeRun } from "../judge/judge";
-import { cancelledJudgeMetrics, failedJudgeMetrics } from "../judge/judge-result";
+import { cancelledJudgeMetrics, failedJudgeMetrics } from "../judge/result/judge-result";
 import type { RunOneResult, RunOptions } from "./run-one.types";
 import { commitAgentWork, restoreTree, saveTranscript } from "./run-tree";
 import type { CommittedWork } from "./run-tree.types";

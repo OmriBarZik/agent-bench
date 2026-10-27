@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { builderConfig } from "../inspect/builder-config";
+import { builderConfig } from "../inspect/build/builder-config";
 import { REMOTE_BUILD_EXAMPLE } from "../paths";
 import { installSshInclude } from "./install-ssh";
 import { parseRemoteBuildFile } from "./remote-file";

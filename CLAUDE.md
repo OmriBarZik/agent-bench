@@ -43,7 +43,7 @@ The dependency direction is `src/main.ts` (CLI and run loop) → `src/runner/*` 
 
 ## Style highlights (full rules in the `code-styling` skill)
 
-- Each file does one job. No file-level header comments: describe things with a JSDoc on the type or function (the usage block goes on `main()`). Split a file at ~150 lines or when it mixes jobs.
+- Each file does one job. No file-level header comments: describe things with a JSDoc on the type or function (the usage block goes on `main()`). Split a file at ~150 lines or when it mixes jobs. A directory under `src/` or `hooks/` holds at most 8 files.
 - Named types go in a sibling `*.types.ts` file. Use `type`, not `interface`.
 - A function with more than one parameter takes a single destructured object, and every type nested inside it is a named type.
 - No single-letter or abbreviated names (`config`, not `c` or `cfg`). `db` and `i` are the exceptions.

@@ -4,7 +4,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { logToolCall, openDb } from "../src/db/db";
 import type { ToolCall } from "../src/db/db.types";
-import { bashPrograms } from "./bash-programs";
+import { bashPrograms } from "./bash/bash-programs";
 
 function looksLikeError(response: any): boolean | null {
   if (response == null) {

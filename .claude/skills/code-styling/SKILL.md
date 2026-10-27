@@ -19,6 +19,8 @@ A file does **one job** that you can describe in a single line. Split a file whe
 How to split:
 
 - **Group a feature's helpers in a folder named after the feature**, next to the code that uses them.
+- **A source directory holds at most 8 files.** Count every file directly in the directory: modules, `*.types.ts` files, and tests. Subdirectories do not count toward the parent. The cap covers `src/` and `hooks/`. Generated directories such as `.husky/_`, and the project files at the repo root, sit outside it.
+- **A ninth file means a new folder**, named after that part and placed next to the code that uses it. A file in `BASELINE_HASH_FILES`, or an entry script named in `hooks/settings.example.json`, stays at its current path because that path is part of `config_hash`. Its helpers move into the new folder.
 - **Constants shared across features go in one shared module.** Don't redefine them per file.
 - **Pass in what a module needs.** A module must not read the entry file's CLI args; pass values as parameters or an options object.
 - **No import-time side effects in library modules.** That means no global state changes (e.g. `$.cwd()`), no top-level `await`, and no `process.exit`. Only entry files may run code at import.
