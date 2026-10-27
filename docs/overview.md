@@ -29,7 +29,7 @@ The runner defaults `CHROMIUM_SRC` to `../src`. The hooks in `hooks/settings.exa
 bun install                        # @types/bun + husky (installs the pre-commit hook)
 bun run start                      # reads configs/benchmark-tasks.json + configs/benchmark-setup.json
 bun run start --only-task t1 --repeats 3
-bun run start:inspect              # pick a run: enter opens its transcript, ctrl-b then l or r builds it here or on the other Mac, ctrl-x twice removes it, tab checks out its branch
+bun run start:inspect              # pick a run: enter opens its transcript, ctrl-b then l or r builds it here or on the other Mac, ctrl-f sets the judge decision, ctrl-x twice removes it, tab checks out its branch
 bun run start:dashboard            # view results in Grafana at http://localhost:3000
 ```
 
@@ -66,7 +66,7 @@ The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` 
 
 The judge is also shown the agent's tool calls that never ran (refused by a permission rule or the baseline guard) or ran and failed, read from `tool_calls`. It reports `blocked` (1 when a missing, denied, or failing tool or program stopped the agent from doing part of the task) and `blockers`, a JSON list of `{ kind, tool, detail }` where `kind` is `missing-tool`, `denied`, or `exec-failed` and `detail` is a plain-language sentence or two. A call the agent worked around is not a blocker. The runner prints `BLOCKED` on the run's log line, followed by one line per blocker.
 
-To inspect a run, `bun run start:inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Ctrl-b asks where to build the highlighted run. `l` checks that branch out in the Chromium tree and runs `autoninja -C out/Default chrome` there. `r` checks the build Mac from `configs/builder/remote.yaml`, and only then sends that run's branch, builds chrome there, and copies `Chromium.app` back. Ctrl-x twice removes the highlighted run from the database; the Chromium branch and the files under `runs/<run_id>/` stay. Tab checks the branch out in the Chromium tree without building. Pass a branch name to skip the list and check it out (`bun run start:inspect <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA. Setting up the build Mac is in [remote-build.md](remote-build.md).
+To inspect a run, `bun run start:inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Ctrl-b asks where to build the highlighted run. `l` checks that branch out in the Chromium tree and runs `autoninja -C out/Default chrome` there. `r` checks the build Mac from `configs/builder/remote.yaml`, and only then sends that run's branch, builds chrome there, and copies `Chromium.app` back. Ctrl-f opens the four judge decisions for the highlighted run: `failed`, `partially-failed`, `partially-pass`, and `pass`. 1–4 or enter writes that decision, and `success` follows it the same way the judge does (1 for `pass` and `partially-pass`). The reason records that the list set it. The judge's cost and tokens stay. Ctrl-x twice removes the highlighted run from the database; the Chromium branch and the files under `runs/<run_id>/` stay. Tab checks the branch out in the Chromium tree without building. Pass a branch name to skip the list and check it out (`bun run start:inspect <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA. Setting up the build Mac is in [remote-build.md](remote-build.md).
 
 ## Project layout
 
@@ -143,7 +143,7 @@ Each config is a folder under `configs/setup/<configId>/`. That folder holds the
 | `tool_calls`           | hook event             | `phase` is `pre` / `post`. For Bash, `program` is the executable the parsed script runs (`git`, `rg`, `head`), one row per program                 |
 | `tool_attempts` (view) | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                                                        |
 
-`openDb()` creates `data/bench.sqlite` with `bun:sqlite`. View the results with `bun run start:dashboard`. Remove a run with `bun run start:inspect`: Ctrl-x twice deletes the highlighted row. The Chromium branch and the files under `runs/<run_id>/` stay.
+`openDb()` creates `data/bench.sqlite` with `bun:sqlite`. View the results with `bun run start:dashboard`. Set a run's judge decision with `bun run start:inspect`: Ctrl-f opens `failed`, `partially-failed`, `partially-pass`, and `pass`. Remove a run the same way: Ctrl-x twice deletes the highlighted row. The Chromium branch and the files under `runs/<run_id>/` stay.
 
 ## Environment variables
 

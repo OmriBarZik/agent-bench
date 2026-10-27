@@ -41,6 +41,15 @@ test("ctrl-b asks where to build, and l or r chooses the machine", () => {
   expect(buildTarget("q")).toBeNull();
 });
 
+test("ctrl-f opens the decision dialog unless the list is empty", () => {
+  const decide = applyKey({ state: idle, key: "\x06", matchCount: 2, pageSize: 5 });
+  const empty = applyKey({ state: idle, key: "\x06", matchCount: 0, pageSize: 5 });
+
+  expect(decide.action).toBe("decide");
+  expect(decide.state).toEqual(idle);
+  expect(empty.action).toBe("stay");
+});
+
 test("ctrl-x deletes unless the list is empty", () => {
   const remove = applyKey({ state: idle, key: "\x18", matchCount: 2, pageSize: 5 });
   const empty = applyKey({ state: idle, key: "\x18", matchCount: 0, pageSize: 5 });

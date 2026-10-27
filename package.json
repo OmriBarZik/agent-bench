@@ -1,5 +1,6 @@
 {
   "name": "agent-bench",
+  "description": "A tool for inspecting and benchmarking Chromium.",
   "private": true,
   "type": "module",
   "scripts": {

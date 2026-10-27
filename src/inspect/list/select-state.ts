@@ -14,7 +14,7 @@ export function buildTarget(key: string): "local" | "remote" | null {
   return null;
 }
 
-/** Applies one keypress. Letters always filter, including q; ctrl-c quits, ctrl-b asks where to build, and ctrl-x deletes. */
+/** Applies one keypress. Letters always filter, including q; ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision, and ctrl-x deletes. */
 export function applyKey({
   state,
   key,
@@ -44,6 +44,10 @@ export function applyKey({
 
   if (key === "\x02") {
     return { state, action: matchCount === 0 ? "stay" : "build" };
+  }
+
+  if (key === "\x06") {
+    return { state, action: matchCount === 0 ? "stay" : "decide" };
   }
 
   if (key === "\x18") {

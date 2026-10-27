@@ -1,3 +1,5 @@
+import { decisionDialogLines } from "../decision/decision-dialog";
+import type { DecisionDialog } from "../decision/decision-dialog.types";
 import { matchingChoices } from "../list/select-state";
 import type { RunChoice, SelectState } from "../list/select-state.types";
 import { detailLines } from "./detail-pane";
@@ -22,6 +24,7 @@ export function renderFrame({
   state,
   chromiumSrc,
   notice,
+  decisionDialog,
   rows,
   columns,
 }: {
@@ -29,6 +32,7 @@ export function renderFrame({
   state: SelectState;
   chromiumSrc: string;
   notice: string;
+  decisionDialog: DecisionDialog | null;
   rows: number;
   columns: number;
 }): string {
@@ -42,12 +46,16 @@ export function renderFrame({
 
   lines.push(colorLine({ text: "", kind: "plain" }));
 
-  for (const line of detailLines({
-    choice: matches[state.selected],
-    notice,
-    height: layout.detailHeight,
-    columns,
-  })) {
+  const pane = decisionDialog
+    ? decisionDialogLines({ dialog: decisionDialog, height: layout.detailHeight, columns })
+    : detailLines({
+        choice: matches[state.selected],
+        notice,
+        height: layout.detailHeight,
+        columns,
+      });
+
+  for (const line of pane) {
     lines.push(line);
   }
 
@@ -114,7 +122,7 @@ function headerLine({
 function hintLine({ state, columns }: { state: SelectState; columns: number }): string {
   const filter = state.query === "" ? "type to filter" : `filter: ${state.query}`;
   const text = fit({
-    text: `↑↓  enter run  → judge  tab checkout  ^B l/r build  ^X delete  ${filter}  esc quit`,
+    text: `↑↓  enter  → judge  tab checkout  ^B build  ^F decide  ^X delete  ${filter}  esc quit`,
     width: columns,
   });
 

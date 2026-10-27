@@ -1,6 +1,9 @@
 import process from "node:process";
 import { builderConfig } from "../build/builder-config";
 import { presentLocalBuild } from "../build/local-build";
+import { applyDecisionKey, openDecisionDialog } from "../decision/decision-dialog";
+import type { DecisionDialog } from "../decision/decision-dialog.types";
+import { setListedDecision } from "../decision/set-decision";
 import { deleteIntent, removeListedRun } from "../delete/delete-run";
 import { presentBuild } from "../remote/remote-build";
 import { frameLayout, renderFrame } from "../render/render-frame";
@@ -16,6 +19,7 @@ const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
  * Full-screen list of runs. Enter opens that run's transcript in the browser and stays here.
  * Right arrow opens the judge session the same way.
  * Ctrl-b asks where to build the highlighted run: l on this Mac, r on the build Mac.
+ * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
  * Tab resolves with the highlighted run so the caller can check its branch out. Esc or ctrl-c resolves with null.
  * A lone escape quits, but arrow keys (which start with the same byte) do not.
@@ -73,6 +77,7 @@ function waitForChoice({
     let state: SelectState = { query: "", selected: 0, scroll: 0 };
     let notice = "";
     let armedRunId: string | null = null;
+    let decisionDialog: DecisionDialog | null = null;
     let settled = false;
     let opening = false;
     let cancelBuild: (() => void) | null = null;
@@ -98,7 +103,7 @@ function waitForChoice({
     const paint = () => {
       const rows = process.stdout.rows ?? 24;
       const columns = process.stdout.columns ?? 80;
-      process.stdout.write(renderFrame({ choices, state, chromiumSrc, notice, rows, columns }));
+      process.stdout.write(renderFrame({ choices, state, chromiumSrc, notice, decisionDialog, rows, columns }));
     };
 
     const revealTranscript = ({ transcriptPath, label }: { transcriptPath: string; label: string }) => {
@@ -157,8 +162,9 @@ function waitForChoice({
       }
 
       if (input === "\x1b") {
-        if (choosingBuild) {
+        if (choosingBuild || decisionDialog) {
           choosingBuild = false;
+          decisionDialog = null;
           notice = "";
           paint();
 
@@ -171,6 +177,25 @@ function waitForChoice({
       }
 
       for (const key of keyParts(input)) {
+        if (decisionDialog) {
+          const outcome = applyDecisionKey({ dialog: decisionDialog, key });
+
+          if (outcome.kind === "stay") {
+            decisionDialog = outcome.dialog;
+            break;
+          }
+
+          const runId = decisionDialog.runId;
+          decisionDialog = null;
+          const chosen = choices.find((choice) => choice.runId === runId);
+
+          if (chosen) {
+            notice = setListedDecision({ chosen, decision: outcome.decision });
+          }
+
+          break;
+        }
+
         if (choosingBuild) {
           choosingBuild = false;
           const target = buildTarget(key);
@@ -232,8 +257,21 @@ function waitForChoice({
 
         if (result.action === "build") {
           armedRunId = null;
+          decisionDialog = null;
           choosingBuild = true;
           notice = "l builds on this Mac, r builds on the other Mac";
+          break;
+        }
+
+        if (result.action === "decide") {
+          armedRunId = null;
+          const chosen = matchingChoices({ choices, query: state.query })[state.selected];
+
+          if (chosen) {
+            decisionDialog = openDecisionDialog({ runId: chosen.runId, decision: chosen.decision });
+            notice = "";
+          }
+
           break;
         }
 
@@ -254,6 +292,7 @@ function waitForChoice({
         }
 
         armedRunId = null;
+        decisionDialog = null;
         notice = "";
       }
 

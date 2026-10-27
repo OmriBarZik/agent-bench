@@ -18,7 +18,8 @@ import type {
   ToolTrouble,
   ToolTroubleSql,
 } from "./db.types";
-import { isJudgeDecision } from "./judge-decision";
+import { decisionSucceeds, isJudgeDecision } from "./judge-decision";
+import type { JudgeDecision } from "./judge-decision.types";
 import { BENCH_DIR } from "../paths";
 
 export const DB_PATH = process.env.BENCH_DB_PATH ?? join(BENCH_DIR, "data", "bench.sqlite");
@@ -388,6 +389,84 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
     blocked: judge.blocked == null ? null : Number(judge.blocked),
     blockers: judge.blockers.length === 0 ? null : toJson(judge.blockers),
   });
+}
+
+/** The sentence stored when the inspect list sets a judge decision. */
+export function judgeOverrideNote(decision: JudgeDecision): string {
+  return `Set from the inspect list: ${decision}.`;
+}
+
+/**
+ * Replaces this run's judge decision. `success` follows the decision, as it does for the judge.
+ * Keeps the judge's cost and tokens. A run with no judge row gets one.
+ */
+export function overrideJudgeDecision({
+  db,
+  runId,
+  decision,
+}: {
+  db: Database;
+  runId: string;
+  decision: JudgeDecision;
+}): string {
+  const existing = db.query(`SELECT reason FROM judge_runs WHERE run_id = $runId`).get({ runId }) as {
+    reason: string | null;
+  } | null;
+  const reason = overrideReason({ previous: existing?.reason ?? null, decision });
+  const success = decisionSucceeds(decision) ? 1 : 0;
+
+  if (!existing) {
+    db.query(
+      `INSERT INTO judge_runs (run_id, status, decision, success, reason)
+       VALUES ($runId, 'done', $decision, $success, $reason)`,
+    ).run({ runId, decision, success, reason });
+
+    return reason;
+  }
+
+  db.query(
+    `UPDATE judge_runs SET
+       decision = $decision,
+       success = $success,
+       score = NULL,
+       success_threshold = NULL,
+       reason = $reason,
+       finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+     WHERE run_id = $runId`,
+  ).run({ runId, decision, success, reason });
+
+  return reason;
+}
+
+function overrideReason({ previous, decision }: { previous: string | null; decision: JudgeDecision }): string {
+  const note = judgeOverrideNote(decision);
+  const earlier = judgeReason(previous);
+
+  if (earlier === "") {
+    return note;
+  }
+
+  return `${note} ${earlier}`;
+}
+
+/** Drops an earlier inspect-list sentence so a new decision replaces it. */
+function judgeReason(previous: string | null): string {
+  const trimmed = previous?.trim() ?? "";
+
+  if (
+    !trimmed.startsWith("Set from the inspect list:") &&
+    !trimmed.startsWith("Marked failed from the inspect list.")
+  ) {
+    return trimmed;
+  }
+
+  const period = trimmed.indexOf(".");
+
+  if (period === -1) {
+    return "";
+  }
+
+  return trimmed.slice(period + 1).trim();
 }
 
 /**
