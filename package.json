@@ -13,7 +13,10 @@
     "lint:fmt": "bun fmt --check",
     "setup:remote-build": "bun src/setup/remote-build/main.ts",
     "setup:codebase-memory-mcp": "bun configs/setup/codebase-memory/index-checkout.ts",
-    "setup:codebase-memory-subrepos": "bun configs/setup/codebase-memory/index-subrepos.ts"
+    "setup:codebase-memory-subrepos": "bun configs/setup/codebase-memory/index-subrepos.ts",
+    "setup:codesearch": "bun configs/setup/codesearch/install.ts",
+    "setup:codesearch-index": "bun configs/setup/codesearch/index-checkout.ts",
+    "setup:sift": "bun configs/setup/sift/install.ts"
   },
   "devDependencies": {
     "@types/bun": "latest",

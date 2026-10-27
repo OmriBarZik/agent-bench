@@ -10,6 +10,8 @@ Install the [shared requirements](#requirements) first. The steps for a config l
 | `haiku-baseline`  | [configs/setup/haiku-baseline/readme.md](../configs/setup/haiku-baseline/readme.md)   |
 | `codebase-memory` | [configs/setup/codebase-memory/readme.md](../configs/setup/codebase-memory/readme.md) |
 | `serena`          | [configs/setup/serena/readme.md](../configs/setup/serena/readme.md)                   |
+| `codesearch`      | [configs/setup/codesearch/readme.md](../configs/setup/codesearch/readme.md)           |
+| `sift`            | [configs/setup/sift/readme.md](../configs/setup/sift/readme.md)                       |
 
 ## Requirements
 
@@ -21,7 +23,7 @@ These are required for every config.
 | `claude` CLI, logged in      | `claude --version`               | The runner and the judge both call it                                                           |
 | Chromium checkout            | `CHROMIUM_SRC`, default `../src` | Clone this repo as `agent-bench` next to `src/`. See [overview.md](overview.md#expected-layout) |
 
-The model named on a config has to be available on the Claude account that `claude` uses. `baseline`, `codebase-memory`, and `serena` use `claude-sonnet-5-5`. `haiku-baseline` uses `claude-haiku-5-5`.
+The model named on a config has to be available on the Claude account that `claude` uses. `baseline`, `codebase-memory`, `serena`, `codesearch`, and `sift` use `claude-sonnet-5-5`. `haiku-baseline` uses `claude-haiku-5-5`.
 
 The judge is a second `claude` session after the agent finishes. It uses `--judge-model`, which defaults to `claude-sonnet-5-5`. It needs the same `claude` CLI and no extra packages.
 

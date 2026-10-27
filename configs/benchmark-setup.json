@@ -32,5 +32,21 @@
     "strictMcpConfig": true,
     "allowedTools": ["mcp__serena__*"],
     "permissionMode": "acceptEdits"
+  },
+  {
+    "configId": "codesearch",
+    "description": "Claude Code with Code Search (cindex, csearch, cgrep), default tools",
+    "model": "claude-sonnet-5-5",
+    "toolPromptFile": "configs/setup/codesearch/tools.md",
+    "strictMcpConfig": true,
+    "permissionMode": "acceptEdits"
+  },
+  {
+    "configId": "sift",
+    "description": "Claude Code with sift, default tools",
+    "model": "claude-sonnet-5-5",
+    "toolPromptFile": "configs/setup/sift/tools.md",
+    "strictMcpConfig": true,
+    "permissionMode": "acceptEdits"
   }
 ]

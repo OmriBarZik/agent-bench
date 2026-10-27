@@ -71,6 +71,8 @@ test("the shipped configs load their tool prompts", async () => {
   expect(toolPromptByConfig.get("haiku-baseline")).toBeUndefined();
   expect(toolPromptByConfig.get("codebase-memory")).toContain("mcp__codebase-memory-mcp__");
   expect(toolPromptByConfig.get("serena")).toContain("mcp__serena__");
+  expect(toolPromptByConfig.get("codesearch")).toContain("csearch");
+  expect(toolPromptByConfig.get("sift")).toContain("sift");
 });
 
 test("loadSelection reads a config's tool prompt", async () => {
