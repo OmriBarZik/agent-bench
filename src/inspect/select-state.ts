@@ -1,7 +1,20 @@
 import { verdictLabel } from "./format-run";
 import type { RunChoice, SelectResult, SelectState } from "./select-state.types";
 
-/** Applies one keypress. Letters always filter, including q; ctrl-c quits, ctrl-b builds, and ctrl-x deletes. */
+/** Where a Ctrl-B build runs once the list is asking. `l` is this Mac, `r` is the other Mac. */
+export function buildTarget(key: string): "local" | "remote" | null {
+  if (key === "l" || key === "L") {
+    return "local";
+  }
+
+  if (key === "r" || key === "R") {
+    return "remote";
+  }
+
+  return null;
+}
+
+/** Applies one keypress. Letters always filter, including q; ctrl-c quits, ctrl-b asks where to build, and ctrl-x deletes. */
 export function applyKey({
   state,
   key,

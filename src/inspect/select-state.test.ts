@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { applyKey, clampSelection, matchingChoices } from "./select-state";
+import { applyKey, buildTarget, clampSelection, matchingChoices } from "./select-state";
 import type { RunChoice, SelectState } from "./select-state.types";
 
 const idle: SelectState = { query: "", selected: 0, scroll: 0 };
@@ -29,13 +29,22 @@ test("enter opens the run, right arrow opens the judge, and tab checks out", () 
   expect(emptyJudge.action).toBe("stay");
 });
 
-test("ctrl-b builds unless the list is empty, and ctrl-x deletes", () => {
+test("ctrl-b asks where to build, and l or r chooses the machine", () => {
   const build = applyKey({ state: idle, key: "\x02", matchCount: 2, pageSize: 5 });
-  const remove = applyKey({ state: idle, key: "\x18", matchCount: 2, pageSize: 5 });
   const empty = applyKey({ state: idle, key: "\x02", matchCount: 0, pageSize: 5 });
 
   expect(build.action).toBe("build");
   expect(build.state).toEqual(idle);
+  expect(empty.action).toBe("stay");
+  expect(buildTarget("l")).toBe("local");
+  expect(buildTarget("R")).toBe("remote");
+  expect(buildTarget("q")).toBeNull();
+});
+
+test("ctrl-x deletes unless the list is empty", () => {
+  const remove = applyKey({ state: idle, key: "\x18", matchCount: 2, pageSize: 5 });
+  const empty = applyKey({ state: idle, key: "\x18", matchCount: 0, pageSize: 5 });
+
   expect(remove.action).toBe("delete");
   expect(remove.state).toEqual(idle);
   expect(empty.action).toBe("stay");

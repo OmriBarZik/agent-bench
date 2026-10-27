@@ -24,7 +24,7 @@ test("renderFrame shows the run from the database and the files it changed", () 
   expect(frame).toContain("judge claude-sonnet-5-5 · 12s · $0.041 · 4 turns");
   expect(frame).toContain("no run transcript · no judge transcript");
   expect(frame).toContain("→ judge");
-  expect(frame).toContain("^B build");
+  expect(frame).toContain("^B l/r build");
   expect(frame).toContain("^X delete");
   expect(frame).toContain("chrome/foo.cc");
   expect(frame).toContain("/chromium/src");

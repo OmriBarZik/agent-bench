@@ -29,7 +29,7 @@ The runner defaults `CHROMIUM_SRC` to `../src`. The hooks in `hooks/settings.exa
 bun install                        # @types/bun + husky (installs the pre-commit hook)
 bun run start                      # reads configs/benchmark-tasks.json + configs/benchmark-setup.json
 bun run start --only-task t1 --repeats 3
-bun run start:inspect              # pick a run: enter opens its transcript, ctrl-b builds it on the other Mac, ctrl-x twice removes it, tab checks out its branch
+bun run start:inspect              # pick a run: enter opens its transcript, ctrl-b then l or r builds it here or on the other Mac, ctrl-x twice removes it, tab checks out its branch
 bun run start:dashboard            # view results in Grafana at http://localhost:3000
 ```
 
@@ -66,30 +66,30 @@ The `runs` row is inserted **before** Claude starts, so the hook's `tool_calls` 
 
 The judge is also shown the agent's tool calls that never ran (refused by a permission rule or the baseline guard) or ran and failed, read from `tool_calls`. It reports `blocked` (1 when a missing, denied, or failing tool or program stopped the agent from doing part of the task) and `blockers`, a JSON list of `{ kind, tool, detail }` where `kind` is `missing-tool`, `denied`, or `exec-failed` and `detail` is a plain-language sentence or two. A call the agent worked around is not a blocker. The runner prints `BLOCKED` on the run's log line, followed by one line per blocker.
 
-To inspect a run, `bun run start:inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Ctrl-b checks the build Mac from `configs/builder/remote.yaml`, and only then sends that run's branch, builds chrome there, and copies `Chromium.app` back. Ctrl-x twice removes the highlighted run from the database; the Chromium branch and the files under `runs/<run_id>/` stay. Tab checks the branch out in the Chromium tree. Pass a branch name to skip the list and check it out (`bun run start:inspect <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA. Setting up the build Mac is in [remote-build.md](remote-build.md).
+To inspect a run, `bun run start:inspect` lists runs from the database. Enter opens that run's transcript in the browser (`uvx claude-code-transcripts` on `runs/<run_id>/transcript.jsonl`). Right arrow opens the judge session (`judge-transcript.jsonl`) the same way. Ctrl-b asks where to build the highlighted run. `l` checks that branch out in the Chromium tree and runs `autoninja -C out/Default chrome` there. `r` checks the build Mac from `configs/builder/remote.yaml`, and only then sends that run's branch, builds chrome there, and copies `Chromium.app` back. Ctrl-x twice removes the highlighted run from the database; the Chromium branch and the files under `runs/<run_id>/` stay. Tab checks the branch out in the Chromium tree without building. Pass a branch name to skip the list and check it out (`bun run start:inspect <branch>`). `--force` discards uncommitted tracked changes that block the switch. `commit_sha` is NULL when the tree still matches the task SHA. Setting up the build Mac is in [remote-build.md](remote-build.md).
 
 ## Project layout
 
-| Path                           | Job                                                                                                                      |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `src/main.ts`                  | Entry point: CLI args, task/config selection, the run loop, progress output                                              |
-| `src/inspect/main.ts`          | Pick a run from the database, open its transcript or the judge session, check out its branch, or build it on another Mac |
-| `src/paths.ts`                 | Shared filesystem locations (`BENCH_DIR`, `CHROMIUM_SRC`, `HOOK_SETTINGS`, `RUNS_DIR`)                                   |
-| `src/db/db.ts` / `db.types.ts` | Opens SQLite, applies the schema, and holds every query helper / row types                                               |
-| `src/runner/bench-config/`     | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash                      |
-| `src/runner/chromium/`         | git/gclient on the Chromium checkout: reset, run branch, submodules, artifact commit, changed files                      |
-| `src/runner/claude/claude.ts`  | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                            |
-| `src/runner/judge/`            | Read-only judge session: judge prompt, worktree diff, and the decision                                                   |
-| `src/runner/run-one/`          | One run end to end (the steps above)                                                                                     |
-| `hooks/tool-log.ts`            | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)                     |
-| `hooks/baseline-guard.ts`      | Baseline PreToolUse guard. Parses Bash with unbash and denies `cd` and shell file edits. Part of every config            |
-| `hooks/settings.example.json`  | Hook registration and the `cd` deny rules, passed to `claude --settings`. Part of `config_hash`                          |
-| `db/schema.sql`                | SQLite schema, applied idempotently on every open                                                                        |
-| `data/bench.sqlite`            | The results DB (gitignored)                                                                                              |
-| `configs/setup/<configId>/`    | One folder per config: its `readme.md`, optional `tools.md`, and any MCP config or other files it needs                  |
-| `configs/tasks/<taskId>/`      | One folder per task: `prompt.md` and `judge.md`                                                                          |
-| `runs/<run_id>/`               | Per-run artifacts: agent `transcript.jsonl`, judge `judge-transcript.jsonl`, command and result logs (gitignored)        |
-| `.claude/skills/`              | Agent skills: `bun` (tooling and APIs) and `code-styling` (style rules)                                                  |
+| Path                           | Job                                                                                                                                  |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/main.ts`                  | Entry point: CLI args, task/config selection, the run loop, progress output                                                          |
+| `src/inspect/main.ts`          | Pick a run from the database, open its transcript or the judge session, check out its branch, or build it on this Mac or another Mac |
+| `src/paths.ts`                 | Shared filesystem locations (`BENCH_DIR`, `CHROMIUM_SRC`, `HOOK_SETTINGS`, `RUNS_DIR`)                                               |
+| `src/db/db.ts` / `db.types.ts` | Opens SQLite, applies the schema, and holds every query helper / row types                                                           |
+| `src/runner/bench-config/`     | Load and filter `benchmark-tasks.json`/`benchmark-setup.json`, and build a config's DB row and hash                                  |
+| `src/runner/chromium/`         | git/gclient on the Chromium checkout: reset, run branch, submodules, artifact commit, changed files                                  |
+| `src/runner/claude/claude.ts`  | Build `claude` args, spawn it, parse its JSON result, and copy the transcript                                                        |
+| `src/runner/judge/`            | Read-only judge session: judge prompt, worktree diff, and the decision                                                               |
+| `src/runner/run-one/`          | One run end to end (the steps above)                                                                                                 |
+| `hooks/tool-log.ts`            | Claude Code hook that writes one `tool_calls` row per tool call (one per program for Bash pipelines)                                 |
+| `hooks/baseline-guard.ts`      | Baseline PreToolUse guard. Parses Bash with unbash and denies `cd` and shell file edits. Part of every config                        |
+| `hooks/settings.example.json`  | Hook registration and the `cd` deny rules, passed to `claude --settings`. Part of `config_hash`                                      |
+| `db/schema.sql`                | SQLite schema, applied idempotently on every open                                                                                    |
+| `data/bench.sqlite`            | The results DB (gitignored)                                                                                                          |
+| `configs/setup/<configId>/`    | One folder per config: its `readme.md`, optional `tools.md`, and any MCP config or other files it needs                              |
+| `configs/tasks/<taskId>/`      | One folder per task: `prompt.md` and `judge.md`                                                                                      |
+| `runs/<run_id>/`               | Per-run artifacts: agent `transcript.jsonl`, judge `judge-transcript.jsonl`, command and result logs (gitignored)                    |
+| `.claude/skills/`              | Agent skills: `bun` (tooling and APIs) and `code-styling` (style rules)                                                              |
 
 ## Input files
 

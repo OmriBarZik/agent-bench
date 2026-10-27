@@ -1,6 +1,6 @@
 # Remote builds
 
-This Mac runs the agents and keeps the results database. A second Mac checks out the run branch and builds Chrome. Ctrl-B in `bun run start:inspect` sends that branch, builds `chrome`, and copies `Chromium.app` back here.
+This Mac runs the agents and keeps the results database. A second Mac checks out the run branch and builds Chrome. In `bun run start:inspect`, Ctrl-B asks where to build the highlighted run. `l` builds on this Mac. `r` sends the branch to the build Mac, builds `chrome` there, and copies `Chromium.app` back here.
 
 Each Mac keeps its own Chromium checkout. The runner resets the one on this Mac. The checkout on the build Mac is only for building.
 
@@ -70,11 +70,14 @@ ssh builder
 bun run start:inspect
 ```
 
-Highlight a run and press Ctrl-B. The list checks that the build Mac answers and that `source` is a git checkout, then:
+Highlight a run and press Ctrl-B. The list asks where to build:
 
-1. Sends the run branch, and any submodule commits that branch added.
-2. Checks that branch out on the build Mac and runs `autoninja -C out/Default chrome`.
-3. Copies `Chromium.app` and the libraries beside it back to `buildDirectory/<run id>/` and opens the app.
+- `l` checks the branch out in this Mac's Chromium tree and runs `autoninja -C out/Default chrome`. `autoninja` has to be on `PATH` in the shell that started inspect. An existing `out/Default/args.gn` is kept. When that file is missing, the build writes [configs/builder/args.gn](../configs/builder/args.gn) and runs `gn gen`. The app opens from `out/Default/Chromium.app` in the checkout. Uncommitted tracked changes block the checkout unless inspect was started with `--force`.
+- `r` checks that the build Mac answers and that `source` is a git checkout, then:
+
+  1. Sends the run branch, and any submodule commits that branch added.
+  2. Checks that branch out on the build Mac and runs `autoninja -C out/Default chrome`.
+  3. Copies `Chromium.app` and the libraries beside it back to `buildDirectory/<run id>/` and opens the app.
 
 Object files stay on the build Mac. The first build writes [configs/builder/args.gn](../configs/builder/args.gn) into `out/Default` when that directory has no `args.gn` yet. Later builds reuse `out/`, so only the branch's changes compile.
 

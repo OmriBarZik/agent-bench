@@ -2,9 +2,10 @@ import process from "node:process";
 import { builderConfig } from "./builder-config";
 import { deleteIntent, removeListedRun } from "./delete-run";
 import { openTranscript } from "./open-transcript";
+import { presentLocalBuild } from "./local-build";
 import { presentBuild } from "./remote-build";
 import { frameLayout, renderFrame } from "./render-frame";
-import { applyKey, clampSelection, matchingChoices } from "./select-state";
+import { applyKey, buildTarget, clampSelection, matchingChoices } from "./select-state";
 import type { RunChoice, SelectState } from "./select-state.types";
 
 const ENTER_SCREEN = "\x1b[?1049h\x1b[?25l";
@@ -13,7 +14,7 @@ const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 /**
  * Full-screen list of runs. Enter opens that run's transcript in the browser and stays here.
  * Right arrow opens the judge session the same way.
- * Ctrl-b checks the build Mac, then builds the highlighted branch and copies Chromium.app back.
+ * Ctrl-b asks where to build the highlighted run: l on this Mac, r on the build Mac.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
  * Tab resolves with the highlighted run so the caller can check its branch out. Esc or ctrl-c resolves with null.
  * A lone escape quits, but arrow keys (which start with the same byte) do not.
@@ -21,9 +22,11 @@ const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 export async function selectRun({
   choices,
   chromiumSrc,
+  force,
 }: {
   choices: RunChoice[];
   chromiumSrc: string;
+  force: boolean;
 }): Promise<RunChoice | null> {
   if (!process.stdin.isTTY) {
     throw new Error("pass a branch name, or run in a terminal to pick a run");
@@ -40,6 +43,7 @@ export async function selectRun({
     return await waitForChoice({
       choices,
       chromiumSrc,
+      force,
       onDetach: (detachListeners) => {
         detach = detachListeners;
       },
@@ -56,10 +60,12 @@ export async function selectRun({
 function waitForChoice({
   choices,
   chromiumSrc,
+  force,
   onDetach,
 }: {
   choices: RunChoice[];
   chromiumSrc: string;
+  force: boolean;
   onDetach: (detach: () => void) => void;
 }): Promise<RunChoice | null> {
   return new Promise((resolve) => {
@@ -69,6 +75,7 @@ function waitForChoice({
     let settled = false;
     let opening = false;
     let cancelBuild: (() => void) | null = null;
+    let choosingBuild = false;
     let escapeTimer: ReturnType<typeof setTimeout> | null = null;
 
     const finish = (choice: RunChoice | null) => {
@@ -150,12 +157,43 @@ function waitForChoice({
       }
 
       if (input === "\x1b") {
+        if (choosingBuild) {
+          choosingBuild = false;
+          notice = "";
+          paint();
+
+          return;
+        }
+
         escapeTimer = setTimeout(() => finish(null), 50);
 
         return;
       }
 
       for (const key of keyParts(input)) {
+        if (choosingBuild) {
+          choosingBuild = false;
+          const target = buildTarget(key);
+
+          if (target === "local") {
+            if (beginLocal()) {
+              return;
+            }
+
+            break;
+          }
+
+          if (target === "remote") {
+            if (beginRemote()) {
+              return;
+            }
+
+            break;
+          }
+
+          notice = "";
+        }
+
         const rows = process.stdout.rows ?? 24;
         const pageSize = frameLayout(rows).listHeight;
         const matchCount = matchingChoices({ choices, query: state.query }).length;
@@ -194,11 +232,8 @@ function waitForChoice({
 
         if (result.action === "build") {
           armedRunId = null;
-
-          if (beginBuild()) {
-            return;
-          }
-
+          choosingBuild = true;
+          notice = "l builds on this Mac, r builds on the other Mac";
           break;
         }
 
@@ -248,8 +283,8 @@ function waitForChoice({
       finish(null);
     };
 
-    const beginBuild = (): boolean => {
-      const chosen = matchingChoices({ choices, query: state.query })[state.selected];
+    const beginRemote = (): boolean => {
+      const chosen = highlighted();
 
       if (!chosen) {
         notice = "";
@@ -279,12 +314,43 @@ function waitForChoice({
         return false;
       }
 
+      startSession((signal) => presentBuild({ choice: chosen, config, chromiumSrc, signal }));
+
+      return true;
+    };
+
+    const beginLocal = (): boolean => {
+      const chosen = highlighted();
+
+      if (!chosen) {
+        notice = "";
+
+        return false;
+      }
+
+      if (!chosen.present) {
+        notice = `branch ${chosen.branch} is not in ${chromiumSrc}`;
+
+        return false;
+      }
+
+      startSession((signal) => presentLocalBuild({ choice: chosen, chromiumSrc, force, signal }));
+
+      return true;
+    };
+
+    const highlighted = (): RunChoice | undefined => {
+      return matchingChoices({ choices, query: state.query })[state.selected];
+    };
+
+    const startSession = (run: (signal: AbortSignal) => Promise<string>) => {
       opening = true;
+      choosingBuild = false;
       process.stdin.setRawMode(false);
       process.stdout.write(LEAVE_SCREEN);
       const abort = new AbortController();
       cancelBuild = () => abort.abort();
-      void presentBuild({ choice: chosen, config, chromiumSrc, signal: abort.signal })
+      void run(abort.signal)
         .then((builtNotice) => {
           notice = builtNotice;
         })
@@ -300,8 +366,6 @@ function waitForChoice({
           process.stdin.setRawMode(true);
           paint();
         });
-
-      return true;
     };
 
     const detach = () => {

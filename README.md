@@ -25,14 +25,14 @@ Put `benchmark-tasks.json` and `benchmark-setup.json` in `configs/` (shapes in [
 ```sh
 bun run start                                 # every task × config
 bun run start --only-task t1 --repeats 3      # one task, 3 repeats
-bun run start:inspect                         # list runs; enter opens the transcript, ctrl-b builds it on the other Mac, ctrl-x twice removes the run, tab checks out the branch
+bun run start:inspect                         # list runs; enter opens the transcript, ctrl-b then l or r builds it here or on the other Mac, ctrl-x twice removes the run, tab checks out the branch
 bun run start:inspect <branch>                # check out that run's branch
 bun run start:dashboard                       # view results in Grafana at http://localhost:3000
 ```
 
 > ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`), including checked-out submodules. The runner refuses to start if tracked files are modified, unless you pass `--force` or answer yes when asked to delete those changes.
 >
-> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends, including files inside submodules. `bun run start:inspect` lists those runs from the database. Enter opens the run's transcript in the browser, Ctrl-b checks the build Mac and then builds that branch and copies the app back, and Tab checks the branch out in `chromium/src` so you can build it locally. Ignored build output is left in place. `bun run start:inspect --force` discards uncommitted tracked changes that block the switch.
+> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends, including files inside submodules. `bun run start:inspect` lists those runs from the database. Enter opens the run's transcript in the browser. Ctrl-b asks where to build: `l` builds chrome in `chromium/src`, and `r` checks the build Mac, builds that branch, and copies the app back. Tab checks the branch out in `chromium/src` without building. Ignored build output is left in place. `bun run start:inspect --force` discards uncommitted tracked changes that block the switch.
 
 | Flag                 | Default                        | Description                                               |
 | -------------------- | ------------------------------ | --------------------------------------------------------- |

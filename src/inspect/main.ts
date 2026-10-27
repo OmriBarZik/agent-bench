@@ -28,7 +28,7 @@ const { values: args, positionals } = parseArgs({
  * Enter runs `uvx claude-code-transcripts` on that run's transcript.jsonl and opens it
  * in the browser. Right arrow does the same for the judge session (judge-transcript.jsonl).
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
- * Ctrl-b checks the build Mac in configs/builder/remote.yaml, then builds that branch and copies Chromium.app back.
+ * Ctrl-b asks where to build: l on this Mac, r on the build Mac in configs/builder/remote.yaml.
  * Tab checks the branch out in CHROMIUM_SRC so you can build it.
  * Esc cancels. Passing a branch skips the list and checks it out.
  * Refuses to switch branches when the tree has uncommitted tracked changes, unless
@@ -79,7 +79,7 @@ async function pickFromTerminal(choices: RunChoice[]): Promise<RunChoice | null>
     throw new Error("pass a branch name, or run in a terminal to pick a run");
   }
 
-  return selectRun({ choices, chromiumSrc: CHROMIUM_SRC });
+  return selectRun({ choices, chromiumSrc: CHROMIUM_SRC, force: args.force });
 }
 
 function printCheckedOut(choice: RunChoice) {

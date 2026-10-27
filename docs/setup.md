@@ -27,4 +27,4 @@ The judge is a second `claude` session after the agent finishes. It uses `--judg
 
 ## Building on another Mac
 
-A second Mac can build the highlighted run and copy `Chromium.app` back here. The steps are in [remote-build.md](remote-build.md).
+A second Mac can build the highlighted run and copy `Chromium.app` back here. The same list can build on this Mac. The steps are in [remote-build.md](remote-build.md).

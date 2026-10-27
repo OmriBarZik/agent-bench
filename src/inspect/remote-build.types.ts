@@ -6,6 +6,8 @@ export type RunStep = {
   label: string;
   /** Script fed to the command's stdin, when the command reads one. */
   stdin?: string;
+  /** Working directory. Omitted keeps the inspect process's directory. */
+  cwd?: string;
 };
 
 /** What the run list shows after a remote build finishes or is cancelled. */
