@@ -1,0 +1,8 @@
+# Written on the build machine the first time out/Default has no args.gn.
+# Release component build, no symbols: the link fits on a 48 GB Mac, and the
+# app plus its libraries is what gets copied back.
+is_debug = false
+is_component_build = true
+symbol_level = 0
+blink_symbol_level = 0
+target_cpu = "arm64"

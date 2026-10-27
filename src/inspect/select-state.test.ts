@@ -29,10 +29,13 @@ test("enter opens the run, right arrow opens the judge, and tab checks out", () 
   expect(emptyJudge.action).toBe("stay");
 });
 
-test("ctrl-x deletes unless the list is empty", () => {
+test("ctrl-b builds unless the list is empty, and ctrl-x deletes", () => {
+  const build = applyKey({ state: idle, key: "\x02", matchCount: 2, pageSize: 5 });
   const remove = applyKey({ state: idle, key: "\x18", matchCount: 2, pageSize: 5 });
-  const empty = applyKey({ state: idle, key: "\x18", matchCount: 0, pageSize: 5 });
+  const empty = applyKey({ state: idle, key: "\x02", matchCount: 0, pageSize: 5 });
 
+  expect(build.action).toBe("build");
+  expect(build.state).toEqual(idle);
   expect(remove.action).toBe("delete");
   expect(remove.state).toEqual(idle);
   expect(empty.action).toBe("stay");

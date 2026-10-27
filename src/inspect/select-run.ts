@@ -1,6 +1,8 @@
 import process from "node:process";
+import { builderConfig } from "./builder-config";
 import { deleteIntent, removeListedRun } from "./delete-run";
 import { openTranscript } from "./open-transcript";
+import { presentBuild } from "./remote-build";
 import { frameLayout, renderFrame } from "./render-frame";
 import { applyKey, clampSelection, matchingChoices } from "./select-state";
 import type { RunChoice, SelectState } from "./select-state.types";
@@ -11,6 +13,7 @@ const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 /**
  * Full-screen list of runs. Enter opens that run's transcript in the browser and stays here.
  * Right arrow opens the judge session the same way.
+ * Ctrl-b checks the build Mac, then builds the highlighted branch and copies Chromium.app back.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
  * Tab resolves with the highlighted run so the caller can check its branch out. Esc or ctrl-c resolves with null.
  * A lone escape quits, but arrow keys (which start with the same byte) do not.
@@ -65,6 +68,7 @@ function waitForChoice({
     let armedRunId: string | null = null;
     let settled = false;
     let opening = false;
+    let cancelBuild: (() => void) | null = null;
     let escapeTimer: ReturnType<typeof setTimeout> | null = null;
 
     const finish = (choice: RunChoice | null) => {
@@ -188,6 +192,16 @@ function waitForChoice({
           break;
         }
 
+        if (result.action === "build") {
+          armedRunId = null;
+
+          if (beginBuild()) {
+            return;
+          }
+
+          break;
+        }
+
         if (result.action === "delete") {
           const chosen = matchingChoices({ choices, query: state.query })[state.selected];
           const intent = deleteIntent({ armedRunId, action: result.action, runId: chosen?.runId ?? null });
@@ -221,11 +235,73 @@ function waitForChoice({
     };
 
     const onSigint = () => {
+      if (cancelBuild) {
+        cancelBuild();
+
+        return;
+      }
+
       if (opening) {
         return;
       }
 
       finish(null);
+    };
+
+    const beginBuild = (): boolean => {
+      const chosen = matchingChoices({ choices, query: state.query })[state.selected];
+
+      if (!chosen) {
+        notice = "";
+
+        return false;
+      }
+
+      if (!chosen.present) {
+        notice = `branch ${chosen.branch} is not in ${chromiumSrc}`;
+
+        return false;
+      }
+
+      let config: ReturnType<typeof builderConfig>;
+
+      try {
+        config = builderConfig();
+      } catch (error) {
+        notice = error instanceof Error ? error.message : "builder is not configured";
+
+        return false;
+      }
+
+      if (!config) {
+        notice = "run bun run setup:remote-build, then fill in configs/builder/remote.yaml";
+
+        return false;
+      }
+
+      opening = true;
+      process.stdin.setRawMode(false);
+      process.stdout.write(LEAVE_SCREEN);
+      const abort = new AbortController();
+      cancelBuild = () => abort.abort();
+      void presentBuild({ choice: chosen, config, chromiumSrc, signal: abort.signal })
+        .then((builtNotice) => {
+          notice = builtNotice;
+        })
+        .finally(() => {
+          cancelBuild = null;
+          opening = false;
+
+          if (settled) {
+            return;
+          }
+
+          process.stdout.write(ENTER_SCREEN);
+          process.stdin.setRawMode(true);
+          paint();
+        });
+
+      return true;
     };
 
     const detach = () => {

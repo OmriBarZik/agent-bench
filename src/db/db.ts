@@ -467,6 +467,15 @@ export function listRunBranches(db: Database): RunBranchRow[] {
   return rows.map((row) => toRunBranchRow(row));
 }
 
+/** The Chromium revision a task is pinned to, or null when that task is not in the database. */
+export function taskChromiumSha({ db, taskId }: { db: Database; taskId: string }): string | null {
+  const row = db.query(`SELECT chromium_sha FROM tasks WHERE task_id = $taskId`).get({ taskId }) as {
+    chromium_sha: string;
+  } | null;
+
+  return row?.chromium_sha ?? null;
+}
+
 function toRunBranchRow(row: RunBranchSql): RunBranchRow {
   return {
     runId: row.run_id,

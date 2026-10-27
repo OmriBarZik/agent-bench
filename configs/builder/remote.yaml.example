@@ -1,0 +1,24 @@
+# Build Mac for Ctrl-B in the inspect list.
+# `bun run setup:remote-build` copies this to remote.yaml, which is not committed.
+# Leave both computers on the addresses they already have.
+
+# SSH alias the inspect list uses (`ssh builder`).
+host: builder
+
+# The build Mac's current address: an IP, or a name such as Mac-mini.local.
+hostName: build-mac.local
+
+# Account on the build Mac. Replace your-user before running setup again.
+user: your-user
+
+# Chromium checkout on the build Mac.
+source: /Users/your-user/Projects/chromium/src
+
+# Where this Mac stores the copied Chromium.app, one folder per run.
+buildDirectory: /Users/your-user/chrome-builds
+
+# Absolute path of depot_tools on the build Mac, wherever you cloned it.
+depotTools: /Users/your-user/depot_tools
+
+# SSH key on this Mac. Omit to use the default key. ~ is expanded by ssh.
+# identityFile: ~/.ssh/id_ed25519

@@ -19,6 +19,12 @@ export const BASELINE_HASH_FILES = [
 ];
 /** Per-run artifacts: runs/<run_id>/. */
 export const RUNS_DIR = join(BENCH_DIR, "runs");
+/** Build-Mac settings. Gitignored; copied from the example by setup:remote-build. */
+export const REMOTE_BUILD_FILE = join(BENCH_DIR, "configs/builder/remote.yaml");
+/** Committed template for REMOTE_BUILD_FILE. Placeholders only. */
+export const REMOTE_BUILD_EXAMPLE = join(BENCH_DIR, "configs/builder/remote.yaml.example");
+/** SSH fragment Include'd from ~/.ssh/config. Gitignored; written by setup:remote-build. */
+export const REMOTE_SSH_CONFIG = join(BENCH_DIR, "configs/builder/ssh_config");
 /** Agent session log inside a run's artifact folder. */
 export const TRANSCRIPT_FILE = "transcript.jsonl";
 /** Judge session log inside a run's artifact folder. */

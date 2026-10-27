@@ -24,3 +24,7 @@ These are required for every config.
 The model named on a config has to be available on the Claude account that `claude` uses. `baseline`, `codebase-memory`, and `serena` use `claude-sonnet-5-5`. `haiku-baseline` uses `claude-haiku-5-5`.
 
 The judge is a second `claude` session after the agent finishes. It uses `--judge-model`, which defaults to `claude-sonnet-5-5`. It needs the same `claude` CLI and no extra packages.
+
+## Building on another Mac
+
+A second Mac can build the highlighted run and copy `Chromium.app` back here. The steps are in [remote-build.md](remote-build.md).

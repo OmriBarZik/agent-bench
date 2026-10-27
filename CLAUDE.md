@@ -16,7 +16,7 @@ Bun 1.4.4 only: no Node, `tsc`, Prettier, or ESLint. The only runtime dependency
 bun run lint:ts          # bun check (src/ + hooks/ per tsconfig include); bun check path/to/file.ts for one file
 bun run lint:fmt         # bun fmt --check; fix with bun run lint:fmt:fix (printWidth 120 in bunfig.toml [fmt])
 bun run start [--tasks f] [--configs f] [--repeats n] [--only-task id] [--only-config id] [--timeout-min 60] [--sync] [--force]
-bun run start:inspect [--force] [branch]    # TUI over the runs table; enter opens the run transcript, right arrow opens the judge session, ctrl-x twice removes the run from the database, tab checks the branch out in CHROMIUM_SRC
+bun run start:inspect [--force] [branch]    # TUI over the runs table; enter opens the run transcript, right arrow opens the judge session, ctrl-b checks the build Mac then builds and copies Chromium.app back, ctrl-x twice removes the run from the database, tab checks the branch out in CHROMIUM_SRC
 ```
 
 Both `lint:ts` and `lint:fmt` must pass before finishing a change. The husky pre-commit hook (`.husky/pre-commit`, installed by `bun install`) runs `bun fmt --staged` and `bun run lint:ts`. `bun lint` doesn't exist on stable 1.4.4, so the `[lint.rules]` in `bunfig.toml` is inert. There are no tests yet; when adding them use `bun test` with `*.test.ts`, and give DB tests a temp file via `openDb(tmpPath)`.

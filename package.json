@@ -11,6 +11,7 @@
     "lint:ts": "bun check",
     "lint:fmt:fix": "bun fmt",
     "lint:fmt": "bun fmt --check",
+    "setup:remote-build": "bun src/setup/remote-build/main.ts",
     "setup:codebase-memory-mcp": "bun configs/setup/codebase-memory/index-checkout.ts",
     "setup:codebase-memory-subrepos": "bun configs/setup/codebase-memory/index-subrepos.ts"
   },

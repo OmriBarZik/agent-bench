@@ -17,6 +17,10 @@ dist/
 # Local hook config (settings.example.json is the template)
 hooks/settings.json
 
+# Build Mac address, user, and paths (remote.yaml.example is the template)
+configs/builder/remote.yaml
+configs/builder/ssh_config
+
 # Logs
 *.log
 logs/

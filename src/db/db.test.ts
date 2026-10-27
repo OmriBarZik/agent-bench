@@ -14,6 +14,7 @@ import {
   promptVersion,
   saveJudgeRun,
   startRun,
+  taskChromiumSha,
   upsertConfig,
   upsertTask,
 } from "./db";
@@ -598,6 +599,22 @@ test("listToolTrouble lists each blocked or failed call once, oldest first", () 
       { tool: "Bash", command, ran: false, responsePreview: null },
       { tool: "Bash", command: "autoninja", ran: true, responsePreview: "not found" },
     ]);
+  } finally {
+    db.close();
+  }
+});
+
+test("taskChromiumSha returns the revision stored for that task", () => {
+  const db = openDb(tempDb());
+
+  try {
+    upsertTask({
+      db,
+      task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc123" },
+    });
+
+    expect(taskChromiumSha({ db, taskId: "dino" })).toBe("abc123");
+    expect(taskChromiumSha({ db, taskId: "missing" })).toBeNull();
   } finally {
     db.close();
   }
