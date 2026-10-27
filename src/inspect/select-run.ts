@@ -5,6 +5,7 @@ import { openTranscript } from "./open-transcript";
 import { presentLocalBuild } from "./local-build";
 import { presentBuild } from "./remote-build";
 import { frameLayout, renderFrame } from "./render-frame";
+import { resumeList } from "./restore-list";
 import { applyKey, buildTarget, clampSelection, matchingChoices } from "./select-state";
 import type { RunChoice, SelectState } from "./select-state.types";
 
@@ -123,8 +124,7 @@ function waitForChoice({
             return;
           }
 
-          process.stdout.write(ENTER_SCREEN);
-          process.stdin.setRawMode(true);
+          resumeList();
           paint();
         });
     };
@@ -263,6 +263,10 @@ function waitForChoice({
     };
 
     const onResize = () => {
+      if (opening || settled) {
+        return;
+      }
+
       const pageSize = frameLayout(process.stdout.rows ?? 24).listHeight;
       const matchCount = matchingChoices({ choices, query: state.query }).length;
       state = clampSelection({ state, matchCount, pageSize });
@@ -362,8 +366,7 @@ function waitForChoice({
             return;
           }
 
-          process.stdout.write(ENTER_SCREEN);
-          process.stdin.setRawMode(true);
+          resumeList();
           paint();
         });
     };

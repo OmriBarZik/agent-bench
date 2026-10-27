@@ -1,4 +1,5 @@
 import { createInterface } from "node:readline";
+import { RELEASE_PROGRESS } from "./restore-list";
 import type { RunStep } from "./remote-build.types";
 
 /** Runs one local command. Ctrl-C rejects with `build cancelled`. */
@@ -70,6 +71,7 @@ export async function waitForReturn(signal: AbortSignal): Promise<void> {
     return;
   }
 
+  process.stdout.write(RELEASE_PROGRESS);
   process.stdout.write("\nPress enter to return to the list.\n");
   const readline = createInterface({ input: process.stdin, output: process.stdout });
 
