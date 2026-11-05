@@ -44,6 +44,10 @@ export function detailLines({
   plain.push(choice.commitSha ? choice.commitSha.slice(0, 12) : "no changes committed");
   plain.push(transcriptStatus(choice));
 
+  if (choice.chromiumAppPath) {
+    plain.push("Chromium.app built");
+  }
+
   if (choice.current) {
     plain.push("currently checked out");
   }

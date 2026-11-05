@@ -60,6 +60,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     current: false,
     transcriptPath: null,
     judgeTranscriptPath: null,
+    chromiumAppPath: null,
     ...overrides,
   };
 }

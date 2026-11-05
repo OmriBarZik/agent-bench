@@ -72,6 +72,13 @@ function actionItems(choices: RunChoice[]): MenuItem[] {
       target: { kind: "screen", screen: "build" },
     },
     {
+      label: "Open Chromium",
+      shortcut: "^P",
+      unavailable: choice.chromiumAppPath ? null : "not built",
+      scope: "one",
+      target: { kind: "command", command: "open-chromium" },
+    },
+    {
       label: "Queue on the build Mac",
       shortcut: "^B r",
       unavailable: queueUnavailable(choices),

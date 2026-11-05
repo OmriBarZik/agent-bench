@@ -160,7 +160,7 @@ function hintLine({ state, columns }: { state: SelectState; columns: number }): 
   const checked = state.marked.length === 0 ? "" : `  ${state.marked.length} selected`;
   const text = fit({
     // The filter comes first so a narrow terminal cuts shortcuts, which the enter menu also lists, not the query.
-    text: `${filter}${checked}  space  enter menu  ^O run  ^E judge  ^G checkout  ^B build  ^F decide  ^X delete  ^R refresh  esc quit`,
+    text: `${filter}${checked}  space  enter menu  ^O run  ^E judge  ^G checkout  ^B build  ^P chrome  ^F decide  ^X delete  ^R refresh  esc quit`,
     width: columns,
   });
 

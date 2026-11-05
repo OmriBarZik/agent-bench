@@ -32,6 +32,15 @@ test("enter opens the menu, ctrl-o opens the run, ctrl-e opens the judge, and ct
   expect(emptyJudge.action).toBe("stay");
 });
 
+test("ctrl-p opens the built chrome unless the list is empty", () => {
+  const open = applyKey({ state: idle, key: "\x10", matchCount: 2, pageSize: 5 });
+  const empty = applyKey({ state: idle, key: "\x10", matchCount: 0, pageSize: 5 });
+
+  expect(open.action).toBe("chromium");
+  expect(open.state).toEqual(idle);
+  expect(empty.action).toBe("stay");
+});
+
 test("ctrl-b asks where to build, and l or r chooses the machine", () => {
   const build = applyKey({ state: idle, key: "\x02", matchCount: 2, pageSize: 5 });
   const empty = applyKey({ state: idle, key: "\x02", matchCount: 0, pageSize: 5 });
@@ -199,6 +208,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     current: false,
     transcriptPath: null,
     judgeTranscriptPath: null,
+    chromiumAppPath: null,
     ...overrides,
   };
 }

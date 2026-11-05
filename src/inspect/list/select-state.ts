@@ -18,8 +18,8 @@ export function buildTarget(key: string): BuildTarget | null {
 /**
  * Applies one keypress. Letters always filter, including q. Space checks the highlighted run for a multi action.
  * Enter opens the action menu, ctrl-o opens the run transcript, ctrl-e the judge transcript, ctrl-g checks the branch out,
- * ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision, ctrl-x deletes, and ctrl-r reloads the runs
- * from the database. Tab never arrives here: it switches tabs.
+ * ctrl-c quits, ctrl-b asks where to build, ctrl-p opens the built Chromium.app, ctrl-f sets the judge decision,
+ * ctrl-x deletes, and ctrl-r reloads the runs from the database. Tab never arrives here: it switches tabs.
  */
 export function applyKey({
   state,
@@ -57,6 +57,10 @@ export function applyKey({
 
   if (key === "\x02") {
     return { state, action: matchCount === 0 ? "stay" : "build" };
+  }
+
+  if (key === "\x10") {
+    return { state, action: matchCount === 0 ? "stay" : "chromium" };
   }
 
   if (key === "\x06") {

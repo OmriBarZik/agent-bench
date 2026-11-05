@@ -9,11 +9,13 @@ import type {
   ChangedFile,
   ChromiumBuildFinish,
   ChromiumBuildStart,
+  ChromiumBuildTarget,
   ClaudeResult,
   ClaudeUsage,
   Config,
   FinishedRunStatus,
   JudgeMetrics,
+  PassedChromiumApps,
   RunArtifact,
   RunBranchRow,
   RunBranchSql,
@@ -597,6 +599,41 @@ export function finishChromiumBuild({ db, build }: { db: Database; build: Chromi
     durationMs: build.durationMs,
     error: build.error,
   });
+}
+
+/**
+ * Newest passed build for each run, and which run owns the shared local app.
+ * Rows are newest first, so the first row for a run and the first local row are the ones that count.
+ * A failed or cancelled build does not count.
+ */
+export function passedChromiumApps(db: Database): PassedChromiumApps {
+  const rows = db
+    .query(
+      `SELECT run_id, target FROM chromium_builds
+       WHERE status = 'passed'
+       ORDER BY finished_at DESC, id DESC`,
+    )
+    .all() as { run_id: string; target: string }[];
+  const latestTarget = new Map<string, ChromiumBuildTarget>();
+  let latestLocalRunId: string | null = null;
+
+  for (const row of rows) {
+    const target = row.target;
+
+    if (target !== "local" && target !== "remote") {
+      continue;
+    }
+
+    if (!latestTarget.has(row.run_id)) {
+      latestTarget.set(row.run_id, target);
+    }
+
+    if (latestLocalRunId == null && target === "local") {
+      latestLocalRunId = row.run_id;
+    }
+  }
+
+  return { latestTarget, latestLocalRunId };
 }
 
 /** Removes one run and the judge, tool-call, and both build tables' rows. The task and config rows stay. */
