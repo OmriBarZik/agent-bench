@@ -3,26 +3,21 @@ import { hashFiles } from "../../db/db";
 import type { Config, Task } from "../../db/db.types";
 import { BASELINE_HASH_FILES, BENCH_DIR } from "../../paths";
 import type { BenchConfig, BenchConfigEntry, Selection, SelectionSource, TaskEntry } from "./bench-config.types";
+import { narrowSelection } from "./narrow-selection";
 
 /** Reads benchmark-tasks.json (loading each task's prompt and judge prompt) and benchmark-setup.json, then applies the --only-* filters. */
 export async function loadSelection({
   tasksPath,
   configsPath,
-  onlyTask,
-  onlyConfig,
+  onlyTasks,
+  onlyConfigs,
 }: SelectionSource): Promise<Selection> {
   const taskEntries: TaskEntry[] = await Bun.file(tasksPath).json();
   const tasks = await Promise.all(taskEntries.map((entry) => loadTask({ entry, tasksDir: dirname(tasksPath) })));
   const configEntries: BenchConfigEntry[] = await Bun.file(configsPath).json();
   const configs = await Promise.all(configEntries.map((entry) => loadConfig(entry)));
-  const selectedTasks = tasks.filter((task) => !onlyTask || task.taskId === onlyTask);
-  const selectedConfigs = configs.filter((config) => !onlyConfig || config.configId === onlyConfig);
 
-  if (!selectedTasks.length || !selectedConfigs.length) {
-    throw new Error("no tasks/configs selected");
-  }
-
-  return { tasks: selectedTasks, configs: selectedConfigs };
+  return narrowSelection({ selection: { tasks, configs }, taskIds: onlyTasks, configIds: onlyConfigs });
 }
 
 /** Turns a benchmark-tasks.json entry into a Task by reading its prompt files, which are relative to the tasks file. */

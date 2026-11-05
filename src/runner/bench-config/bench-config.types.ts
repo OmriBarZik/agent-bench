@@ -38,10 +38,10 @@ export type Selection = {
   configs: BenchConfig[];
 };
 
-/** Where to read tasks/configs from, and the optional --only-* filters. */
+/** Where to read tasks/configs from, and the optional --only-* filters. An absent list keeps every entry. */
 export type SelectionSource = {
   tasksPath: string;
   configsPath: string;
-  onlyTask?: string;
-  onlyConfig?: string;
+  onlyTasks?: string[];
+  onlyConfigs?: string[];
 };
