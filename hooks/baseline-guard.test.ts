@@ -1,6 +1,44 @@
 import { describe, expect, test } from "bun:test";
-import { DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import { BRANCH_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
 import { baselineDenial } from "./baseline-guard";
+
+describe("baseline other branches", () => {
+  test("denies listing refs and history wider than HEAD", () => {
+    expect(baselineDenial("git branch")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git branch -a")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git -C /abs/src branch --list")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git for-each-ref refs/heads")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git show-ref")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git reflog")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git log --all --oneline")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git --no-pager log --branches=dino*")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git log -g")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git rev-list --all | head")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git show HEAD@{3}")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial('git -C "$PWD" log --all')).toBe(BRANCH_DENIAL);
+  });
+
+  test("denies naming a run branch or reading the ref files", () => {
+    expect(baselineDenial("git checkout dino-hat__baseline__r0__mvnh9apl")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git diff HEAD dino-hat__baseline__r0__mvnh9apl -- a.cc")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git log refs/heads/main")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("cat .git/packed-refs")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("ls /abs/src/.git/refs/heads")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("bash -c 'git branch -a'")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("echo $(git reflog)")).toBe(BRANCH_DENIAL);
+  });
+
+  test("allows the current branch, HEAD history, and unrelated uses of the same words", () => {
+    expect(baselineDenial("git branch --show-current")).toBeNull();
+    expect(baselineDenial("git log --oneline -3 -- components/neterror")).toBeNull();
+    expect(baselineDenial("git show --stat HEAD~2")).toBeNull();
+    expect(baselineDenial("git status --short")).toBeNull();
+    expect(baselineDenial("git grep --all-match -e one -e two")).toBeNull();
+    expect(baselineDenial("git add --all")).toBeNull();
+    expect(baselineDenial("grep -r refs/heads tools")).toBeNull();
+    expect(baselineDenial("grep -rn '@{' tools")).toBeNull();
+  });
+});
 
 describe("baseline directory changes", () => {
   test("denies cd, including compounds, subshells, and substitutions", () => {

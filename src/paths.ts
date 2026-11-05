@@ -13,6 +13,8 @@ export const HOOK_SETTINGS = join(BENCH_DIR, "hooks/settings.example.json");
 export const BASELINE_HASH_FILES = [
   HOOK_SETTINGS,
   join(BENCH_DIR, "hooks/baseline-guard.ts"),
+  join(BENCH_DIR, "hooks/bash/git-subcommand.ts"),
+  join(BENCH_DIR, "hooks/bash/other-branches.ts"),
   join(BENCH_DIR, "hooks/command-policy.ts"),
   join(BENCH_DIR, "hooks/nested-scripts.ts"),
   join(BENCH_DIR, "src/baseline-policy.ts"),

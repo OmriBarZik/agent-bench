@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { forEachChild, parse, type SyntaxNode } from "unbash";
-import { DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import { BRANCH_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
 import type { GuardDeny, GuardPayload } from "./baseline-guard.types";
 import { commandDenial } from "./command-policy";
 import { nestedScripts } from "./nested-scripts";
@@ -26,6 +26,7 @@ function denialIn({ source, depth }: { source: string; depth: number }): string 
   const script = parse(source);
   let directory = false;
   let fileWrite = false;
+  let otherBranch = false;
   const nested: string[] = [];
   walk(script, (node) => {
     if (node.type !== "Command") {
@@ -42,6 +43,10 @@ function denialIn({ source, depth }: { source: string; depth: number }): string 
       fileWrite = true;
     }
 
+    if (reason === BRANCH_DENIAL) {
+      otherBranch = true;
+    }
+
     nested.push(...nestedScripts({ command: node, source }));
   });
 
@@ -51,6 +56,10 @@ function denialIn({ source, depth }: { source: string; depth: number }): string 
 
   if (fileWrite) {
     return FILE_DENIAL;
+  }
+
+  if (otherBranch) {
+    return BRANCH_DENIAL;
   }
 
   for (const scriptText of nested) {
@@ -76,7 +85,7 @@ function walk(node: SyntaxNode, visit: (node: SyntaxNode) => void) {
 }
 
 /**
- * PreToolUse hook for every benchmark config. Prints a deny decision for cd and for shell file edits.
+ * PreToolUse hook for every benchmark config. Prints a deny decision for cd, shell file edits, and other runs' branches.
  * Exit 0 always: the decision is the JSON on stdout, and a crash must not fail the tool on its own.
  */
 async function main() {

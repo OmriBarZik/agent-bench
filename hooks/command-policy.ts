@@ -1,11 +1,12 @@
 import { basename } from "node:path";
 import type { Command, CommandArgument } from "unbash";
-import { DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import { BRANCH_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import { gitSubcommand } from "./bash/git-subcommand";
+import { readsOtherBranches } from "./bash/other-branches";
 
 const DIRECTORY_COMMANDS = new Set(["cd", "pushd", "popd"]);
 const EDITORS = new Set(["ed", "ex", "vi", "vim", "nvim", "nano", "emacs", "pico"]);
 const INTERPRETERS = new Set(["python", "python3", "node", "nodejs", "ruby", "perl", "bun"]);
-const GIT_OPTIONS_WITH_VALUE = new Set(["-C", "-c", "--git-dir", "--work-tree", "--namespace"]);
 const DISCARD_TARGETS = new Set(["/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty", "/dev/fd/1", "/dev/fd/2"]);
 const OUTPUT_OPERATORS = new Set([">", ">>", ">|", "&>", "&>>"]);
 
@@ -19,7 +20,7 @@ const FILE_WRITE = [
   /\bcopyFile(?:Sync)?\s*\(/,
 ];
 
-/** Directory change or shell file edit in this one command. Nested scripts are handled by the caller. */
+/** Directory change, shell file edit, or other run's branch in this one command. Nested scripts are handled by the caller. */
 export function commandDenial(command: Command): string | null {
   if (changesDirectory(command)) {
     return DIRECTORY_DENIAL;
@@ -27,6 +28,12 @@ export function commandDenial(command: Command): string | null {
 
   if (writesFile(command)) {
     return FILE_DENIAL;
+  }
+
+  const program = programName(command);
+
+  if (program && readsOtherBranches({ program, words: wordValues(command.args) })) {
+    return BRANCH_DENIAL;
   }
 
   return null;
@@ -182,26 +189,4 @@ function gitWritesWorktree(words: readonly string[]): boolean {
   const subcommand = gitSubcommand(words);
 
   return subcommand === "apply" || subcommand === "am" || subcommand === "restore";
-}
-
-function gitSubcommand(words: readonly string[]): string | null {
-  let index = 0;
-
-  while (index < words.length) {
-    const word = words[index] ?? "";
-
-    if (GIT_OPTIONS_WITH_VALUE.has(word)) {
-      index += 2;
-      continue;
-    }
-
-    if (word.startsWith("-")) {
-      index++;
-      continue;
-    }
-
-    return word;
-  }
-
-  return null;
 }

@@ -13,6 +13,13 @@ export const BASELINE_PROMPT = [
 export const DIRECTORY_DENIAL =
   "cd, pushd, and popd are denied. The working directory stays at the checkout root. Use an absolute path, or git -C <absolute-path>.";
 
+/**
+ * Shown to the agent when a Bash command would reach another branch or the reflog.
+ * BASELINE_PROMPT stays silent on this so agents are not told other runs exist.
+ */
+export const BRANCH_DENIAL =
+  "Other branches, refs, and the reflog are denied. Work from the working tree and the history reachable from HEAD.";
+
 /** Shown to the agent when a Bash command would create or modify a file. */
 export const FILE_DENIAL =
   "Updating a file from the shell is denied. Use the Edit or Write tool, not redirection, tee, an in-place editor, patch, or a script that writes the file.";

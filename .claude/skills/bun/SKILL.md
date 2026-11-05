@@ -89,7 +89,7 @@ For file structure, naming, comments and when to split a file, see the `code-sty
   - it always ends with `process.exit(0)`;
   - it does nothing unless `BENCH_RUN_ID` is set;
   - it falls back to `~/.claude/bench-hook-fallback.jsonl` when the DB write fails.
-- `hooks/baseline-guard.ts` may deny a Bash call (no `cd`, no shell file edits). That guard is the shared baseline, and it still exits 0: the deny decision is JSON on stdout. It parses Bash with `unbash` rather than a handwritten tokenizer.
+- `hooks/baseline-guard.ts` may deny a Bash call (no `cd`, no shell file edits, no other runs' branches). That guard is the shared baseline, and it still exits 0: the deny decision is JSON on stdout. It parses Bash with `unbash` rather than a handwritten tokenizer.
 - `tool_calls.run_id` is a foreign key, so the `runs` row must exist before the hook fires. The runner calls `startRun` before spawning `claude`.
 - The baseline files (`hooks/settings.example.json`, the guard sources, and `src/baseline-policy.ts`) are part of `config_hash`, so editing them changes every config's hash.
 - Set `BENCH_HOOK_DUMP=/path/file.jsonl` to capture the raw hook payloads when debugging.

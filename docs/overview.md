@@ -50,7 +50,7 @@ src/main.ts
         3. startRun                    insert the runs row (status = running)
         4. runClaude                   claude -p … --append-system-prompt (baseline, then the config tool prompt) --settings hooks/settings.example.json
         │     ├─ hooks/tool-log.ts        PreToolUse/PostToolUse → tool_calls rows (only when BENCH_RUN_ID is set)
-        │     └─ hooks/baseline-guard.ts  PreToolUse Bash: deny cd and shell file edits for every config
+        │     └─ hooks/baseline-guard.ts  PreToolUse Bash: deny cd, shell file edits, and other runs' branches for every config
         5. copyTranscript              ~/.claude/projects/**/<session>.jsonl → runs/<run_id>/
         6. commitRunChanges            commit submodule checkouts, then the superproject
         7. finishRun                   duration, turns, cost, tokens, denials, changed files, raw result
