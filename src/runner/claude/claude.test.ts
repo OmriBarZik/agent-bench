@@ -12,6 +12,7 @@ test("every config gets the baseline prompt", () => {
     },
     config: { configId: "haiku-baseline", model: "claude-haiku-5-5" },
     sessionId: "session",
+    runId: "run",
   });
   const promptIndex = args.indexOf("--append-system-prompt");
 
@@ -29,6 +30,7 @@ test("a config's tool prompt is appended after the baseline", () => {
     },
     config: { configId: "codebase-memory", toolPrompt: "use the graph tools first" },
     sessionId: "session",
+    runId: "run",
   });
   const promptIndex = args.indexOf("--append-system-prompt");
 

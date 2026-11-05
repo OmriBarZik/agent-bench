@@ -6,11 +6,18 @@ export const BENCH_DIR = resolve(dirname(import.meta.path), "..");
 export const CHROMIUM_SRC = process.env.CHROMIUM_SRC ?? resolve(BENCH_DIR, "../src");
 /** Hook registration passed to `claude --settings`; part of every config_hash. */
 export const HOOK_SETTINGS = join(BENCH_DIR, "hooks/settings.example.json");
+/** The chrome-validate MCP server every agent session gets (build on the build Mac, check in Chromium). */
+export const VALIDATE_SERVER = join(BENCH_DIR, "src/validate/main.ts");
+/** Plugin passed with --plugin-dir; it carries the validate-build skill. */
+export const VALIDATE_PLUGIN_DIR = join(BENCH_DIR, "plugins/chrome-validate");
 /**
- * Files that define the baseline every config shares: the settings, the Bash guard, and its prompt.
- * Hashed into every config so a change to those rules is a new config version.
+ * Files that define the baseline every config shares: the settings, the Bash guard, its prompt, and the
+ * chrome-validate tools and skill. Hashed into every config so a change to those rules is a new config version.
  */
 export const BASELINE_HASH_FILES = [
+  join(VALIDATE_PLUGIN_DIR, ".claude-plugin/plugin.json"),
+  join(VALIDATE_PLUGIN_DIR, "skills/validate-build/SKILL.md"),
+  join(BENCH_DIR, "src/validate/tools/tool-definitions.ts"),
   HOOK_SETTINGS,
   join(BENCH_DIR, "hooks/baseline-guard.ts"),
   join(BENCH_DIR, "hooks/bash/git-subcommand.ts"),
@@ -22,7 +29,7 @@ export const BASELINE_HASH_FILES = [
 /** Per-run artifacts: runs/<run_id>/. */
 export const RUNS_DIR = join(BENCH_DIR, "runs");
 /** Build-Mac settings. Gitignored; copied from the example by setup:remote-build. */
-export const REMOTE_BUILD_FILE = join(BENCH_DIR, "configs/builder/remote.yaml");
+export const REMOTE_BUILD_FILE = process.env.BENCH_REMOTE_BUILD_FILE ?? join(BENCH_DIR, "configs/builder/remote.yaml");
 /** Committed template for REMOTE_BUILD_FILE. Placeholders only. */
 export const REMOTE_BUILD_EXAMPLE = join(BENCH_DIR, "configs/builder/remote.yaml.example");
 /** SSH fragment Include'd from ~/.ssh/config. Gitignored; written by setup:remote-build. */

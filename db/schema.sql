@@ -104,3 +104,37 @@ FROM tool_calls p
 LEFT JOIN tool_calls q
   ON q.tool_use_id = p.tool_use_id AND q.phase = 'post'
 WHERE p.phase = 'pre';
+
+-- One row per Chromium build an agent asked for with the chrome-validate MCP server (start_build).
+-- An agent may build many times in one run; build_number counts them from 1 inside the run.
+CREATE TABLE IF NOT EXISTS builds (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id         TEXT REFERENCES runs,
+    build_number   INTEGER NOT NULL,
+    snapshot_sha   TEXT,            -- commit of the agent's working tree that was built (not on any branch)
+    status         TEXT NOT NULL DEFAULT 'building',   -- building / ok / failed / cancelled / abandoned
+    started_at     TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    finished_at    TEXT,
+    duration_ms    INTEGER,         -- snapshot + send + build + copy back
+    send_ms        INTEGER,         -- snapshot and push to the build Mac
+    build_ms       INTEGER,         -- autoninja on the build Mac
+    copy_ms        INTEGER,         -- Chromium.app copied back
+    failed_step    TEXT,            -- snapshot / send / build / copy when status = failed
+    error          TEXT,            -- the compiler errors (or the tail of the log) the agent was shown
+    log_path       TEXT             -- full build log on this Mac
+);
+
+CREATE INDEX IF NOT EXISTS builds_run_idx ON builds (run_id);
+
+-- Build metrics per run, for the dashboard. Runs without builds have no row.
+CREATE VIEW IF NOT EXISTS run_build_stats AS
+SELECT run_id,
+       COUNT(*)                                        AS builds,
+       SUM(status = 'ok')                              AS ok_builds,
+       SUM(status = 'failed')                          AS failed_builds,
+       SUM(COALESCE(duration_ms, 0))                   AS build_total_ms,
+       MIN(CASE WHEN status = 'ok' THEN build_number END) AS first_ok_build,
+       (SELECT b2.status FROM builds b2 WHERE b2.run_id = builds.run_id
+        ORDER BY b2.build_number DESC LIMIT 1)         AS last_build_status
+FROM builds
+GROUP BY run_id;

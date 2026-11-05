@@ -120,7 +120,7 @@ async function buildOnBuilder({
     command: buildCommand({
       host: config.host,
       source: config.source,
-      branch: choice.branch,
+      revision: choice.branch,
       depotTools: config.depotTools,
     }),
     signal,

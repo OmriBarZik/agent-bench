@@ -13,7 +13,10 @@ fi
 git checkout --quiet --force --detach "$sha"
 git clean -fdq'`;
 
-/** Shell that checks out the branch on the builder and builds chrome. Args are source, branch, depot_tools. */
+/**
+ * Shell that checks out a revision on the builder and builds chrome. Args are source, revision, depot_tools.
+ * The revision is a branch name or a commit sha. A build already running in out/Default finishes first.
+ */
 export function remoteBuildScript({ argsGn, commits }: { argsGn: string; commits: SubmoduleCommit[] }): string {
   if (argsGn.includes("END_ARGS")) {
     throw new Error("configs/builder/args.gn cannot contain END_ARGS");
@@ -23,7 +26,7 @@ export function remoteBuildScript({ argsGn, commits }: { argsGn: string; commits
 
   return `set -eu
 source_dir="$1"
-branch="$2"
+revision="$2"
 depot_tools="$3"
 PATH="$depot_tools:$PATH"
 export PATH
@@ -32,7 +35,11 @@ if ! command -v autoninja >/dev/null 2>&1; then
   exit 1
 fi
 cd "$source_dir"
-git switch --quiet --force "$branch"
+while pgrep -f -- '-C out/Default' >/dev/null 2>&1; do
+  printf '%s\\n' "waiting for another build of out/Default to finish"
+  sleep 10
+done
+git checkout --quiet --force "$revision"
 ${checkouts}
 ${SYNC_SUBMODULES}
 if [ ! -f out/Default/args.gn ]; then
@@ -78,21 +85,21 @@ export function branchRefspec(branch: string): string {
   return `+refs/heads/${branch}:refs/heads/${branch}`;
 }
 
-/** Checks the branch out on the builder and builds chrome. The script is the process stdin. */
+/** Checks `revision` (a branch or a commit sha) out on the builder and builds chrome. The script is the process stdin. */
 export function buildCommand({
   host,
   source,
-  branch,
+  revision,
   depotTools,
 }: {
   host: string;
   source: string;
-  branch: string;
+  revision: string;
   depotTools: string;
 }): string[] {
   return sshCommand({
     host,
-    remoteArgs: ["caffeinate", "-s", "bash", "-s", "--", source, branch, depotTools],
+    remoteArgs: ["caffeinate", "-s", "bash", "-s", "--", source, revision, depotTools],
   });
 }
 

@@ -1,6 +1,6 @@
 import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
-import { cancelRun, finishRun, listToolTrouble, saveJudgeRun } from "../../db/db";
+import { abandonOpenBuilds, cancelRun, finishRun, listToolTrouble, saveJudgeRun } from "../../db/db";
 import type { ClaudeResult, JudgeMetrics, RunArtifact, Task, ToolTrouble } from "../../db/db.types";
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { claudeArgs, runClaude } from "../claude/claude";
@@ -35,6 +35,8 @@ export async function runAndCommitAgent({
 }): Promise<CommittedWork> {
   const sessionId = randomUUID();
   const result = await runAgent({ task, config, sessionId, runId, outDir, started, options, signal });
+  // A killed chrome-validate server cannot close its last build, so the runner does.
+  abandonOpenBuilds({ db, runId });
   saveTranscript({ sessionId: result.session_id ?? sessionId, outDir });
   const committed = await commitAgentWork({ runId, baseSha: task.chromiumSha, result });
   finishRun({
@@ -205,7 +207,7 @@ async function runAgent({
 }): Promise<ClaudeResult> {
   try {
     return await runClaude({
-      command: claudeArgs({ task, config, sessionId }),
+      command: claudeArgs({ task, config, sessionId, runId }),
       runId,
       outDir,
       timeoutMs: options.timeoutMs,

@@ -196,3 +196,39 @@ export type ToolCall = {
   isError?: boolean | null;
   responsePreview?: string | null;
 };
+
+/** How an agent-requested build ended. `abandoned` means the session ended while it was still building. */
+export type BuildStatus = "building" | "ok" | "failed" | "cancelled" | "abandoned";
+
+/** The step of an agent-requested build that failed. */
+export type BuildStep = "snapshot" | "send" | "build" | "copy";
+
+/** A builds row when the build starts. */
+export type BuildStart = {
+  runId: string;
+  buildNumber: number;
+  logPath: string;
+};
+
+/** What a finished build stores on its builds row. */
+export type BuildFinish = {
+  status: Exclude<BuildStatus, "building">;
+  snapshotSha?: string | null;
+  durationMs: number;
+  sendMs?: number | null;
+  buildMs?: number | null;
+  copyMs?: number | null;
+  failedStep?: BuildStep | null;
+  error?: string | null;
+};
+
+/** One builds row as the tests and the runner read it back. */
+export type BuildRow = {
+  run_id: string;
+  build_number: number;
+  snapshot_sha: string | null;
+  status: BuildStatus;
+  duration_ms: number | null;
+  failed_step: string | null;
+  error: string | null;
+};

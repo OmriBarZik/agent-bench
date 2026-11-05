@@ -7,6 +7,7 @@ export const BASELINE_PROMPT = [
   "Do not use cd, pushd, or popd. Use an absolute path, or git -C <absolute-path> for git.",
   "Create and modify file contents only with the Edit and Write tools.",
   "Do not update a file from the shell: no redirection into a file, tee, in-place sed/perl/ruby, patch, or an interpreter one-liner or here-document that writes a file.",
+  "Do not run gn, ninja, autoninja, or siso on this machine. To build your change and check it in Chromium, use the chrome-validate tools as the validate-build skill describes.",
 ].join(" ");
 
 /** Shown to the agent when a Bash command would change the working directory. */
