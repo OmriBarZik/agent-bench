@@ -4,6 +4,9 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { openDb, taskChromiumSha } from "../../db/db";
 import { BENCH_DIR } from "../../paths";
+import { setTerminalTitle } from "../../terminal/terminal-title";
+import { buildTitle } from "../../terminal/title-text";
+import type { BuildStep } from "../../terminal/title-text.types";
 import { failureNotice, runStep, waitForReturn } from "../build/build-process";
 import type { BuilderConfig } from "../build/builder-config.types";
 import { gitlinkCommitsBetween } from "../gitlink/gitlink-commits";
@@ -38,10 +41,12 @@ export async function presentBuild({
   signal: AbortSignal;
 }): Promise<string> {
   try {
+    showStep({ choice, config, step: "check" });
     console.log(`Checking ${config.host}…`);
     const problem = await validateRemote({ config, signal });
 
     if (problem) {
+      showStep({ choice, config, step: "failed" });
       console.error(`\n${problem}`);
       await waitForReturn(signal);
 
@@ -49,12 +54,14 @@ export async function presentBuild({
     }
 
     const built = await buildOnBuilder({ choice, config, chromiumSrc, signal });
+    showStep({ choice, config, step: "built" });
     console.log(`\n${built.notice}`);
     await waitForReturn(signal);
 
     return built.notice;
   } catch (error) {
     const notice = failureNotice({ error, signal });
+    showStep({ choice, config, step: "failed" });
     console.error(`\n${notice}`);
 
     if (!signal.aborted) {
@@ -89,6 +96,7 @@ async function buildOnBuilder({
 
   const script = remoteBuildScript({ argsGn, commits });
   const refspec = branchRefspec(choice.branch);
+  showStep({ choice, config, step: "send" });
   console.log("Sending the branch…");
   await runStep({ command: detachCommand({ host: config.host, source: config.source }), signal, label: "detach" });
 
@@ -115,6 +123,7 @@ async function buildOnBuilder({
     signal,
     label: "send branch",
   });
+  showStep({ choice, config, step: "build" });
   console.log("Building chrome…");
   await runStep({
     command: buildCommand({
@@ -127,6 +136,7 @@ async function buildOnBuilder({
     label: "build",
     stdin: script,
   });
+  showStep({ choice, config, step: "copy" });
   console.log("Copying the app back…");
   await mkdir(destination, { recursive: true });
   await runStep({
@@ -143,6 +153,12 @@ async function buildOnBuilder({
   await runStep({ command: ["open", app], signal, label: "open" });
 
   return { notice: `built ${choice.branch} at ${destination}` };
+}
+
+function showStep({ choice, config, step }: { choice: RunChoice; config: BuilderConfig; step: BuildStep }) {
+  setTerminalTitle(
+    buildTitle({ taskId: choice.taskId, configId: choice.configId, repeat: choice.repeat, where: config.host, step }),
+  );
 }
 
 async function commitsToSend({

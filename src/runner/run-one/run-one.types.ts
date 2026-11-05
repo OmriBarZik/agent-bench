@@ -9,6 +9,9 @@ export type RunOptions = {
   judgeModel: string;
 };
 
+/** The step a run is on: resetting the checkout, the agent session, or the judge session. */
+export type RunPhase = "reset" | "agent" | "judge";
+
 /** What runOne reports back to the run loop. */
 export type RunOneResult = {
   runId: string;

@@ -3,6 +3,9 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { BENCH_DIR } from "../../paths";
 import { checkoutBranch, hasUncommittedChanges } from "../../runner/chromium/chromium";
+import { setTerminalTitle } from "../../terminal/terminal-title";
+import { buildTitle } from "../../terminal/title-text";
+import type { BuildStep } from "../../terminal/title-text.types";
 import type { RunChoice } from "../list/select-state.types";
 import { failureNotice, runStep, waitForReturn } from "./build-process";
 
@@ -22,12 +25,14 @@ export async function presentLocalBuild({
 }): Promise<string> {
   try {
     const built = await buildLocally({ choice, chromiumSrc, force, signal });
+    showStep({ choice, step: "built" });
     console.log(`\n${built}`);
     await waitForReturn(signal);
 
     return built;
   } catch (error) {
     const notice = failureNotice({ error, signal });
+    showStep({ choice, step: "failed" });
     console.error(`\n${notice}`);
 
     if (!signal.aborted) {
@@ -56,6 +61,7 @@ async function buildLocally({
 }): Promise<string> {
   console.log(`Building ${choice.branch} in ${chromiumSrc}`);
   console.log("Ctrl-C cancels and returns to the list.");
+  showStep({ choice, step: "checkout" });
   await checkOutRun({ choice, chromiumSrc, force });
   await ensureBuildArgs({ chromiumSrc, signal });
 
@@ -63,6 +69,7 @@ async function buildLocally({
     throw new Error("autoninja is not on PATH. Install depot_tools on this Mac and start inspect from that shell.");
   }
 
+  showStep({ choice, step: "build" });
   await runStep({ command: localBuildCommand(), signal, label: "build", cwd: chromiumSrc });
   const app = join(chromiumSrc, "out/Default/Chromium.app");
 
@@ -73,6 +80,12 @@ async function buildLocally({
   await runStep({ command: ["open", app], signal, label: "open" });
 
   return `built ${choice.branch} at ${app}`;
+}
+
+function showStep({ choice, step }: { choice: RunChoice; step: BuildStep }) {
+  setTerminalTitle(
+    buildTitle({ taskId: choice.taskId, configId: choice.configId, repeat: choice.repeat, where: "local", step }),
+  );
 }
 
 async function checkOutRun({ choice, chromiumSrc, force }: { choice: RunChoice; chromiumSrc: string; force: boolean }) {
