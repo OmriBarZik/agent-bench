@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { titleSequence } from "./terminal-title";
-import { benchEndTitle, buildTitle, runTitle } from "./title-text";
+import { benchEndTitle, buildTitle, runTitle, tabTitle } from "./title-text";
 
 describe("terminal titles", () => {
   test("a run shows its progress and step before the task and config", () => {
@@ -18,6 +18,11 @@ describe("terminal titles", () => {
     const title = buildTitle({ taskId: "omnibox", configId: "baseline", repeat: 0, where: "build-mac", step: "copy" });
 
     expect(title).toBe("🔨 copy build-mac · omnibox × baseline r0");
+  });
+
+  test("the TUI names the tab it shows", () => {
+    expect(tabTitle("Start")).toBe("agent-bench · Start");
+    expect(tabTitle("Runs")).toBe("agent-bench · Runs");
   });
 
   test("control characters cannot end the title sequence early", () => {
