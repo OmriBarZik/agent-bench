@@ -5,7 +5,7 @@ import { cancelRun, promptVersion, startRun } from "../../db/db";
 import type { Task } from "../../db/db.types";
 import { RUNS_DIR } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
-import type { RunOneResult, RunOptions } from "./run-one.types";
+import type { RunOneResult, RunOptions, RunPhase } from "./run-one.types";
 import { judgeAndStore, runAndCommitAgent, storeInterruptedRun } from "./run-session";
 import { prepareCheckout } from "./run-tree";
 
@@ -17,6 +17,7 @@ export async function runOne({
   repeat,
   options,
   signal,
+  onPhase = () => {},
 }: {
   db: Database;
   task: Task;
@@ -25,8 +26,11 @@ export async function runOne({
   options: RunOptions;
   /** Aborted on the first Ctrl+C. The run is stored as cancelled and the benchmark stops. */
   signal: AbortSignal;
+  /** Called as each step starts, so the caller can show it (the terminal title). */
+  onPhase?: (phase: RunPhase) => void;
 }): Promise<RunOneResult> {
   const runId = `${task.taskId}__${config.configId}__r${repeat}__${Date.now().toString(36)}`;
+  onPhase("reset");
   await prepareCheckout({ sha: task.chromiumSha, sync: options.sync, runId, signal });
   const outDir = join(RUNS_DIR, runId);
   mkdirSync(outDir, { recursive: true });
@@ -51,6 +55,7 @@ export async function runOne({
   const started = Date.now();
   let recorded = false;
   try {
+    onPhase("agent");
     const committed = await runAndCommitAgent({ db, task, config, runId, outDir, started, options, signal });
     recorded = true;
 
@@ -67,6 +72,8 @@ export async function runOne({
         cancelled: true,
       };
     }
+
+    onPhase("judge");
 
     return await judgeAndStore({ db, task, runId, outDir, started, options, signal, committed });
   } catch (error) {

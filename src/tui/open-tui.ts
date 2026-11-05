@@ -1,4 +1,6 @@
 import process from "node:process";
+import { restoreTerminalTitle, saveTerminalTitle, setTerminalTitle } from "../terminal/terminal-title";
+import { IDLE_TITLE } from "../terminal/title-text";
 import type { TuiHost, TuiSize, TuiTab } from "./open-tui.types";
 import { tabBar, tabStep } from "./tab-bar";
 
@@ -30,6 +32,8 @@ export async function openTui<Result>({
 
   try {
     process.stdout.write(ENTER_SCREEN);
+    saveTerminalTitle();
+    setTerminalTitle(IDLE_TITLE);
 
     return await runTui({
       tabs,
@@ -44,6 +48,7 @@ export async function openTui<Result>({
     // resume() keeps the event loop alive and would leave stdin in flowing mode for the discard prompt.
     process.stdin.pause();
     process.stdout.write(LEAVE_SCREEN);
+    restoreTerminalTitle();
   }
 }
 
