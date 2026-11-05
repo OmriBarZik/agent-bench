@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-agent-bench benchmarks Claude Code on real tasks in a Chromium checkout under different tool setups ("configs"). For every task × config × repeat it resets Chromium to a fixed SHA, runs one headless `claude -p` session, and records the result plus every tool call in a local SQLite DB (`data/bench.sqlite`). Configs are compared in the dashboard (`bun run start:dashboard`). Runs are removed in the inspect TUI (`bun run start:inspect`).
+agent-bench benchmarks Claude Code on real tasks in a Chromium checkout under different tool setups ("configs"). For every task × config × repeat it resets Chromium to a fixed SHA, runs one headless `claude -p` session, and records the result plus every tool call in a local SQLite DB (`data/bench.sqlite`). Configs are compared in the dashboard (`bun run start:dashboard`). Runs are removed in the Runs tab of the `bun run start` TUI (`bun run start:inspect` opens it on that tab).
 
 The repo expects to live at `chromium/agent-bench/`, next to the Chromium checkout at `chromium/src/`. `CHROMIUM_SRC` defaults to `../src`, and the hook commands in `hooks/settings.example.json` resolve `"$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts`, so don't rename the folder or hardcode absolute paths.
 
@@ -15,8 +15,9 @@ Bun 1.4.4 only: no Node, `tsc`, Prettier, or ESLint. The only runtime dependency
 ```sh
 bun run lint:ts          # bun check (src/ + hooks/ per tsconfig include); bun check path/to/file.ts for one file
 bun run lint:fmt         # bun fmt --check; fix with bun run lint:fmt:fix (printWidth 120 in bunfig.toml [fmt])
-bun run start [--tasks f] [--configs f] [--repeats n] [--only-task id,id] [--only-config id,id] [--timeout-min 60] [--sync] [--force] [-i | --cli]   # on a terminal with no selection flags, opens a task/config/repeats picker TUI first
-bun run start:inspect [--force] [branch]    # TUI over the runs table; enter opens an action menu (build, judge decision, remove and more, with submenus), ctrl-o opens the run transcript, right arrow opens the judge session, ctrl-b then l builds on this Mac and r builds on the build Mac and copies Chromium.app back, ctrl-f sets the judge decision, ctrl-x twice removes the run from the database, tab checks the branch out in CHROMIUM_SRC
+bun run start [--tasks f] [--configs f] [--repeats n] [--only-task id,id] [--only-config id,id] [--timeout-min 60] [--sync] [--force] [-i | --runs | --cli]   # on a terminal with no selection flags, opens the TUI: Start tab (task/config/repeats picker) and Runs tab; tab / shift-tab switch
+bun run start:inspect [--force]             # = bun run start --runs: the TUI on the Runs tab; enter opens an action menu (build, judge decision, remove and more, with submenus), ctrl-o opens the run transcript, right arrow opens the judge session, ctrl-b then l builds on this Mac and r builds on the build Mac and copies Chromium.app back, ctrl-f sets the judge decision, ctrl-x twice removes the run from the database, ctrl-g checks the branch out in CHROMIUM_SRC
+bun run start --checkout <branch> [--force]  # check a run's branch out without the TUI
 ```
 
 Both `lint:ts` and `lint:fmt` must pass before finishing a change. The husky pre-commit hook (`.husky/pre-commit`, installed by `bun install`) runs `bun fmt --staged` and `bun run lint:ts`. `bun lint` doesn't exist on stable 1.4.4, so the `[lint.rules]` in `bunfig.toml` is inert. There are no tests yet; when adding them use `bun test` with `*.test.ts`, and give DB tests a temp file via `openDb(tmpPath)`.

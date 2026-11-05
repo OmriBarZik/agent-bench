@@ -1,6 +1,6 @@
 # Remote builds
 
-This Mac runs the agents and keeps the results database. A second Mac checks out the run branch and builds Chrome. In `bun run start:inspect`, Ctrl-B asks where to build the highlighted run. `l` builds on this Mac. `r` sends the branch to the build Mac, builds `chrome` there, and copies `Chromium.app` back here.
+This Mac runs the agents and keeps the results database. A second Mac checks out the run branch and builds Chrome. In the Runs tab of `bun run start` (`bun run start:inspect`), Ctrl-B asks where to build the highlighted run. `l` builds on this Mac. `r` sends the branch to the build Mac, builds `chrome` there, and copies `Chromium.app` back here.
 
 Each Mac keeps its own Chromium checkout. The runner resets the one on this Mac. The checkout on the build Mac is only for building.
 
@@ -41,7 +41,7 @@ The first run copies [configs/builder/remote.yaml.example](../configs/builder/re
 
 | Field            | Where     | Meaning                                                                                               |
 | ---------------- | --------- | ----------------------------------------------------------------------------------------------------- |
-| `host`           | SSH alias | Name the inspect list uses, as in `ssh builder`.                                                      |
+| `host`           | SSH alias | Name the Runs tab uses, as in `ssh builder`.                                                          |
 | `hostName`       | Build Mac | Its current IP, or a name such as `Mac-mini.local`. Set this or `connection`.                         |
 | `connection`     | This Mac  | Port name (`Thunderbolt Bridge`) or device (`bridge0`) that links only the two Macs.                  |
 | `user`           | Build Mac | Output of `whoami` there. The example value `your-user` is rejected until you replace it.             |
@@ -77,7 +77,7 @@ bun run start:inspect
 
 Highlight a run and press Ctrl-B. The list asks where to build:
 
-- `l` checks the branch out in this Mac's Chromium tree and runs `autoninja -C out/Default chrome`. `autoninja` has to be on `PATH` in the shell that started inspect. An existing `out/Default/args.gn` is kept. When that file is missing, the build writes [configs/builder/args.gn](../configs/builder/args.gn) and runs `gn gen`. The app opens from `out/Default/Chromium.app` in the checkout. Uncommitted tracked changes block the checkout unless inspect was started with `--force`.
+- `l` checks the branch out in this Mac's Chromium tree and runs `autoninja -C out/Default chrome`. `autoninja` has to be on `PATH` in the shell that started the TUI. An existing `out/Default/args.gn` is kept. When that file is missing, the build writes [configs/builder/args.gn](../configs/builder/args.gn) and runs `gn gen`. The app opens from `out/Default/Chromium.app` in the checkout. Uncommitted tracked changes block the checkout unless the TUI was started with `--force`.
 - `r` checks that the build Mac answers and that `source` is a git checkout, then:
 
   1. Sends the run branch, and any submodule commits that branch added.

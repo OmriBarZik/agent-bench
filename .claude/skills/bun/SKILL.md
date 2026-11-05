@@ -79,7 +79,7 @@ For file structure, naming, comments and when to split a file, see the `code-sty
 - To add a table or index, add it to `schema.sql`.
 - To change an existing table, add an idempotent migration in `openDb()` (`src/db/db.ts`, next to `ensureRunColumns`). `CREATE ... IF NOT EXISTS` leaves an existing database as it is, so the migration runs there when the file is opened.
 - **Never delete `data/` or `data/bench.sqlite*` without asking**, because they hold the benchmark results. The `-wal`/`-shm` sidecar files belong to the DB; don't delete them while anything has it open.
-- The user alters rows in the inspect TUI (`bun run start:inspect`). Ctrl-x twice removes the highlighted run. The Chromium branch and the files under `runs/<run_id>/` stay.
+- The user alters rows in the Runs tab of the `bun run start` TUI (`bun run start:inspect` opens it there). Ctrl-x twice removes the highlighted run. The Chromium branch and the files under `runs/<run_id>/` stay.
 - The user views results in the dashboard (`bun run start:dashboard`).
 
 ## Hooks (`hooks/tool-log.ts`)

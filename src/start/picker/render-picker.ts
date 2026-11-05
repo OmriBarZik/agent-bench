@@ -46,7 +46,7 @@ export function renderPicker({
   lines.push(colorLine({ text: fit({ text: state.notice, width: columns }), kind: "notice" }));
   lines.push(colorLine({ text: fit({ text: HINT, width: columns }), kind: "hint" }));
 
-  return { frame: `\x1b[H${lines.join("\r\n")}\x1b[J`, scroll: nextScroll };
+  return { body: lines.join("\r\n"), scroll: nextScroll };
 }
 
 function bodyLines({
