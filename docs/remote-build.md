@@ -27,6 +27,8 @@ git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git ~/src
 
 Note the address you will put in `hostName`: the IP of the interface you want the copy to use, or the Mac's Bonjour name (`Name.local`). A Thunderbolt address uses the cable. A Wi-Fi address uses Wi-Fi. Either one is fine.
 
+When the two Macs are joined by a Thunderbolt cable, you can skip the address and set `connection: Thunderbolt Bridge` instead. A Thunderbolt Bridge address is self-assigned (`169.254.x.x`) and can change after a reboot or a re-plug. With `connection`, SSH looks the build Mac up on that link every time it connects: it pings the IPv6 all-nodes address on the bridge, and the one reply that isn't from this Mac is the build Mac. If no other machine answers, or more than one does, the connection fails with a message saying so.
+
 The build runs under `caffeinate`, so the build Mac stays awake while `chrome` compiles.
 
 ## On this Mac
@@ -40,7 +42,8 @@ The first run copies [configs/builder/remote.yaml.example](../configs/builder/re
 | Field            | Where     | Meaning                                                                                               |
 | ---------------- | --------- | ----------------------------------------------------------------------------------------------------- |
 | `host`           | SSH alias | Name the inspect list uses, as in `ssh builder`.                                                      |
-| `hostName`       | Build Mac | Its current IP, or a name such as `Mac-mini.local`.                                                   |
+| `hostName`       | Build Mac | Its current IP, or a name such as `Mac-mini.local`. Set this or `connection`.                         |
+| `connection`     | This Mac  | Port name (`Thunderbolt Bridge`) or device (`bridge0`) that links only the two Macs.                  |
 | `user`           | Build Mac | Output of `whoami` there. The example value `your-user` is rejected until you replace it.             |
 | `source`         | Build Mac | Absolute path of the Chromium `src/` checkout.                                                        |
 | `depotTools`     | Build Mac | Absolute path of `depot_tools`, wherever it is cloned. The directory that contains `autoninja`.       |
@@ -63,6 +66,8 @@ ssh builder
 ```
 
 `ssh builder` should open a shell on the build Mac with no password. The build refuses a password prompt.
+
+With `connection`, the Host block has a `ProxyCommand` (`src/builder/peer/peer-proxy.ts`) instead of a `HostName`, and `known_hosts` stores the build Mac's key under the alias (`builder`), not under an IP. After you switch from `hostName` to `connection`, run `ssh builder` once by hand and accept the key. Builds run SSH in batch mode, which cannot answer that prompt.
 
 ## Each run
 

@@ -6,6 +6,7 @@ import { builderConfig } from "../inspect/build/builder-config";
 import { REMOTE_BUILD_EXAMPLE } from "../paths";
 import { installSshInclude } from "./install-ssh";
 import { parseRemoteBuildFile } from "./remote-file";
+import { renderSshConfig } from "./ssh";
 
 const sample = `# build Mac
 host: builder
@@ -70,12 +71,12 @@ test("installSshInclude writes the fragment and adds the Include once", () => {
   const fragmentPath = join(directory, "ssh_config");
   const userSshConfigPath = join(directory, "config");
   writeFileSync(userSshConfigPath, "Host *\n  ForwardAgent no\n");
-  const file = parseRemoteBuildFile(sample);
+  const fragment = renderSshConfig({ file: parseRemoteBuildFile(sample) });
 
   try {
-    const first = installSshInclude({ file, fragmentPath, userSshConfigPath });
+    const first = installSshInclude({ fragment, fragmentPath, userSshConfigPath });
     const text = readFileSync(userSshConfigPath, "utf8");
-    const second = installSshInclude({ file, fragmentPath, userSshConfigPath });
+    const second = installSshInclude({ fragment, fragmentPath, userSshConfigPath });
 
     expect(first.addedInclude).toBe(true);
     expect(second.addedInclude).toBe(false);

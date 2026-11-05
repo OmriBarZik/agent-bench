@@ -1,5 +1,4 @@
-import type { RemoteBuildFile } from "./remote-file.types";
-import type { SshIncludeUpdate } from "./ssh.types";
+import type { SshHost, SshIncludeUpdate } from "./ssh.types";
 
 /** Options every SSH and rsync call to the build Mac uses. No password prompt, and a dead cable fails quickly. */
 export const SSH_OPTIONS = ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10"];
@@ -12,9 +11,20 @@ export function sshCommand({ host, remoteArgs }: { host: string; remoteArgs: str
   return ["ssh", ...SSH_OPTIONS, host, ...remoteArgs];
 }
 
-/** The fragment ~/.ssh/config includes. One Host block, nothing else. */
-export function renderSshConfig(file: RemoteBuildFile): string {
-  const lines = [`Host ${file.host}`, `  HostName ${file.hostName}`, `  User ${file.user}`];
+/**
+ * The fragment ~/.ssh/config includes. One Host block, nothing else.
+ * With `proxyCommand`, ssh reaches the host through it and keys known_hosts on the alias.
+ */
+export function renderSshConfig({ file, proxyCommand }: SshHost): string {
+  const lines = [`Host ${file.host}`];
+
+  if (proxyCommand) {
+    lines.push(`  ProxyCommand ${proxyCommand}`);
+  } else {
+    lines.push(`  HostName ${file.hostName}`);
+  }
+
+  lines.push(`  User ${file.user}`);
 
   if (file.identityFile) {
     lines.push(`  IdentityFile ${file.identityFile}`);

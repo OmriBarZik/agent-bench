@@ -2,6 +2,7 @@ import type { RemoteBuildFile } from "./remote-file.types";
 
 const HOST = /^[\w.@:-]+$/;
 const ADDRESS = /^[A-Za-z0-9.:-]+$/;
+const CONNECTION = /^[\w .-]+$/;
 const PLACEHOLDER_USER = "your-user";
 const FILE = "configs/builder/remote.yaml";
 
@@ -21,12 +22,17 @@ export function parseRemoteBuildFile(raw: string): RemoteBuildFile {
 
   const record = parsed as Record<string, unknown>;
   const host = requiredToken({ record, key: "host", pattern: HOST });
-  const hostName = requiredToken({ record, key: "hostName", pattern: ADDRESS });
+  const hostName = optionalMatching({ record, key: "hostName", pattern: ADDRESS });
+  const connection = optionalMatching({ record, key: "connection", pattern: CONNECTION });
   const user = requiredToken({ record, key: "user", pattern: HOST });
   const source = requiredPath({ record, key: "source" });
   const identityFile = optionalToken({ record, key: "identityFile" });
   const buildDirectory = optionalPath({ record, key: "buildDirectory" });
   const depotTools = requiredPath({ record, key: "depotTools" });
+
+  if ((hostName == null) === (connection == null)) {
+    throw new Error(`${FILE} needs exactly one of hostName (an address) or connection (such as Thunderbolt Bridge)`);
+  }
 
   if (user === PLACEHOLDER_USER) {
     throw new Error(`${FILE} still has the example user; put the build Mac's account there`);
@@ -36,7 +42,7 @@ export function parseRemoteBuildFile(raw: string): RemoteBuildFile {
     throw new Error("identityFile must be an absolute path or start with ~/");
   }
 
-  return { host, hostName, user, source, identityFile, buildDirectory, depotTools };
+  return { host, hostName, connection, user, source, identityFile, buildDirectory, depotTools };
 }
 
 function requiredToken({
@@ -52,6 +58,28 @@ function requiredToken({
 
   if (value == null || value === "") {
     throw new Error(`${FILE} needs a ${key}`);
+  }
+
+  if (!pattern.test(value)) {
+    throw new Error(`${FILE} ${key} has characters that cannot go in SSH config`);
+  }
+
+  return value;
+}
+
+function optionalMatching({
+  record,
+  key,
+  pattern,
+}: {
+  record: Record<string, unknown>;
+  key: string;
+  pattern: RegExp;
+}): string | undefined {
+  const value = stringField({ record, key });
+
+  if (value == null || value === "") {
+    return undefined;
   }
 
   if (!pattern.test(value)) {
