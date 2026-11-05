@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { BENCH_DIR } from "../../paths";
 import { checkoutBranch, hasUncommittedChanges } from "../../runner/chromium/chromium";
@@ -8,6 +8,8 @@ import { buildTitle } from "../../terminal/title-text";
 import type { BuildStep } from "../../terminal/title-text.types";
 import type { RunChoice } from "../list/select-state.types";
 import { failureNotice, runStep, waitForReturn } from "./build-process";
+import { extendPathForCcache, prepareCcacheScript } from "./ccache";
+import { openBuildWatch } from "./record/record-build";
 
 const BUILDER_ARGS = join(BENCH_DIR, "configs/builder/args.gn");
 
@@ -23,8 +25,11 @@ export async function presentLocalBuild({
   force: boolean;
   signal: AbortSignal;
 }): Promise<string> {
+  const watch = openBuildWatch({ choice, target: "local", host: "local" });
+
   try {
     const built = await buildLocally({ choice, chromiumSrc, force, signal });
+    watch.passed();
     showStep({ choice, step: "built" });
     console.log(`\n${built}`);
     await waitForReturn(signal);
@@ -32,6 +37,7 @@ export async function presentLocalBuild({
     return built;
   } catch (error) {
     const notice = failureNotice({ error, signal });
+    watch.failed({ signal, notice });
     showStep({ choice, step: "failed" });
     console.error(`\n${notice}`);
 
@@ -63,14 +69,28 @@ async function buildLocally({
   console.log("Ctrl-C cancels and returns to the list.");
   showStep({ choice, step: "checkout" });
   await checkOutRun({ choice, chromiumSrc, force });
-  await ensureBuildArgs({ chromiumSrc, signal });
+  const commandPath = extendPathForCcache(process.env.PATH ?? "");
 
-  if (Bun.which("autoninja") == null) {
+  if (Bun.which("autoninja", { PATH: commandPath }) == null) {
     throw new Error("autoninja is not on PATH. Install depot_tools on this Mac and start inspect from that shell.");
   }
 
   showStep({ choice, step: "build" });
-  await runStep({ command: localBuildCommand(), signal, label: "build", cwd: chromiumSrc });
+  await runStep({
+    command: ["bash", "-c", prepareCcacheScript()],
+    signal,
+    label: "ccache",
+    cwd: chromiumSrc,
+    env: { PATH: commandPath },
+  });
+  await ensureBuildArgs({ chromiumSrc, signal, commandPath });
+  await runStep({
+    command: localBuildCommand(),
+    signal,
+    label: "build",
+    cwd: chromiumSrc,
+    env: { PATH: commandPath },
+  });
   const app = join(chromiumSrc, "out/Default/Chromium.app");
 
   if (!existsSync(app)) {
@@ -96,29 +116,51 @@ async function checkOutRun({ choice, chromiumSrc, force }: { choice: RunChoice; 
   await checkoutBranch({ branch: choice.branch, force, repo: chromiumSrc });
 }
 
-async function ensureBuildArgs({ chromiumSrc, signal }: { chromiumSrc: string; signal: AbortSignal }) {
-  const argsPath = join(chromiumSrc, "out/Default/args.gn");
-
-  if (existsSync(argsPath)) {
-    return;
-  }
-
+async function ensureBuildArgs({
+  chromiumSrc,
+  signal,
+  commandPath,
+}: {
+  chromiumSrc: string;
+  signal: AbortSignal;
+  commandPath: string;
+}) {
   const argsGn = await Bun.file(BUILDER_ARGS).text();
 
   if (argsGn.trim() === "") {
     throw new Error(`write the build args in ${BUILDER_ARGS}`);
   }
 
-  if (Bun.which("gn") == null) {
+  const desired = argsGn.endsWith("\n") ? argsGn : `${argsGn}\n`;
+  const argsPath = join(chromiumSrc, "out/Default/args.gn");
+  const current = existsSync(argsPath) ? await Bun.file(argsPath).text() : "";
+
+  if (current === desired) {
+    return;
+  }
+
+  if (Bun.which("gn", { PATH: commandPath }) == null) {
     throw new Error("gn is not on PATH. Install depot_tools on this Mac and start inspect from that shell.");
   }
 
   await mkdir(join(chromiumSrc, "out/Default"), { recursive: true });
-  await Bun.write(argsPath, argsGn.endsWith("\n") ? argsGn : `${argsGn}\n`);
-  await runStep({
-    command: ["gn", "gen", "out/Default"],
-    signal,
-    label: "gn gen",
-    cwd: chromiumSrc,
-  });
+  await Bun.write(argsPath, desired);
+
+  try {
+    await runStep({
+      command: ["gn", "gen", "out/Default"],
+      signal,
+      label: "gn gen",
+      cwd: chromiumSrc,
+      env: { PATH: commandPath },
+    });
+  } catch (error) {
+    if (current === "") {
+      await rm(argsPath, { force: true });
+    } else {
+      await Bun.write(argsPath, current);
+    }
+
+    throw error;
+  }
 }

@@ -1,4 +1,5 @@
 import { RSYNC_SSH, sshCommand } from "../../builder/ssh";
+import { prepareCcacheScript } from "../build/ccache";
 import type { SubmoduleCommit } from "../gitlink/gitlink-diff.types";
 
 /** `git submodule foreach` body. Checks out the gitlink at HEAD and does not touch ignored build output. */
@@ -35,13 +36,30 @@ cd "$source_dir"
 git switch --quiet --force "$branch"
 ${checkouts}
 ${SYNC_SUBMODULES}
-if [ ! -f out/Default/args.gn ]; then
-  mkdir -p out/Default
-  cat > out/Default/args.gn << 'END_ARGS'
+${prepareCcacheScript()}mkdir -p out/Default
+desired_args=$(mktemp)
+previous_args=$(mktemp)
+cat > "$desired_args" << 'END_ARGS'
 ${argsGn.trim()}
 END_ARGS
-  gn gen out/Default
+had_args=0
+if [ -f out/Default/args.gn ]; then
+  cp out/Default/args.gn "$previous_args"
+  had_args=1
 fi
+if [ ! -f out/Default/args.gn ] || ! cmp -s out/Default/args.gn "$desired_args"; then
+  cp "$desired_args" out/Default/args.gn
+  if ! gn gen out/Default; then
+    if [ "$had_args" -eq 1 ]; then
+      cp "$previous_args" out/Default/args.gn
+    else
+      rm -f out/Default/args.gn
+    fi
+    rm -f "$desired_args" "$previous_args"
+    exit 1
+  fi
+fi
+rm -f "$desired_args" "$previous_args"
 autoninja -C out/Default chrome
 `;
 }

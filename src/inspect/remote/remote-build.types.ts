@@ -8,6 +8,8 @@ export type RunStep = {
   stdin?: string;
   /** Working directory. Omitted keeps the inspect process's directory. */
   cwd?: string;
+  /** Environment variables merged over the inspect process's environment. */
+  env?: Record<string, string>;
 };
 
 /** What the run list shows after a remote build finishes or is cancelled. */

@@ -3,7 +3,7 @@ import { RELEASE_PROGRESS } from "../list/restore-list";
 import type { RunStep } from "../remote/remote-build.types";
 
 /** Runs one local command. Ctrl-C rejects with `build cancelled`. */
-export async function runStep({ command, signal, label, stdin, cwd }: RunStep): Promise<void> {
+export async function runStep({ command, signal, label, stdin, cwd, env }: RunStep): Promise<void> {
   if (signal.aborted) {
     throw new Error("build cancelled");
   }
@@ -18,7 +18,7 @@ export async function runStep({ command, signal, label, stdin, cwd }: RunStep): 
       signal,
       cwd,
       // A password prompt cannot be answered here, so SSH must fail instead of waiting.
-      env: { ...process.env, GIT_SSH_COMMAND: "ssh -o BatchMode=yes -o ConnectTimeout=10" },
+      env: { ...process.env, GIT_SSH_COMMAND: "ssh -o BatchMode=yes -o ConnectTimeout=10", ...env },
     });
   } catch (error) {
     if (signal.aborted) {
