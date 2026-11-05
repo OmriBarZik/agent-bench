@@ -26,14 +26,14 @@ Put `benchmark-tasks.json` and `benchmark-setup.json` in `configs/` (shapes in [
 bun run start                                 # on a terminal: pick tasks, configs, repeats in a TUI, enter starts
 bun run start --cli                           # every task × config, no picker
 bun run start --only-task t1,t2 --repeats 3   # flags skip the picker (add -i to open it with these preset)
-bun run start:inspect                         # list runs; enter opens the transcript, ctrl-b then l or r builds it here or on the other Mac, ctrl-f sets the judge decision, ctrl-x twice removes the run, tab checks out the branch
+bun run start:inspect                         # list runs; enter opens an action menu, ctrl-o opens the transcript, ctrl-b then l or r builds it here or on the other Mac, ctrl-f sets the judge decision, ctrl-x twice removes the run, tab checks out the branch
 bun run start:inspect <branch>                # check out that run's branch
 bun run start:dashboard                       # view results in Grafana at http://localhost:3000
 ```
 
 > ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`), including checked-out submodules. The runner refuses to start if tracked files are modified, unless you pass `--force` or answer yes when asked to delete those changes.
 >
-> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends, including files inside submodules. `bun run start:inspect` lists those runs from the database. Enter opens the run's transcript in the browser. Ctrl-b asks where to build: `l` builds chrome in `chromium/src`, and `r` checks the build Mac, builds that branch, and copies the app back. Ctrl-f opens the four judge decisions (`failed`, `partially-failed`, `partially-pass`, `pass`); 1–4 or enter sets the highlighted one. Tab checks the branch out in `chromium/src` without building. Ignored build output is left in place. `bun run start:inspect --force` discards uncommitted tracked changes that block the switch.
+> Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends, including files inside submodules. `bun run start:inspect` lists those runs from the database. Enter opens a menu of everything you can do to the highlighted run, with submenus for building and removing, so you can do it all with arrows and enter; ← or esc goes back. The shortcuts below do the same things directly. Ctrl-o opens the run's transcript in the browser. Ctrl-b asks where to build: `l` builds chrome in `chromium/src`, and `r` checks the build Mac, builds that branch, and copies the app back. Ctrl-f opens the four judge decisions (`failed`, `partially-failed`, `partially-pass`, `pass`); 1–4 or enter sets the highlighted one. Tab checks the branch out in `chromium/src` without building. Ignored build output is left in place. `bun run start:inspect --force` discards uncommitted tracked changes that block the switch.
 
 | Flag                  | Default                        | Description                                               |
 | --------------------- | ------------------------------ | --------------------------------------------------------- |

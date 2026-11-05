@@ -14,7 +14,10 @@ export function buildTarget(key: string): "local" | "remote" | null {
   return null;
 }
 
-/** Applies one keypress. Letters always filter, including q; ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision, and ctrl-x deletes. */
+/**
+ * Applies one keypress. Letters always filter, including q. Enter opens the action menu, ctrl-o opens the run transcript,
+ * ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision, and ctrl-x deletes.
+ */
 export function applyKey({
   state,
   key,
@@ -31,6 +34,10 @@ export function applyKey({
   }
 
   if (key === "\r" || key === "\n") {
+    return { state, action: matchCount === 0 ? "stay" : "menu" };
+  }
+
+  if (key === "\x0f") {
     return { state, action: matchCount === 0 ? "stay" : "transcript" };
   }
 

@@ -14,13 +14,15 @@ test("arrow keys move the highlight and stop at the ends", () => {
   expect(stuck.state.selected).toBe(0);
 });
 
-test("enter opens the run, right arrow opens the judge, and tab checks out", () => {
-  const transcript = applyKey({ state: idle, key: "\r", matchCount: 2, pageSize: 5 });
+test("enter opens the menu, ctrl-o opens the run, right arrow opens the judge, and tab checks out", () => {
+  const menu = applyKey({ state: idle, key: "\r", matchCount: 2, pageSize: 5 });
+  const transcript = applyKey({ state: idle, key: "\x0f", matchCount: 2, pageSize: 5 });
   const judge = applyKey({ state: idle, key: "\x1b[C", matchCount: 2, pageSize: 5 });
   const checkout = applyKey({ state: idle, key: "\t", matchCount: 2, pageSize: 5 });
   const empty = applyKey({ state: idle, key: "\r", matchCount: 0, pageSize: 5 });
   const emptyJudge = applyKey({ state: idle, key: "\x1bOC", matchCount: 0, pageSize: 5 });
 
+  expect(menu.action).toBe("menu");
   expect(transcript.action).toBe("transcript");
   expect(judge.action).toBe("judge");
   expect(judge.state).toEqual(idle);

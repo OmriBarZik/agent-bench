@@ -5,6 +5,8 @@ import { applyDecisionKey, openDecisionDialog } from "../decision/decision-dialo
 import type { DecisionDialog } from "../decision/decision-dialog.types";
 import { setListedDecision } from "../decision/set-decision";
 import { deleteIntent, removeListedRun } from "../delete/delete-run";
+import { applyMenuKey, backMenu, openActionMenu } from "../menu/action-menu";
+import type { ActionMenu, MenuCommand } from "../menu/action-menu.types";
 import { presentBuild } from "../remote/remote-build";
 import { frameLayout, renderFrame } from "../render/render-frame";
 import { openTranscript } from "../transcript/open-transcript";
@@ -16,8 +18,9 @@ const ENTER_SCREEN = "\x1b[?1049h\x1b[?25l";
 const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 
 /**
- * Full-screen list of runs. Enter opens that run's transcript in the browser and stays here.
- * Right arrow opens the judge session the same way.
+ * Full-screen list of runs. Enter opens a menu of everything the list can do to the highlighted run,
+ * with submenus for building and removing, so no shortcut needs remembering. ← or esc steps back out of it.
+ * Ctrl-o opens that run's transcript in the browser and stays here. Right arrow opens the judge session the same way.
  * Ctrl-b asks where to build the highlighted run: l on this Mac, r on the build Mac.
  * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
@@ -78,6 +81,7 @@ function waitForChoice({
     let notice = "";
     let armedRunId: string | null = null;
     let decisionDialog: DecisionDialog | null = null;
+    let actionMenu: ActionMenu | null = null;
     let settled = false;
     let opening = false;
     let cancelBuild: (() => void) | null = null;
@@ -103,7 +107,9 @@ function waitForChoice({
     const paint = () => {
       const rows = process.stdout.rows ?? 24;
       const columns = process.stdout.columns ?? 80;
-      process.stdout.write(renderFrame({ choices, state, chromiumSrc, notice, decisionDialog, rows, columns }));
+      process.stdout.write(
+        renderFrame({ choices, state, chromiumSrc, notice, decisionDialog, actionMenu, rows, columns }),
+      );
     };
 
     const revealTranscript = ({ transcriptPath, label }: { transcriptPath: string; label: string }) => {
@@ -171,12 +177,25 @@ function waitForChoice({
           return;
         }
 
+        if (actionMenu) {
+          actionMenu = backMenu(actionMenu);
+          paint();
+
+          return;
+        }
+
         escapeTimer = setTimeout(() => finish(null), 50);
 
         return;
       }
 
       for (const key of keyParts(input)) {
+        if (key === "\x03") {
+          finish(null);
+
+          return;
+        }
+
         if (decisionDialog) {
           const outcome = applyDecisionKey({ dialog: decisionDialog, key });
 
@@ -187,10 +206,33 @@ function waitForChoice({
 
           const runId = decisionDialog.runId;
           decisionDialog = null;
+          actionMenu = null;
           const chosen = choices.find((choice) => choice.runId === runId);
 
           if (chosen) {
             notice = setListedDecision({ chosen, decision: outcome.decision });
+          }
+
+          break;
+        }
+
+        if (actionMenu) {
+          const menu = actionMenu;
+          const menuChoice = choices.find((choice) => choice.runId === menu.runId);
+          const outcome = menuChoice ? applyMenuKey({ menu, key, choice: menuChoice }) : { kind: "close" as const };
+
+          if (outcome.kind === "stay") {
+            actionMenu = outcome.menu;
+            break;
+          }
+
+          if (outcome.kind === "close") {
+            actionMenu = null;
+            break;
+          }
+
+          if (runMenuCommand(outcome.command)) {
+            return;
           }
 
           break;
@@ -232,17 +274,24 @@ function waitForChoice({
           return;
         }
 
-        if (result.action === "checkout") {
-          const chosen = matchingChoices({ choices, query: state.query })[state.selected];
+        if (result.action === "menu") {
+          armedRunId = null;
+          const chosen = highlighted();
 
-          if (!chosen || !chosen.present) {
-            notice = chosen ? `branch ${chosen.branch} is not in ${chromiumSrc}` : "";
-            break;
+          if (chosen) {
+            actionMenu = openActionMenu(chosen.runId);
+            notice = "";
           }
 
-          finish(chosen);
+          break;
+        }
 
-          return;
+        if (result.action === "checkout") {
+          if (checkoutHighlighted()) {
+            return;
+          }
+
+          break;
         }
 
         if (result.action === "transcript" || result.action === "judge") {
@@ -281,9 +330,7 @@ function waitForChoice({
           armedRunId = intent.armedRunId;
 
           if (intent.remove && chosen) {
-            notice = removeListedRun({ choices, chosen });
-            const matchCount = matchingChoices({ choices, query: state.query }).length;
-            state = clampSelection({ state, matchCount, pageSize });
+            removeHighlighted();
           } else {
             notice = chosen ? "press ^X again to remove this run from the database" : "";
           }
@@ -299,6 +346,69 @@ function waitForChoice({
       if (!settled) {
         paint();
       }
+    };
+
+    /** Runs what the Enter menu chose. Returns true when the list left the screen or resolved. */
+    const runMenuCommand = (command: MenuCommand): boolean => {
+      if (command === "decide") {
+        const chosen = highlighted();
+
+        // The menu stays under the dialog, so esc from the dialog lands back on the menu.
+        if (chosen) {
+          decisionDialog = openDecisionDialog({ runId: chosen.runId, decision: chosen.decision });
+        }
+
+        return false;
+      }
+
+      actionMenu = null;
+
+      if (command === "transcript" || command === "judge") {
+        return openChosen(command);
+      }
+
+      if (command === "build-local") {
+        return beginLocal();
+      }
+
+      if (command === "build-remote") {
+        return beginRemote();
+      }
+
+      if (command === "checkout") {
+        return checkoutHighlighted();
+      }
+
+      removeHighlighted();
+
+      return false;
+    };
+
+    const checkoutHighlighted = (): boolean => {
+      const chosen = highlighted();
+
+      if (!chosen || !chosen.present) {
+        notice = chosen ? `branch ${chosen.branch} is not in ${chromiumSrc}` : "";
+
+        return false;
+      }
+
+      finish(chosen);
+
+      return true;
+    };
+
+    const removeHighlighted = () => {
+      const chosen = highlighted();
+
+      if (!chosen) {
+        return;
+      }
+
+      notice = removeListedRun({ choices, chosen });
+      const pageSize = frameLayout(process.stdout.rows ?? 24).listHeight;
+      const matchCount = matchingChoices({ choices, query: state.query }).length;
+      state = clampSelection({ state, matchCount, pageSize });
     };
 
     const onResize = () => {

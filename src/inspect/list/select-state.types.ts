@@ -20,7 +20,8 @@ export type SelectState = {
 };
 
 /** What the run list should do after one keypress. */
-export type SelectAction = "stay" | "transcript" | "judge" | "checkout" | "build" | "decide" | "delete" | "quit";
+export type SelectAction =
+  "stay" | "menu" | "transcript" | "judge" | "checkout" | "build" | "decide" | "delete" | "quit";
 
 /** What one keypress did to the run list. */
 export type SelectResult = {
