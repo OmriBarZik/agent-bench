@@ -97,13 +97,27 @@ async function pressKey({ page, name, holdMs }: { page: CdpSession; name: string
 
   const event = { key: key.key, code: key.code, windowsVirtualKeyCode: key.keyCode, nativeVirtualKeyCode: key.keyCode };
   await page.send("Input.dispatchKeyEvent", { type: "keyDown", ...event, ...(key.text ? { text: key.text } : {}) });
+
+  if (key.text) {
+    await page.send("Input.dispatchKeyEvent", { type: "char", text: key.text, key: key.key });
+  }
+
   await Bun.sleep(Math.min(Math.max(holdMs, 0), 10_000));
   await page.send("Input.dispatchKeyEvent", { type: "keyUp", ...event });
 }
 
+/** Statements that `return` stay a function body. An expression, including a word like `data-return`, is returned. */
+export function evaluationBody(code: string): string {
+  if (/(^|[^-\w])return\b/.test(code)) {
+    return code;
+  }
+
+  return `return (${code});`;
+}
+
 /** Statements that `return` run inside an async function; anything else is evaluated as an expression. */
 async function evaluate({ page, code }: { page: CdpSession; code: string }): Promise<string> {
-  const body = /\breturn\b/.test(code) ? code : `return (${code});`;
+  const body = evaluationBody(code);
   const result = await page.send("Runtime.evaluate", {
     expression: `(async () => { ${body} })()`,
     awaitPromise: true,

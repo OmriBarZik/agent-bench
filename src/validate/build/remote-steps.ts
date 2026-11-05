@@ -3,6 +3,7 @@ import type { BuildStep } from "../../db/db.types";
 import type { BuilderConfig } from "../../inspect/build/builder-config.types";
 import { gitlinkCommitsBetween } from "../../inspect/gitlink/gitlink-commits";
 import type { SubmoduleCommit } from "../../inspect/gitlink/gitlink-diff.types";
+import { publishCopiedTree } from "../../inspect/remote/guard/publish-app";
 import { buildCommand, copyBackCommand, pushCommand, remoteBuildScript } from "../../inspect/remote/remote-build-plan";
 import { BENCH_DIR } from "../../paths";
 import { runCaptured } from "./captured-step";
@@ -98,7 +99,10 @@ export async function buildOnBuilder({
   });
 }
 
-/** Copies the runnable build (Chromium.app and its libraries) into `destination`. */
+/**
+ * Copies the runnable build into a staging directory, then swaps it into `destination`.
+ * A failed copy leaves the previous Chromium.app in place.
+ */
 export async function copyBack({
   builder,
   destination,
@@ -110,11 +114,15 @@ export async function copyBack({
   logPath: string;
   signal: AbortSignal;
 }) {
-  await step({
-    step: "copy",
-    command: copyBackCommand({ host: builder.host, source: builder.source, destination }),
-    logPath,
-    signal,
+  await publishCopiedTree({
+    destination,
+    copy: (staging) =>
+      step({
+        step: "copy",
+        command: copyBackCommand({ host: builder.host, source: builder.source, destination: staging }),
+        logPath,
+        signal,
+      }),
   });
 }
 

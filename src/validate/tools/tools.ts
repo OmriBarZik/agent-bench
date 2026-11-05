@@ -97,9 +97,9 @@ function describeOutcome({ job, outcome }: { job: BuildJob; outcome: BuildOutcom
     return failure(`${header} It was cancelled.`);
   }
 
-  return failure(
-    `${header} The ${outcome.failedStep} step failed:\n${outcome.error ?? ""}\nFull log: ${outcome.logPath}`,
-  );
+  const where = outcome.failedStep ? `The ${outcome.failedStep} step failed` : "It failed";
+
+  return failure(`${header} ${where}:\n${outcome.error ?? ""}\nFull log: ${outcome.logPath}`);
 }
 
 async function runChrome({ session, args }: { session: ToolSession; args: ToolArguments }): Promise<ToolResult> {

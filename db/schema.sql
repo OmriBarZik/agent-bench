@@ -154,3 +154,30 @@ SELECT run_id,
         ORDER BY b2.build_number DESC LIMIT 1)         AS last_build_status
 FROM builds
 GROUP BY run_id;
+
+-- Runs-tab builds and agent builds in one status vocabulary for the dashboard.
+-- An agent's ok is passed. abandoned means the session ended while the build was still running, so it counts as cancelled.
+CREATE VIEW IF NOT EXISTS build_activity AS
+SELECT run_id,
+       'runs-tab' AS source,
+       target,
+       host,
+       status,
+       started_at,
+       duration_ms,
+       error
+FROM chromium_builds
+UNION ALL
+SELECT run_id,
+       'agent' AS source,
+       'remote' AS target,
+       'build mac' AS host,
+       CASE status
+         WHEN 'ok' THEN 'passed'
+         WHEN 'abandoned' THEN 'cancelled'
+         ELSE status
+       END AS status,
+       started_at,
+       duration_ms,
+       error
+FROM builds;

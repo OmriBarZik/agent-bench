@@ -2,9 +2,13 @@ import type { McpServer, RpcError, RpcRequest, ToolArguments } from "./protocol.
 
 const DEFAULT_PROTOCOL = "2025-06-18";
 
+/** Tail of the stdout queue. Each reply waits until the previous line has been written. */
+let written: Promise<void> = Promise.resolve();
+
 /**
  * Serves MCP over stdio: one JSON-RPC message per line. Requests run concurrently, so a tool that waits
- * for a build does not hold up the others. Resolves when stdin closes (the client went away).
+ * for a build does not hold up the others. Replies are written one at a time, because a screenshot is
+ * larger than one atomic pipe write. Resolves when stdin closes (the client went away).
  */
 export async function serveStdio(server: McpServer) {
   const decoder = new TextDecoder();
@@ -32,7 +36,7 @@ async function handleLine({ server, line }: { server: McpServer; line: string })
   try {
     request = JSON.parse(line) as RpcRequest;
   } catch {
-    reply({ id: null, error: { code: -32700, message: "parse error" } });
+    await reply({ id: null, error: { code: -32700, message: "parse error" } });
 
     return;
   }
@@ -42,9 +46,12 @@ async function handleLine({ server, line }: { server: McpServer; line: string })
   }
 
   try {
-    reply({ id: request.id, result: await dispatch({ server, request }) });
+    await reply({ id: request.id, result: await dispatch({ server, request }) });
   } catch (error) {
-    reply({ id: request.id, error: { code: -32601, message: error instanceof Error ? error.message : String(error) } });
+    await reply({
+      id: request.id,
+      error: { code: -32601, message: error instanceof Error ? error.message : String(error) },
+    });
   }
 }
 
@@ -76,7 +83,36 @@ async function dispatch({ server, request }: { server: McpServer; request: RpcRe
   throw new Error(`method ${request.method} is not supported`);
 }
 
-function reply({ id, result, error }: { id: number | string | null; result?: unknown; error?: RpcError }) {
+function reply({
+  id,
+  result,
+  error,
+}: {
+  id: number | string | null;
+  result?: unknown;
+  error?: RpcError;
+}): Promise<void> {
   const message = error ? { jsonrpc: "2.0", id, error } : { jsonrpc: "2.0", id, result };
-  process.stdout.write(`${JSON.stringify(message)}\n`);
+  const line = `${JSON.stringify(message)}\n`;
+  const next = written.then(() => writeLine(line));
+  written = next.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  return next;
+}
+
+function writeLine(line: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    process.stdout.write(line, (error) => {
+      if (error) {
+        reject(error);
+
+        return;
+      }
+
+      resolve();
+    });
+  });
 }

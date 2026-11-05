@@ -39,8 +39,7 @@ export async function launchChrome(check: ChromeCheck): Promise<LaunchedChrome> 
   };
 
   try {
-    const port = await devToolsPort({ profile, exited: browser.exited });
-    const pageUrl = await firstPage(port);
+    const pageUrl = await devToolsPage({ profile, exited: browser.exited });
 
     return { pageUrl, stop, stderrTail: () => stderrLines.join("\n") };
   } catch (error) {
@@ -51,8 +50,11 @@ export async function launchChrome(check: ChromeCheck): Promise<LaunchedChrome> 
   }
 }
 
-/** Chromium writes the port it picked to DevToolsActivePort in the profile. */
-async function devToolsPort({ profile, exited }: { profile: string; exited: Promise<number> }): Promise<number> {
+/**
+ * Waits until Chromium has written its DevTools port and `/json/list` answers with a page.
+ * The port file appears before the HTTP server accepts connections, so a refused fetch is retried.
+ */
+async function devToolsPage({ profile, exited }: { profile: string; exited: Promise<number> }): Promise<string> {
   const file = join(profile, "DevToolsActivePort");
   const deadline = Date.now() + START_TIMEOUT_MS;
   let exitCode: number | null = null;
@@ -65,29 +67,51 @@ async function devToolsPort({ profile, exited }: { profile: string; exited: Prom
       throw new Error(`Chromium exited with code ${exitCode} before it opened DevTools`);
     }
 
-    if (existsSync(file)) {
-      const port = Number(readFileSync(file, "utf8").split("\n")[0]);
+    const port = readPort(file);
 
-      if (port > 0) {
-        return port;
+    if (port != null) {
+      const page = await pageUrl(port);
+
+      if (page) {
+        return page;
       }
     }
 
     await Bun.sleep(200);
   }
 
-  throw new Error("Chromium did not open its DevTools port within 30 seconds");
+  throw new Error("Chromium did not open a page within 30 seconds");
 }
 
-async function firstPage(port: number): Promise<string> {
-  const targets = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()) as DevToolsTarget[];
-  const page = targets.find((target) => target.type === "page" && target.webSocketDebuggerUrl);
-
-  if (!page?.webSocketDebuggerUrl) {
-    throw new Error("Chromium started without a page to drive");
+function readPort(file: string): number | null {
+  if (!existsSync(file)) {
+    return null;
   }
 
-  return page.webSocketDebuggerUrl;
+  const port = Number(readFileSync(file, "utf8").split("\n")[0]);
+
+  if (port > 0) {
+    return port;
+  }
+
+  return null;
+}
+
+async function pageUrl(port: number): Promise<string | null> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(1_000) });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const targets = (await response.json()) as DevToolsTarget[];
+    const page = targets.find((target) => target.type === "page" && target.webSocketDebuggerUrl);
+
+    return page?.webSocketDebuggerUrl ?? null;
+  } catch {
+    return null;
+  }
 }
 
 async function keepTail({ stream, lines }: { stream: ReadableStream<Uint8Array>; lines: string[] }) {

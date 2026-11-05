@@ -24,3 +24,7 @@ export const BRANCH_DENIAL =
 /** Shown to the agent when a Bash command would create or modify a file. */
 export const FILE_DENIAL =
   "Updating a file from the shell is denied. Use the Edit or Write tool, not redirection, tee, an in-place editor, patch, or a script that writes the file.";
+
+/** Shown to the agent when a Bash command would build Chromium on this machine. */
+export const BUILD_DENIAL =
+  "gn, ninja, autoninja, and siso are denied on this machine. Use the chrome-validate tools to build your change and check it in Chromium.";

@@ -1,6 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import type { BuildStep } from "../../db/db.types";
 import type { BuilderConfig } from "../../inspect/build/builder-config.types";
+import { withRemoteBuildLock } from "../../inspect/remote/guard/remote-build-lock";
 import { snapshotTree } from "../snapshot/snapshot";
 import type {
   BuildJob,
@@ -130,25 +132,48 @@ async function runSteps({
   const signal = job.controller.signal;
   const destination = appDirectory({ context, builder });
   let mark = Date.now();
-  const commits = await sendSnapshot({
-    builder,
-    chromiumSrc: context.chromiumSrc,
-    taskSha: context.taskSha,
-    snapshotSha: job.snapshotSha,
-    logPath,
-    signal,
-  });
-  times.sendMs = Date.now() - mark;
-  mark = Date.now();
-  await buildOnBuilder({ builder, snapshotSha: job.snapshotSha, commits, logPath, signal });
-  times.buildMs = Date.now() - mark;
-  mark = Date.now();
-  mkdirSync(destination, { recursive: true });
-  await copyBack({ builder, destination, logPath, signal });
-  times.copyMs = Date.now() - mark;
-  // Written last, so a stamp that names this build means its app is fully copied.
-  const stamp: BuildStamp = { build: job.number, snapshotSha: job.snapshotSha, finishedAt: new Date().toISOString() };
-  writeFileSync(join(destination, "bench-build.json"), `${JSON.stringify(stamp, null, 2)}\n`);
+  let step: BuildStep = "send";
+
+  try {
+    const commits = await sendSnapshot({
+      builder,
+      chromiumSrc: context.chromiumSrc,
+      taskSha: context.taskSha,
+      snapshotSha: job.snapshotSha,
+      logPath,
+      signal,
+    });
+    times.sendMs = Date.now() - mark;
+    await withRemoteBuildLock({
+      directory: builder.buildDirectory,
+      signal,
+      body: async () => {
+        step = "build";
+        mark = Date.now();
+        await buildOnBuilder({ builder, snapshotSha: job.snapshotSha, commits, logPath, signal });
+        times.buildMs = Date.now() - mark;
+        step = "copy";
+        mark = Date.now();
+        await copyBack({ builder, destination, logPath, signal });
+        times.copyMs = Date.now() - mark;
+        // Written last, so a stamp that names this build means its app is fully copied.
+        const stamp: BuildStamp = {
+          build: job.number,
+          snapshotSha: job.snapshotSha,
+          finishedAt: new Date().toISOString(),
+        };
+        writeFileSync(join(destination, "bench-build.json"), `${JSON.stringify(stamp, null, 2)}\n`);
+      },
+    });
+  } catch (error) {
+    if (error instanceof BuildStepError || signal.aborted) {
+      throw error;
+    }
+
+    const message = error instanceof Error ? error.message : String(error);
+
+    throw new BuildStepError({ step, excerpt: message });
+  }
 
   return join(destination, "Chromium.app");
 }
@@ -166,7 +191,7 @@ function failedOutcome({ error, job, logPath }: { error: unknown; job: BuildJob;
 
   const message = error instanceof Error ? error.message : String(error);
 
-  return { status: "failed", appPath: null, durationMs, failedStep: "send", error: message, logPath };
+  return { status: "failed", appPath: null, durationMs, failedStep: null, error: message, logPath };
 }
 
 function elapsed(job: BuildJob): number {

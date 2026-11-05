@@ -722,6 +722,11 @@ test("builds rows record every build, close open ones as abandoned, and roll up 
       first_ok_build: 2,
       last_build_status: "abandoned",
     });
+    const activity = db
+      .query(`SELECT status FROM build_activity WHERE run_id = $runId AND source = 'agent'`)
+      .all({ runId }) as { status: string }[];
+
+    expect(activity.map((row) => row.status).sort()).toEqual(["cancelled", "failed", "passed"]);
 
     deleteRun({ db, runId });
 
