@@ -25,7 +25,8 @@ const { values: args, positionals } = parseArgs({
  *   bun run start:inspect --force
  *
  * The list is the runs table: task, config, status, model, and changed files.
- * Enter runs `uvx claude-code-transcripts` on that run's transcript.jsonl and opens it
+ * Enter opens a menu of the actions below, with submenus for building and removing; ← or esc goes back.
+ * Ctrl-o runs `uvx claude-code-transcripts` on that run's transcript.jsonl and opens it
  * in the browser. Right arrow does the same for the judge session (judge-transcript.jsonl).
  * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.

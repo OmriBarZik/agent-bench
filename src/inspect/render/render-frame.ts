@@ -1,6 +1,8 @@
 import { decisionDialogLines } from "../decision/decision-dialog";
 import type { DecisionDialog } from "../decision/decision-dialog.types";
 import { matchingChoices } from "../list/select-state";
+import { actionMenuLines } from "../menu/menu-lines";
+import type { ActionMenu } from "../menu/action-menu.types";
 import type { RunChoice, SelectState } from "../list/select-state.types";
 import { detailLines } from "./detail-pane";
 import { choiceLabel } from "./format-run";
@@ -25,6 +27,7 @@ export function renderFrame({
   chromiumSrc,
   notice,
   decisionDialog,
+  actionMenu,
   rows,
   columns,
 }: {
@@ -33,6 +36,8 @@ export function renderFrame({
   chromiumSrc: string;
   notice: string;
   decisionDialog: DecisionDialog | null;
+  /** The Enter menu, drawn in the detail pane when no decision dialog is open. */
+  actionMenu?: ActionMenu | null;
   rows: number;
   columns: number;
 }): string {
@@ -46,14 +51,7 @@ export function renderFrame({
 
   lines.push(colorLine({ text: "", kind: "plain" }));
 
-  const pane = decisionDialog
-    ? decisionDialogLines({ dialog: decisionDialog, height: layout.detailHeight, columns })
-    : detailLines({
-        choice: matches[state.selected],
-        notice,
-        height: layout.detailHeight,
-        columns,
-      });
+  const pane = paneLines({ choices, matches, state, notice, decisionDialog, actionMenu, layout, columns });
 
   for (const line of pane) {
     lines.push(line);
@@ -66,6 +64,40 @@ export function renderFrame({
   }
 
   return `\x1b[H${visible.join("\n")}\x1b[J`;
+}
+
+function paneLines({
+  choices,
+  matches,
+  state,
+  notice,
+  decisionDialog,
+  actionMenu,
+  layout,
+  columns,
+}: {
+  choices: RunChoice[];
+  matches: RunChoice[];
+  state: SelectState;
+  notice: string;
+  decisionDialog: DecisionDialog | null;
+  actionMenu?: ActionMenu | null;
+  layout: FrameLayout;
+  columns: number;
+}): string[] {
+  const height = layout.detailHeight;
+
+  if (decisionDialog) {
+    return decisionDialogLines({ dialog: decisionDialog, height, columns });
+  }
+
+  const menuChoice = actionMenu ? choices.find((choice) => choice.runId === actionMenu.runId) : undefined;
+
+  if (actionMenu && menuChoice) {
+    return actionMenuLines({ menu: actionMenu, choice: menuChoice, height, columns });
+  }
+
+  return detailLines({ choice: matches[state.selected], notice, height, columns });
 }
 
 function listLine({
@@ -122,7 +154,8 @@ function headerLine({
 function hintLine({ state, columns }: { state: SelectState; columns: number }): string {
   const filter = state.query === "" ? "type to filter" : `filter: ${state.query}`;
   const text = fit({
-    text: `↑↓  enter  → judge  tab checkout  ^B build  ^F decide  ^X delete  ${filter}  esc quit`,
+    // The filter comes first so a narrow terminal cuts shortcuts, which the enter menu also lists, not the query.
+    text: `${filter}  enter menu  ^O run  → judge  tab checkout  ^B build  ^F decide  ^X delete  esc quit`,
     width: columns,
   });
 
