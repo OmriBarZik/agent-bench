@@ -28,6 +28,7 @@ test("renderFrame shows the run from the database and the files it changed", () 
   expect(frame).toContain("^B build");
   expect(frame).toContain("^F decide");
   expect(frame).toContain("^X delete");
+  expect(frame).toContain("^G checkout");
   expect(frame).toContain("chrome/foo.cc");
   expect(frame).toContain("/chromium/src");
 });
@@ -64,6 +65,20 @@ test("renderFrame says when the filter matches nothing", () => {
 
   expect(frame).toContain("no matching runs");
   expect(frame).toContain("filter: nope");
+});
+
+test("renderFrame says when the database has no runs", () => {
+  const frame = renderFrame({
+    choices: [],
+    state: { query: "", selected: 0, scroll: 0 },
+    chromiumSrc: "/chromium/src",
+    notice: "",
+    decisionDialog: null,
+    rows: 24,
+    columns: 80,
+  });
+
+  expect(frame).toContain("no runs in the database yet");
 });
 
 function choice(overrides: Partial<RunChoice> = {}): RunChoice {

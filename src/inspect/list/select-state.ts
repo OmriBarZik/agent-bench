@@ -1,8 +1,9 @@
+import type { BuildTarget } from "../build/build-session.types";
 import { verdictLabel } from "../render/format-run";
 import type { RunChoice, SelectResult, SelectState } from "./select-state.types";
 
 /** Where a Ctrl-B build runs once the list is asking. `l` is this Mac, `r` is the other Mac. */
-export function buildTarget(key: string): "local" | "remote" | null {
+export function buildTarget(key: string): BuildTarget | null {
   if (key === "l" || key === "L") {
     return "local";
   }
@@ -15,8 +16,9 @@ export function buildTarget(key: string): "local" | "remote" | null {
 }
 
 /**
- * Applies one keypress. Letters always filter, including q. Enter opens the action menu, ctrl-o opens the run transcript,
- * ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision, and ctrl-x deletes.
+ * Applies one keypress. Letters always filter, including q. Enter opens the action menu, ctrl-o opens the run
+ * transcript, ctrl-g checks the branch out, ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision,
+ * and ctrl-x deletes. Tab never arrives here: it switches tabs.
  */
 export function applyKey({
   state,
@@ -45,7 +47,7 @@ export function applyKey({
     return { state, action: matchCount === 0 ? "stay" : "judge" };
   }
 
-  if (key === "\t") {
+  if (key === "\x07") {
     return { state, action: matchCount === 0 ? "stay" : "checkout" };
   }
 

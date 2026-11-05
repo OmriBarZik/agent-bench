@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { parseArgs } from "node:util";
 import { openDb, upsertConfig, upsertTask } from "./db/db";
+import { checkOutNamedRun, checkOutRun } from "./inspect/checkout/checkout-run";
 import { CHROMIUM_SRC } from "./paths";
 import { toConfigRow } from "./runner/bench-config/bench-config";
 import { claudeVersion } from "./runner/claude/claude";
@@ -10,7 +11,7 @@ import { blockerAlert } from "./runner/judge/result/judge-blockers";
 import { judgementText } from "./runner/judge/result/judge-result";
 import { runOne } from "./runner/run-one/run-one";
 import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
-import { DEFAULT_CONFIGS_PATH, DEFAULT_TASKS_PATH, resolveRunPlan } from "./start/run-plan";
+import { DEFAULT_CONFIGS_PATH, DEFAULT_TASKS_PATH, resolveStart } from "./start/resolve-start";
 
 const { values: args } = parseArgs({
   options: {
@@ -23,8 +24,10 @@ const { values: args } = parseArgs({
     "judge-model": { type: "string", default: "claude-sonnet-5-5" },
     sync: { type: "boolean", default: false }, // run `gclient sync -D` after each checkout
     force: { type: "boolean", default: false }, // wipe uncommitted changes in src/ without asking
-    interactive: { type: "boolean", short: "i", default: false }, // open the picker even with selection flags
-    cli: { type: "boolean", default: false }, // never open the picker
+    interactive: { type: "boolean", short: "i", default: false }, // open the TUI even with selection flags
+    runs: { type: "boolean", default: false }, // open the TUI on the Runs tab
+    checkout: { type: "string" }, // check this run's branch out and exit, no TUI
+    cli: { type: "boolean", default: false }, // never open the TUI
   },
 });
 
@@ -33,13 +36,22 @@ const { values: args } = parseArgs({
  *
  *   bun run start [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
  *                     [--only-task id[,id]] [--only-config id[,id]] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
- *                     [--sync] [--force] [--interactive | --cli]
+ *                     [--sync] [--force] [--interactive | --runs | --cli]
+ *   bun run start --checkout <branch or run id> [--force]
  *
- * On a terminal with none of --only-task, --only-config, or --repeats, it opens a picker: check the tasks
- * and configs to run, set repeats, timeout, and sync, then enter starts (esc quits). It prints the
- * equivalent --cli command first. --interactive opens the picker with the flags as its starting values,
- * and --cli (or no terminal) skips it and runs exactly what the flags say. --only-task and --only-config
- * take comma-separated ids and may be repeated.
+ * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with two tabs;
+ * tab and shift-tab switch between them, and esc quits.
+ *   Start: check the tasks and configs to run, set repeats, timeout, and sync, then enter starts. It prints
+ *     the equivalent --cli command first.
+ *   Runs: the runs in the database. Enter opens a menu of every action below, with submenus; ← or esc goes back.
+ *     Ctrl-o opens the run transcript in the browser, right arrow the judge session.
+ *     Ctrl-b then l builds on this Mac, r on the build Mac in configs/builder/remote.yaml. Ctrl-f sets the judge
+ *     decision (1–4 or enter). Ctrl-x twice removes the run from the database; the branch and artifact files stay.
+ *     Ctrl-g checks the branch out in CHROMIUM_SRC and exits. Type to filter.
+ * --interactive opens the TUI with the flags as the Start tab's values, --runs opens it on the Runs tab
+ * (`bun run start:inspect`), and --cli (or no terminal) skips it and runs exactly what the flags say.
+ * --only-task and --only-config take comma-separated ids and may be repeated. --checkout skips the TUI
+ * and checks that run's branch out. Checking out or building refuses uncommitted tracked changes unless --force.
  *
  * Uncommitted tracked changes in the Chromium checkout block the run. On a terminal the runner
  * asks whether to delete them and continue. Answering no, or running without a terminal, exits
@@ -71,6 +83,40 @@ const { values: args } = parseArgs({
  * A second Ctrl+C exits immediately.
  */
 async function main() {
+  if (args.checkout) {
+    await checkOutNamedRun({ name: args.checkout, force: args.force });
+
+    return;
+  }
+
+  // The TUI opens before the Ctrl+C watcher, so Ctrl+C during a build in the Runs tab cancels only that build.
+  const decision = await resolveStart({
+    tasksPath: args.tasks,
+    configsPath: args.configs,
+    onlyTask: args["only-task"],
+    onlyConfig: args["only-config"],
+    repeats: args.repeats,
+    timeoutMin: args["timeout-min"],
+    sync: args.sync,
+    force: args.force,
+    interactive: args.interactive,
+    runs: args.runs,
+    cli: args.cli,
+  });
+
+  if (decision.kind === "quit") {
+    console.log("Nothing started.");
+
+    return;
+  }
+
+  if (decision.kind === "checkout") {
+    await checkOutRun({ choice: decision.choice, force: args.force });
+
+    return;
+  }
+
+  const plan = decision.plan;
   let db: ReturnType<typeof openDb> | undefined;
   const shutdown = watchForShutdown({
     onFirst: () => {
@@ -89,24 +135,6 @@ async function main() {
   let stopped = false;
 
   try {
-    const plan = await resolveRunPlan({
-      tasksPath: args.tasks,
-      configsPath: args.configs,
-      onlyTask: args["only-task"],
-      onlyConfig: args["only-config"],
-      repeats: args.repeats,
-      timeoutMin: args["timeout-min"],
-      sync: args.sync,
-      interactive: args.interactive,
-      cli: args.cli,
-    });
-
-    if (!plan) {
-      console.log("Nothing started.");
-
-      return;
-    }
-
     const { tasks, configs, repeats } = plan;
 
     if (shutdown.signal.aborted) {

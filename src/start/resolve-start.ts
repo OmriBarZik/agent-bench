@@ -3,9 +3,9 @@ import process from "node:process";
 import { BENCH_DIR } from "../paths";
 import { loadSelection } from "../runner/bench-config/bench-config";
 import { narrowSelection } from "../runner/bench-config/narrow-selection";
-import { pickMatrix } from "./picker/pick-matrix";
+import { openStartTui } from "./open-start-tui";
 import type { PickerResult } from "./picker/picker-state.types";
-import type { RunPlan, RunPlanFlags } from "./run-plan.types";
+import type { RunPlanFlags, StartDecision } from "./resolve-start.types";
 
 /** --tasks when it is not passed. */
 export const DEFAULT_TASKS_PATH = join(BENCH_DIR, "configs/benchmark-tasks.json");
@@ -13,55 +13,69 @@ export const DEFAULT_TASKS_PATH = join(BENCH_DIR, "configs/benchmark-tasks.json"
 export const DEFAULT_CONFIGS_PATH = join(BENCH_DIR, "configs/benchmark-setup.json");
 
 /**
- * Decides what `bun run start` runs. On a terminal with no --only-task, --only-config, or --repeats
- * (or with --interactive), it opens the picker and prints the equivalent command. Otherwise the flags decide.
- * Returns null when the picker is closed without starting.
+ * Decides what `bun run start` does. On a terminal with no --only-task, --only-config, or --repeats
+ * (or with --interactive or --runs), it opens the TUI: the Start tab runs a matrix and prints the equivalent
+ * command, and the Runs tab can check a run's branch out. Otherwise the flags decide the matrix.
  */
-export async function resolveRunPlan(flags: RunPlanFlags): Promise<RunPlan | null> {
+export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> {
   const onlyTasks = idList(flags.onlyTask);
   const onlyConfigs = idList(flags.onlyConfig);
   const repeats = positiveNumber({ value: flags.repeats ?? "1", flag: "--repeats" });
   const timeoutMin = positiveNumber({ value: flags.timeoutMin, flag: "--timeout-min" });
   const terminal = process.stdin.isTTY === true && process.stdout.isTTY === true;
+  const wantsTui = flags.interactive || flags.runs;
 
-  if (flags.interactive && !terminal) {
-    throw new Error("--interactive needs a terminal; pass --only-task / --only-config / --repeats instead");
+  if (wantsTui && flags.cli) {
+    throw new Error("--cli never opens the TUI; drop --interactive / --runs");
+  }
+
+  if (wantsTui && !terminal) {
+    throw new Error("--interactive and --runs need a terminal; pass --only-task / --only-config / --repeats instead");
   }
 
   const selectionFlagged = Boolean(onlyTasks || onlyConfigs || flags.repeats !== undefined);
-  const usePicker = !flags.cli && terminal && (flags.interactive || !selectionFlagged);
+  const useTui = !flags.cli && terminal && (wantsTui || !selectionFlagged);
 
-  if (!usePicker) {
+  if (!useTui) {
     const selection = await loadSelection({ ...flags, onlyTasks, onlyConfigs });
 
-    return { ...selection, repeats, timeoutMin, sync: flags.sync };
+    return { kind: "run", plan: { ...selection, repeats, timeoutMin, sync: flags.sync } };
   }
 
   const everything = await loadSelection({ tasksPath: flags.tasksPath, configsPath: flags.configsPath });
-  // Check the flagged ids against the files before the picker opens, so a typo fails early.
+  // Check the flagged ids against the files before the TUI opens, so a typo fails early.
   narrowSelection({ selection: everything, taskIds: onlyTasks, configIds: onlyConfigs });
-  const picked = await pickMatrix({
-    choices: {
-      tasks: everything.tasks.map((task) => ({
-        id: task.taskId,
-        detail: [task.title, task.difficulty ? `(${task.difficulty})` : ""].filter(Boolean).join(" "),
-      })),
-      configs: everything.configs.map((config) => ({
-        id: config.configId,
-        detail: [config.model, config.description].filter(Boolean).join("  "),
-      })),
-    },
+  const picked = await openStartTui({
+    selection: everything,
     defaults: { taskIds: onlyTasks, configIds: onlyConfigs, repeats, timeoutMin, sync: flags.sync },
+    initialTab: flags.runs ? "runs" : "start",
+    force: flags.force,
   });
 
   if (!picked) {
-    return null;
+    return { kind: "quit" };
   }
 
-  console.log(`Equivalent command: ${equivalentCommand({ picked, flags })}`);
-  const selection = narrowSelection({ selection: everything, taskIds: picked.taskIds, configIds: picked.configIds });
+  if (picked.kind === "checkout") {
+    return { kind: "checkout", choice: picked.choice };
+  }
 
-  return { ...selection, repeats: picked.repeats, timeoutMin: picked.timeoutMin, sync: picked.sync };
+  console.log(`Equivalent command: ${equivalentCommand({ picked: picked.picked, flags })}`);
+  const selection = narrowSelection({
+    selection: everything,
+    taskIds: picked.picked.taskIds,
+    configIds: picked.picked.configIds,
+  });
+
+  return {
+    kind: "run",
+    plan: {
+      ...selection,
+      repeats: picked.picked.repeats,
+      timeoutMin: picked.picked.timeoutMin,
+      sync: picked.picked.sync,
+    },
+  };
 }
 
 /** The non-interactive command line that runs the same matrix. */

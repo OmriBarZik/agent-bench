@@ -20,7 +20,7 @@ export function frameLayout(rows: number): FrameLayout {
   return { listHeight, detailHeight };
 }
 
-/** Draws the run list. The result includes cursor-hiding color codes. */
+/** Draws the run list as lines joined with `\r\n`, without cursor-home or clear codes; the TUI adds those. */
 export function renderFrame({
   choices,
   state,
@@ -43,10 +43,11 @@ export function renderFrame({
 }): string {
   const matches = matchingChoices({ choices, query: state.query });
   const layout = frameLayout(rows);
+  const emptyText = choices.length === 0 ? "no runs in the database yet" : "no matching runs";
   const lines: string[] = [headerLine({ choices, matches, chromiumSrc, columns }), hintLine({ state, columns })];
 
   for (let index = 0; index < layout.listHeight; index++) {
-    lines.push(listLine({ matches, state, index, columns }));
+    lines.push(listLine({ matches, emptyText, state, index, columns }));
   }
 
   lines.push(colorLine({ text: "", kind: "plain" }));
@@ -63,7 +64,7 @@ export function renderFrame({
     visible.push(colorLine({ text: "", kind: "plain" }));
   }
 
-  return `\x1b[H${visible.join("\n")}\x1b[J`;
+  return visible.join("\r\n");
 }
 
 function paneLines({
@@ -102,11 +103,13 @@ function paneLines({
 
 function listLine({
   matches,
+  emptyText,
   state,
   index,
   columns,
 }: {
   matches: RunChoice[];
+  emptyText: string;
   state: SelectState;
   index: number;
   columns: number;
@@ -114,7 +117,7 @@ function listLine({
   const choice = matches[state.scroll + index];
 
   if (!choice) {
-    const text = index === 0 && matches.length === 0 ? "  no matching runs" : "";
+    const text = index === 0 && matches.length === 0 ? `  ${emptyText}` : "";
 
     return colorLine({ text: fit({ text, width: columns }), kind: "plain" });
   }
@@ -155,7 +158,7 @@ function hintLine({ state, columns }: { state: SelectState; columns: number }): 
   const filter = state.query === "" ? "type to filter" : `filter: ${state.query}`;
   const text = fit({
     // The filter comes first so a narrow terminal cuts shortcuts, which the enter menu also lists, not the query.
-    text: `${filter}  enter menu  ^O run  → judge  tab checkout  ^B build  ^F decide  ^X delete  esc quit`,
+    text: `${filter}  enter menu  ^O run  → judge  ^G checkout  ^B build  ^F decide  ^X delete  esc quit`,
     width: columns,
   });
 

@@ -7,8 +7,9 @@ export type PickerLine = {
   row: number | null;
 };
 
-/** A painted picker screen, and the body scroll it was painted at so the next paint keeps the cursor still. */
+/** The painted picker lines, and the body scroll they were painted at so the next paint keeps the cursor still. */
 export type PickerFrame = {
-  frame: string;
+  /** The lines joined with `\r\n`, without cursor-home or clear codes; the TUI adds those around the tab bar. */
+  body: string;
   scroll: number;
 };

@@ -59,7 +59,7 @@ function actionItems(choice: RunChoice): MenuItem[] {
     },
     {
       label: "Check out branch and quit",
-      shortcut: "tab",
+      shortcut: "^G",
       unavailable: missingBranch,
       target: { kind: "command", command: "checkout" },
     },
