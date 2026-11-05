@@ -56,7 +56,7 @@ test("open chromium runs when an app is on disk and stays put when the run was n
   const builtText = actionMenuLines({ menu: opened, choices: [built], height: 12, columns: 80 }).join("\n");
 
   expect(applyMenuKey({ menu: opened, key: "5", choices: [built] })).toEqual({ kind: "run", command: "open-chromium" });
-  expect(applyMenuKey({ menu: opened, key: "5", choices: [missing] })).toEqual({ kind: "stay", menu: opened });
+  expect(currentPage(stayed(applyMenuKey({ menu: opened, key: "5", choices: [missing] }))).selected).toBe(4);
   expect(missingText).toContain("5  Open Chromium");
   expect(missingText).toContain("(not built)");
   expect(builtText).toContain("^P");

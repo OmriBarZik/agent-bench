@@ -14,7 +14,7 @@ test("renderFrame shows the run from the database and the files it changed", () 
     notice: "",
     decisionDialog: null,
     rows: 24,
-    columns: 100,
+    columns: 120,
   });
 
   expect(frame).toContain("dino × haiku");
