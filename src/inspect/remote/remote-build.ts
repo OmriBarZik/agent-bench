@@ -7,8 +7,9 @@ import { BENCH_DIR } from "../../paths";
 import { setTerminalTitle } from "../../terminal/terminal-title";
 import { buildTitle } from "../../terminal/title-text";
 import type { BuildStep } from "../../terminal/title-text.types";
-import { failureNotice, runStep, waitForReturn } from "../build/build-process";
+import { failureNotice, openChromiumCommand, runStep, waitForReturn } from "../build/build-process";
 import type { BuilderConfig } from "../build/builder-config.types";
+import { openBuildWatch } from "../build/record/record-build";
 import { gitlinkCommitsBetween } from "../gitlink/gitlink-commits";
 import type { SubmoduleCommit } from "../gitlink/gitlink-diff.types";
 import type { RunChoice } from "../list/select-state.types";
@@ -40,12 +41,15 @@ export async function presentBuild({
   chromiumSrc: string;
   signal: AbortSignal;
 }): Promise<string> {
+  const watch = openBuildWatch({ choice, target: "remote", host: config.host });
+
   try {
     showStep({ choice, config, step: "check" });
     console.log(`Checking ${config.host}…`);
     const problem = await validateRemote({ config, signal });
 
     if (problem) {
+      watch.failed({ signal, notice: problem });
       showStep({ choice, config, step: "failed" });
       console.error(`\n${problem}`);
       await waitForReturn(signal);
@@ -53,7 +57,8 @@ export async function presentBuild({
       return problem;
     }
 
-    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal });
+    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal, openApp: true });
+    watch.passed();
     showStep({ choice, config, step: "built" });
     console.log(`\n${built.notice}`);
     await waitForReturn(signal);
@@ -61,6 +66,7 @@ export async function presentBuild({
     return built.notice;
   } catch (error) {
     const notice = failureNotice({ error, signal });
+    watch.failed({ signal, notice });
     showStep({ choice, config, step: "failed" });
     console.error(`\n${notice}`);
 
@@ -72,17 +78,23 @@ export async function presentBuild({
   }
 }
 
-/** Sends the branch, builds chrome on the build Mac, copies Chromium.app back, and opens it. */
+/**
+ * Sends the branch, builds chrome on the build Mac, and copies Chromium.app back.
+ * Opens the app only when `openApp` is set, so a queue can leave it closed.
+ */
 export async function buildRemoteRun({
   choice,
   config,
   chromiumSrc,
   signal,
+  openApp,
 }: {
   choice: RunChoice;
   config: BuilderConfig;
   chromiumSrc: string;
   signal: AbortSignal;
+  /** When true, launch the copied app. A queue leaves this false. */
+  openApp: boolean;
 }): Promise<BuildResult> {
   const destination = join(config.buildDirectory, choice.runId);
   console.log(`Building ${choice.branch} on ${config.host}`);
@@ -151,7 +163,9 @@ export async function buildRemoteRun({
     throw new Error(`the build finished, but ${app} is missing`);
   }
 
-  await runStep({ command: ["open", app], signal, label: "open" });
+  if (openApp) {
+    await runStep({ command: openChromiumCommand(app), signal, label: "open" });
+  }
 
   return { notice: `built ${choice.branch} at ${destination}` };
 }

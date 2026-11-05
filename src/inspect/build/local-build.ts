@@ -7,7 +7,7 @@ import { setTerminalTitle } from "../../terminal/terminal-title";
 import { buildTitle } from "../../terminal/title-text";
 import type { BuildStep } from "../../terminal/title-text.types";
 import type { RunChoice } from "../list/select-state.types";
-import { failureNotice, runStep, waitForReturn } from "./build-process";
+import { failureNotice, openChromiumCommand, runStep, waitForReturn } from "./build-process";
 import { extendPathForCcache, prepareCcacheScript } from "./ccache";
 import { openBuildWatch } from "./record/record-build";
 
@@ -97,7 +97,7 @@ async function buildLocally({
     throw new Error(`the build finished, but ${app} is missing`);
   }
 
-  await runStep({ command: ["open", app], signal, label: "open" });
+  await runStep({ command: openChromiumCommand(app), signal, label: "open" });
 
   return `built ${choice.branch} at ${app}`;
 }

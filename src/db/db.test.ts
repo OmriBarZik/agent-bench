@@ -6,6 +6,7 @@ import { join } from "node:path";
 import {
   cancelRun,
   deleteRun,
+  finishChromiumBuild,
   finishRun,
   listRunBranches,
   listToolTrouble,
@@ -13,6 +14,7 @@ import {
   openDb,
   promptVersion,
   saveJudgeRun,
+  startChromiumBuild,
   startRun,
   taskChromiumSha,
   upsertConfig,
@@ -438,6 +440,52 @@ test("deleteRun removes the run, its judge, and its tool calls", () => {
     expect(db.query(`SELECT run_id FROM tool_calls WHERE run_id = $runId`).get({ runId })).toBeNull();
     expect(listRunBranches(db).map((row) => row.runId)).toEqual([keptId]);
     expect(db.query(`SELECT task_id FROM tasks WHERE task_id = $taskId`).get({ taskId: "dino" })).not.toBeNull();
+  } finally {
+    db.close();
+  }
+});
+
+test("a chromium build records how long it took and is removed with the run", () => {
+  const db = openDb(tempDb());
+
+  try {
+    upsertTask({
+      db,
+      task: { taskId: "dino", prompt: "do the thing", judgePrompt: "score it", chromiumSha: "abc" },
+    });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    const runId = "dino__haiku__r0";
+    startRun({
+      db,
+      run: {
+        runId,
+        taskId: "dino",
+        configId: "haiku",
+        repeat: 0,
+        promptVersion: "p1",
+        judgePromptVersion: "j1",
+        claudeVersion: "test",
+        model: "test",
+        branch: runId,
+      },
+    });
+    const id = startChromiumBuild({ db, build: { runId, target: "remote", host: "build-mac" } });
+    const building = db.query(`SELECT status, error FROM chromium_builds WHERE id = $id`).get({ id }) as {
+      status: string;
+      error: string | null;
+    };
+
+    expect(building).toEqual({ status: "building", error: null });
+    finishChromiumBuild({ db, build: { id, status: "failed", durationMs: 90_000, error: "build failed (1)" } });
+    const finished = db.query(`SELECT status, duration_ms, error FROM chromium_builds WHERE id = $id`).get({ id }) as {
+      status: string;
+      duration_ms: number;
+      error: string;
+    };
+
+    expect(finished).toEqual({ status: "failed", duration_ms: 90_000, error: "build failed (1)" });
+    deleteRun({ db, runId });
+    expect(db.query(`SELECT id FROM chromium_builds WHERE id = $id`).get({ id })).toBeNull();
   } finally {
     db.close();
   }

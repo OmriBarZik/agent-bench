@@ -91,6 +91,22 @@ CREATE TABLE IF NOT EXISTS tool_calls (
     ts           TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 
+-- One Chromium build started from the Runs tab, on this Mac or the build Mac.
+-- A queue writes one row per run. status stays 'building' until the build finishes,
+-- so a crash or a sleep still shows what was in progress the next morning.
+CREATE TABLE IF NOT EXISTS chromium_builds (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    run_id       TEXT NOT NULL REFERENCES runs,
+    target       TEXT NOT NULL,     -- local / remote
+    host         TEXT NOT NULL,     -- local, or the build Mac host
+    status       TEXT NOT NULL DEFAULT 'building',  -- building / passed / failed / cancelled
+    started_at   TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+    finished_at  TEXT,
+    duration_ms  INTEGER,
+    error        TEXT               -- why it failed or was cancelled; NULL when it passed
+);
+
+CREATE INDEX IF NOT EXISTS chromium_builds_started_idx ON chromium_builds (started_at);
 CREATE INDEX IF NOT EXISTS tool_calls_run_idx ON tool_calls (run_id);
 CREATE INDEX IF NOT EXISTS tool_calls_tool_use_idx ON tool_calls (tool_use_id, phase);
 CREATE INDEX IF NOT EXISTS runs_task_config_idx ON runs (task_id, config_id);

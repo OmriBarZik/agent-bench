@@ -78,12 +78,12 @@ bun run start:inspect
 
 Highlight a run and press Ctrl-B. The list asks where to build:
 
-- `l` checks the branch out in this Mac's Chromium tree and runs `autoninja -C out/Default chrome`. `autoninja` has to be on `PATH` in the shell that started the TUI. The build writes [configs/builder/args.gn](../configs/builder/args.gn) into `out/Default` when that file is missing or differs, then runs `gn gen`. Those args are Chromium's faster Mac build: a release component build, no symbols, Apple's linker (`use_lld = false`), and ccache. ccache has to be installed (`brew install ccache`). When its ceiling is below 50 GiB, the build raises it. The app opens from `out/Default/Chromium.app` in the checkout. Uncommitted tracked changes block the checkout unless the TUI was started with `--force`.
+- `l` checks the branch out in this Mac's Chromium tree and runs `autoninja -C out/Default chrome`. `autoninja` has to be on `PATH` in the shell that started the TUI. The build writes [configs/builder/args.gn](../configs/builder/args.gn) into `out/Default` when that file is missing or differs, then runs `gn gen`. Those args are Chromium's faster Mac build: a release component build, no symbols, Apple's linker (`use_lld = false`), and ccache. ccache has to be installed (`brew install ccache`). When its ceiling is below 50 GiB, the build raises it. The app opens from `out/Default/Chromium.app` in the checkout, with `--use-mock-keychain` and `--disable-features=DialMediaRouteProvider`. Uncommitted tracked changes block the checkout unless the TUI was started with `--force`.
 - `r` checks that the build Mac answers and that `source` is a git checkout, then:
 
   1. Sends the run branch, and any submodule commits that branch added.
   2. Checks that branch out on the build Mac and runs `autoninja -C out/Default chrome`.
-  3. Copies `Chromium.app` and the libraries beside it back to `buildDirectory/<run id>/` and opens the app.
+  3. Copies `Chromium.app` and the libraries beside it back to `buildDirectory/<run id>/` and opens the app with `--use-mock-keychain` and `--disable-features=DialMediaRouteProvider`. A queue copies each app back and leaves it closed.
 
 Object files stay on the build Mac. The build writes [configs/builder/args.gn](../configs/builder/args.gn) into `out/Default` when that file is missing or differs, then runs `gn gen`. Later builds reuse `out/`, so only the branch's changes compile. A non-interactive ssh session does not load Homebrew's PATH. When `ccache` is not already visible, the build appends `/opt/homebrew/bin` and `/usr/local/bin`.
 

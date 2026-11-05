@@ -2,6 +2,14 @@ import { createInterface } from "node:readline";
 import { RELEASE_PROGRESS } from "../list/restore-list";
 import type { RunStep } from "../remote/remote-build.types";
 
+/**
+ * Opens one Chromium.app. `--args` is how `open` forwards flags to the app:
+ * no keychain prompt, and no Cast device scan.
+ */
+export function openChromiumCommand(app: string): string[] {
+  return ["open", app, "--args", "--use-mock-keychain", "--disable-features=DialMediaRouteProvider"];
+}
+
 /** Runs one local command. Ctrl-C rejects with `build cancelled`. */
 export async function runStep({ command, signal, label, stdin, cwd, env }: RunStep): Promise<void> {
   if (signal.aborted) {

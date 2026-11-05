@@ -2,11 +2,22 @@ import { expect, test } from "bun:test";
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { openChromiumCommand } from "./build-process";
 import { extendPathForCcache, prepareCcacheScript } from "./ccache";
 import { localBuildCommand } from "./local-build";
 
 test("the local build runs chrome in this checkout", () => {
   expect(localBuildCommand()).toEqual(["caffeinate", "-s", "autoninja", "-C", "out/Default", "chrome"]);
+});
+
+test("opening Chromium skips the keychain prompt and Cast device scan", () => {
+  expect(openChromiumCommand("/builds/run/Chromium.app")).toEqual([
+    "open",
+    "/builds/run/Chromium.app",
+    "--args",
+    "--use-mock-keychain",
+    "--disable-features=DialMediaRouteProvider",
+  ]);
 });
 
 test("extendPathForCcache leaves a path that already contains ccache", () => {

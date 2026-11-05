@@ -2,6 +2,7 @@ import { setTerminalTitle } from "../../../terminal/terminal-title";
 import { buildTitle } from "../../../terminal/title-text";
 import { failureNotice, waitForReturn } from "../../build/build-process";
 import type { BuilderConfig } from "../../build/builder-config.types";
+import { openBuildWatch } from "../../build/record/record-build";
 import type { RunChoice } from "../../list/select-state.types";
 import { buildRemoteRun } from "../remote-build";
 import { validateRemote } from "../validate-remote";
@@ -32,6 +33,10 @@ export async function presentBuildQueue({
     const problem = await validateRemote({ config, signal });
 
     if (problem) {
+      for (const choice of choices) {
+        noteFailure({ choice, host: config.host, signal, notice: problem });
+      }
+
       console.error(`\n${problem}`);
       await waitForReturn(signal);
 
@@ -44,6 +49,10 @@ export async function presentBuildQueue({
       const choice = choices[index];
 
       if (!choice || signal.aborted) {
+        if (signal.aborted) {
+          noteRest({ choices: choices.slice(index), host: config.host, signal });
+        }
+
         break;
       }
 
@@ -99,24 +108,51 @@ async function oneInQueue({
   chromiumSrc: string;
   signal: AbortSignal;
 }): Promise<QueueOutcome> {
+  const watch = openBuildWatch({ choice, target: "remote", host: config.host });
+
   if (!choice.present) {
     const notice = `branch ${choice.branch} is not in ${chromiumSrc}`;
+    watch.failed({ signal, notice });
     console.error(notice);
 
     return { branch: choice.branch, built: false, notice };
   }
 
   try {
-    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal });
+    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal, openApp: false });
+    watch.passed();
     console.log(built.notice);
 
     return { branch: choice.branch, built: true, notice: built.notice };
   } catch (error) {
     const notice = failureNotice({ error, signal });
+    watch.failed({ signal, notice });
     console.error(notice);
 
     return { branch: choice.branch, built: false, notice };
   }
+}
+
+/** Records queue runs that never started compiling, such as a build Mac that could not be reached. */
+function noteRest({ choices, host, signal }: { choices: RunChoice[]; host: string; signal: AbortSignal }) {
+  for (const choice of choices) {
+    noteFailure({ choice, host, signal, notice: "build cancelled" });
+  }
+}
+
+/** Records one queue run that never started compiling. */
+function noteFailure({
+  choice,
+  host,
+  signal,
+  notice,
+}: {
+  choice: RunChoice;
+  host: string;
+  signal: AbortSignal;
+  notice: string;
+}) {
+  openBuildWatch({ choice, target: "remote", host }).failed({ signal, notice });
 }
 
 function showOutcome({

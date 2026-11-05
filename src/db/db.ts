@@ -4,6 +4,8 @@ import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import type {
   ChangedFile,
+  ChromiumBuildFinish,
+  ChromiumBuildStart,
   ClaudeResult,
   ClaudeUsage,
   Config,
@@ -513,11 +515,42 @@ export function logToolCall({ db, call }: { db: Database; call: ToolCall }) {
   });
 }
 
-/** Removes one run and the judge and tool-call rows that belong to it. The task and config rows stay. */
+/** Inserts a Chromium build as `building` and returns its id. The Runs tab finishes the row when chrome exits. */
+export function startChromiumBuild({ db, build }: { db: Database; build: ChromiumBuildStart }): number {
+  const row = db
+    .query(
+      `INSERT INTO chromium_builds (run_id, target, host)
+       VALUES ($runId, $target, $host)
+       RETURNING id`,
+    )
+    .get({ runId: build.runId, target: build.target, host: build.host }) as { id: number };
+
+  return row.id;
+}
+
+/** Closes a Chromium build with how long it took and whether it passed. */
+export function finishChromiumBuild({ db, build }: { db: Database; build: ChromiumBuildFinish }) {
+  db.query(
+    `UPDATE chromium_builds
+     SET status = $status,
+         finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+         duration_ms = $durationMs,
+         error = $error
+     WHERE id = $id`,
+  ).run({
+    id: build.id,
+    status: build.status,
+    durationMs: build.durationMs,
+    error: build.error,
+  });
+}
+
+/** Removes one run and the judge, tool-call, and build rows that belong to it. The task and config rows stay. */
 export function deleteRun({ db, runId }: { db: Database; runId: string }) {
   const remove = db.transaction(() => {
     db.query(`DELETE FROM tool_calls WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM judge_runs WHERE run_id = $runId`).run({ runId });
+    db.query(`DELETE FROM chromium_builds WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM runs WHERE run_id = $runId`).run({ runId });
   });
 
