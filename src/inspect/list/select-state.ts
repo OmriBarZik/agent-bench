@@ -16,20 +16,24 @@ export function buildTarget(key: string): BuildTarget | null {
 }
 
 /**
- * Applies one keypress. Letters always filter, including q. Enter opens the action menu, ctrl-o opens the run
- * transcript, ctrl-e the judge transcript, ctrl-g checks the branch out, ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision,
- * ctrl-x deletes, and ctrl-r reloads the runs from the database. Tab never arrives here: it switches tabs.
+ * Applies one keypress. Letters always filter, including q. Space checks the highlighted run for a multi action.
+ * Enter opens the action menu, ctrl-o opens the run transcript, ctrl-e the judge transcript, ctrl-g checks the branch out,
+ * ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision, ctrl-x deletes, and ctrl-r reloads the runs
+ * from the database. Tab never arrives here: it switches tabs.
  */
 export function applyKey({
   state,
   key,
   matchCount,
   pageSize,
+  highlightedRunId = null,
 }: {
   state: SelectState;
   key: string;
   matchCount: number;
   pageSize: number;
+  /** The highlighted run, so space can check it. Null when the list has no match. */
+  highlightedRunId?: string | null;
 }): SelectResult {
   if (key === "\x03") {
     return { state, action: "quit" };
@@ -67,12 +71,16 @@ export function applyKey({
     return { state, action: "refresh" };
   }
 
+  if (key === " ") {
+    return { state: toggleMarked({ state, runId: highlightedRunId }), action: "stay" };
+  }
+
   if (key === "\x7f" || key === "\b" || key === "\x1b[3~") {
-    return { state: { query: withoutLast(state.query), selected: 0, scroll: 0 }, action: "stay" };
+    return { state: { ...state, query: withoutLast(state.query), selected: 0, scroll: 0 }, action: "stay" };
   }
 
   if (key === "\x15") {
-    return { state: { query: "", selected: 0, scroll: 0 }, action: "stay" };
+    return { state: { ...state, query: "", selected: 0, scroll: 0 }, action: "stay" };
   }
 
   if (isUp(key)) {
@@ -100,7 +108,7 @@ export function applyKey({
   }
 
   if (isText(key)) {
-    return { state: { query: state.query + key, selected: 0, scroll: 0 }, action: "stay" };
+    return { state: { ...state, query: state.query + key, selected: 0, scroll: 0 }, action: "stay" };
   }
 
   return { state, action: "stay" };
@@ -138,7 +146,38 @@ export function clampSelection({
     scroll = 0;
   }
 
-  return { query: state.query, selected, scroll };
+  return { ...state, selected, scroll };
+}
+
+/**
+ * The runs Enter and a remote build act on.
+ * No checks means the highlighted run. Checks are kept in the order they were made, and two or more narrow the menu.
+ */
+export function actionRuns({
+  choices,
+  highlighted,
+  marked,
+}: {
+  choices: RunChoice[];
+  highlighted: RunChoice | undefined;
+  marked: string[];
+}): RunChoice[] {
+  if (marked.length === 0) {
+    return highlighted ? [highlighted] : [];
+  }
+
+  return runsInOrder({ choices, runIds: marked });
+}
+
+/** Runs in `runIds` order, skipping ids the list no longer has. */
+export function runsInOrder({ choices, runIds }: { choices: RunChoice[]; runIds: string[] }): RunChoice[] {
+  const byId = new Map(choices.map((choice) => [choice.runId, choice]));
+
+  return runIds.flatMap((runId) => {
+    const choice = byId.get(runId);
+
+    return choice ? [choice] : [];
+  });
 }
 
 /** Case-insensitive match on task, config, model, status, branch, title, and changed paths. */
@@ -150,6 +189,18 @@ export function matchingChoices({ choices, query }: { choices: RunChoice[]; quer
   }
 
   return choices.filter((choice) => haystack(choice).includes(needle));
+}
+
+function toggleMarked({ state, runId }: { state: SelectState; runId: string | null }): SelectState {
+  if (!runId) {
+    return state;
+  }
+
+  const marked = state.marked.includes(runId)
+    ? state.marked.filter((markedId) => markedId !== runId)
+    : [...state.marked, runId];
+
+  return { ...state, marked };
 }
 
 function move({ state, matchCount, delta }: { state: SelectState; matchCount: number; delta: number }): SelectResult {

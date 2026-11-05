@@ -2,9 +2,9 @@ import type { RunChoice } from "../list/select-state.types";
 import type { ActionMenu, MenuItem, MenuKeyResult, MenuPage } from "./action-menu.types";
 import { menuItems } from "./menu-items";
 
-/** Opens the Enter menu on its first page for this run. */
-export function openActionMenu(runId: string): ActionMenu {
-  return { runId, pages: [{ screen: "actions", selected: 0 }] };
+/** Opens the Enter menu on its first page. Two or more runs narrow it to multi actions. */
+export function openActionMenu(runIds: string[]): ActionMenu {
+  return { runIds, pages: [{ screen: "actions", selected: 0 }] };
 }
 
 /** The page that is showing. */
@@ -18,7 +18,7 @@ export function backMenu(menu: ActionMenu): ActionMenu | null {
     return null;
   }
 
-  return { runId: menu.runId, pages: menu.pages.slice(0, -1) };
+  return { runIds: menu.runIds, pages: menu.pages.slice(0, -1) };
 }
 
 /**
@@ -29,14 +29,14 @@ export function backMenu(menu: ActionMenu): ActionMenu | null {
 export function applyMenuKey({
   menu,
   key,
-  choice,
+  choices,
 }: {
   menu: ActionMenu;
   key: string;
-  choice: RunChoice;
+  choices: RunChoice[];
 }): MenuKeyResult {
   const page = currentPage(menu);
-  const items = menuItems({ screen: page.screen, choice });
+  const items = menuItems({ screen: page.screen, choices });
 
   if (isUp(key) || isDown(key)) {
     const delta = isUp(key) ? -1 : 1;
@@ -72,7 +72,7 @@ function choose({ menu, item }: { menu: ActionMenu; item: MenuItem }): MenuKeyRe
 
   return {
     kind: "stay",
-    menu: { runId: menu.runId, pages: [...menu.pages, { screen: item.target.screen, selected: 0 }] },
+    menu: { runIds: menu.runIds, pages: [...menu.pages, { screen: item.target.screen, selected: 0 }] },
   };
 }
 
@@ -92,7 +92,7 @@ function withSelected({ menu, selected }: { menu: ActionMenu; selected: number }
   const pages = menu.pages.slice(0, -1);
   pages.push({ screen: currentPage(menu).screen, selected });
 
-  return { runId: menu.runId, pages };
+  return { runIds: menu.runIds, pages };
 }
 
 function isUp(key: string): boolean {

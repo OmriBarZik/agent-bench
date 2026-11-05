@@ -1,4 +1,6 @@
 import process from "node:process";
+import { restoreTerminalTitle, saveTerminalTitle, setTerminalTitle } from "../terminal/terminal-title";
+import { tabTitle } from "../terminal/title-text";
 import type { TuiHost, TuiSize, TuiTab } from "./open-tui.types";
 import { tabBar, tabStep } from "./tab-bar";
 
@@ -30,6 +32,7 @@ export async function openTui<Result>({
 
   try {
     process.stdout.write(ENTER_SCREEN);
+    saveTerminalTitle();
 
     return await runTui({
       tabs,
@@ -44,6 +47,7 @@ export async function openTui<Result>({
     // resume() keeps the event loop alive and would leave stdin in flowing mode for the discard prompt.
     process.stdin.pause();
     process.stdout.write(LEAVE_SCREEN);
+    restoreTerminalTitle();
   }
 }
 
@@ -94,6 +98,8 @@ function runTui<Result>({
       }
 
       const bar = tabBar({ labels: tabList.map((tab) => tab.label), active, columns: size().columns });
+      // Set on every paint, so it names the tab again after a build or a tab switch changed it.
+      setTerminalTitle(tabTitle(tabList[active].label));
       process.stdout.write(`\x1b[H${bar}\r\n${current().render(size())}\x1b[J`);
     };
 

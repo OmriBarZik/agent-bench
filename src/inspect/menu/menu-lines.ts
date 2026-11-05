@@ -12,19 +12,19 @@ const FOOTER = "↑↓ move  enter choose  1-9 pick  esc back";
  */
 export function actionMenuLines({
   menu,
-  choice,
+  choices,
   height,
   columns,
 }: {
   menu: ActionMenu;
-  choice: RunChoice;
+  choices: RunChoice[];
   height: number;
   columns: number;
 }): string[] {
   const page = currentPage(menu);
-  const items = menuItems({ screen: page.screen, choice });
+  const items = menuItems({ screen: page.screen, choices });
   const title = colorLine({
-    text: fit({ text: `  ${menuTitle({ screen: page.screen, choice })}`, width: columns }),
+    text: fit({ text: `  ${menuTitle({ screen: page.screen, choices })}`, width: columns }),
     kind: "title",
   });
   const footer = colorLine({ text: fit({ text: `  ${FOOTER}`, width: columns }), kind: "hint" });

@@ -1,9 +1,9 @@
 import { expect, test } from "bun:test";
 import { refreshNotice, reselect } from "./refresh-list";
-import { applyKey, buildTarget, clampSelection, matchingChoices } from "./select-state";
+import { actionRuns, applyKey, buildTarget, clampSelection, matchingChoices } from "./select-state";
 import type { RunChoice, SelectState } from "./select-state.types";
 
-const idle: SelectState = { query: "", selected: 0, scroll: 0 };
+const idle: SelectState = { query: "", selected: 0, scroll: 0, marked: [] };
 
 test("arrow keys move the highlight and stop at the ends", () => {
   const down = applyKey({ state: idle, key: "\x1b[B", matchCount: 3, pageSize: 5 });
@@ -63,11 +63,31 @@ test("ctrl-x deletes unless the list is empty", () => {
 });
 
 test("letters filter, including q, and ctrl-c quits", () => {
-  const typed = applyKey({ state: { query: "", selected: 4, scroll: 2 }, key: "q", matchCount: 10, pageSize: 5 });
+  const typed = applyKey({
+    state: { query: "", selected: 4, scroll: 2, marked: [] },
+    key: "q",
+    matchCount: 10,
+    pageSize: 5,
+  });
   const quit = applyKey({ state: typed.state, key: "\x03", matchCount: 10, pageSize: 5 });
 
-  expect(typed).toEqual({ state: { query: "q", selected: 0, scroll: 0 }, action: "stay" });
+  expect(typed).toEqual({ state: { query: "q", selected: 0, scroll: 0, marked: [] }, action: "stay" });
   expect(quit.action).toBe("quit");
+});
+
+test("space checks the highlighted run, and typing keeps the checks", () => {
+  const checked = applyKey({ state: idle, key: " ", matchCount: 2, pageSize: 5, highlightedRunId: "a" });
+  const again = applyKey({ state: checked.state, key: " ", matchCount: 2, pageSize: 5, highlightedRunId: "b" });
+  const typed = applyKey({ state: again.state, key: "z", matchCount: 2, pageSize: 5, highlightedRunId: "b" });
+  const cleared = applyKey({ state: typed.state, key: " ", matchCount: 2, pageSize: 5, highlightedRunId: "a" });
+  const empty = applyKey({ state: idle, key: " ", matchCount: 0, pageSize: 5, highlightedRunId: null });
+
+  expect(checked.state.marked).toEqual(["a"]);
+  expect(checked.state.selected).toBe(0);
+  expect(again.state.marked).toEqual(["a", "b"]);
+  expect(typed.state).toEqual({ query: "z", selected: 0, scroll: 0, marked: ["a", "b"] });
+  expect(cleared.state.marked).toEqual(["b"]);
+  expect(empty.state.marked).toEqual([]);
 });
 
 test("page down keeps the previous row on screen", () => {
@@ -77,16 +97,43 @@ test("page down keeps the previous row on screen", () => {
 });
 
 test("backspace drops the last character", () => {
-  const cleared = applyKey({ state: { query: "ha", selected: 0, scroll: 0 }, key: "\x7f", matchCount: 1, pageSize: 5 });
+  const cleared = applyKey({
+    state: { query: "ha", selected: 0, scroll: 0, marked: [] },
+    key: "\x7f",
+    matchCount: 1,
+    pageSize: 5,
+  });
 
   expect(cleared.state.query).toBe("h");
 });
 
 test("clampSelection keeps the highlight on screen", () => {
-  const state = clampSelection({ state: { query: "", selected: 9, scroll: 0 }, matchCount: 10, pageSize: 4 });
+  const state = clampSelection({
+    state: { query: "", selected: 9, scroll: 0, marked: ["a"] },
+    matchCount: 10,
+    pageSize: 4,
+  });
 
   expect(state.selected).toBe(9);
   expect(state.scroll).toBe(6);
+  expect(state.marked).toEqual(["a"]);
+});
+
+test("checked runs are the selection, in check order, and a refresh drops one that is gone", () => {
+  const runs = [choice({ branch: "a" }), choice({ branch: "b" }), choice({ branch: "c" })];
+  const none = actionRuns({ choices: runs, highlighted: runs[1], marked: [] });
+  const marked = actionRuns({ choices: runs, highlighted: runs[0], marked: ["c", "a", "missing"] });
+  const fresh = [choice({ branch: "a" }), choice({ branch: "b" })];
+  const kept = reselect({
+    state: { ...idle, marked: ["missing", "b"] },
+    choices: fresh,
+    highlightedRunId: "a",
+    pageSize: 5,
+  });
+
+  expect(none.map((run) => run.runId)).toEqual(["b"]);
+  expect(marked.map((run) => run.runId)).toEqual(["c", "a"]);
+  expect(kept.marked).toEqual(["b"]);
 });
 
 test("matchingChoices finds a changed path and ignores case", () => {

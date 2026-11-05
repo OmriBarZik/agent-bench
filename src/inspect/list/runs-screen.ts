@@ -1,7 +1,7 @@
 import process from "node:process";
 import type { TuiControls, TuiScreen } from "../../tui/open-tui.types";
-import { buildSession } from "../build/build-session";
-import type { BuildTarget } from "../build/build-session.types";
+import { buildSession, remoteBuildSession } from "../build/build-session";
+import type { BuildTarget, BuildWork } from "../build/build-session.types";
 import { applyDecisionKey, openDecisionDialog } from "../decision/decision-dialog";
 import type { DecisionDialog } from "../decision/decision-dialog.types";
 import { setListedDecision } from "../decision/set-decision";
@@ -13,17 +13,18 @@ import { openTranscript } from "../transcript/open-transcript";
 import { loadChoices } from "./load-choices";
 import { refreshNotice, reselect } from "./refresh-list";
 import { resumeList } from "./restore-list";
-import { applyKey, buildTarget, clampSelection, matchingChoices } from "./select-state";
+import { actionRuns, applyKey, buildTarget, clampSelection, matchingChoices, runsInOrder } from "./select-state";
 import type { RunChoice, SelectAction, SelectState } from "./select-state.types";
 
 const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 
 /**
- * The Runs tab: a filterable list of runs. Enter opens a menu of everything the list can do to the highlighted run,
- * with submenus for building and removing, so no shortcut needs remembering. Esc steps back out of it.
- * Ctrl-o opens that run's transcript in the browser and stays here. Ctrl-e opens the judge session the same way.
+ * The Runs tab: a filterable list of runs. Space checks the highlighted run. Enter opens a menu for the checked runs,
+ * or the highlighted run when none are checked. Two or more checked runs narrow that menu to actions that take a
+ * multi selection (Queue builds them on the build Mac, one after another). Esc steps back out of a menu.
+ * Ctrl-o opens the highlighted run's transcript in the browser and stays here. Ctrl-e opens the judge session the same way.
  * Arrow keys only move the highlight; every action is enter, esc or a ctrl key.
- * Ctrl-b asks where to build the highlighted run: l on this Mac, r on the build Mac.
+ * Ctrl-b asks where to build: l builds the highlighted run on this Mac, r builds the selection on the build Mac.
  * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
  * Ctrl-r reloads the runs from the database and the branches from Chromium, so new runs show without a restart.
@@ -43,7 +44,7 @@ export function createRunsScreen({
   controls: TuiControls;
   onDone: (choice: RunChoice | null) => void;
 }): TuiScreen {
-  let state: SelectState = { query: "", selected: 0, scroll: 0 };
+  let state: SelectState = { query: "", selected: 0, scroll: 0, marked: [] };
   let notice = "";
   let armedRunId: string | null = null;
   let decisionDialog: DecisionDialog | null = null;
@@ -56,6 +57,7 @@ export function createRunsScreen({
   const pageSize = () => frameLayout(controls.size().rows).listHeight;
   const matches = () => matchingChoices({ choices, query: state.query });
   const highlighted = (): RunChoice | undefined => matches()[state.selected];
+  const selectedRuns = () => actionRuns({ choices, highlighted: highlighted(), marked: state.marked });
 
   /** Gives the terminal to `work` (a browser opener or a build log), then takes it back and repaints. */
   const handOff = (work: (signal: AbortSignal) => Promise<string>) => {
@@ -82,14 +84,12 @@ export function createRunsScreen({
       });
   };
 
-  const openChosen = (action: "transcript" | "judge") => {
-    const chosen = highlighted();
-    const judge = action === "judge";
-    const transcriptPath = judge ? chosen?.judgeTranscriptPath : chosen?.transcriptPath;
+  const openTranscriptChoice = ({ choice, judge }: { choice: RunChoice | undefined; judge: boolean }) => {
+    const transcriptPath = judge ? choice?.judgeTranscriptPath : choice?.transcriptPath;
     const label = judge ? "judge transcript" : "run transcript";
 
-    if (!chosen || !transcriptPath) {
-      notice = chosen ? `no ${label} for this run` : "";
+    if (!choice || !transcriptPath) {
+      notice = choice ? `no ${label} for this run` : "";
 
       return;
     }
@@ -107,9 +107,7 @@ export function createRunsScreen({
     });
   };
 
-  const startBuild = (target: BuildTarget) => {
-    const session = buildSession({ choice: highlighted(), target, chromiumSrc, force });
-
+  const beginSession = (session: BuildWork | string) => {
     if (typeof session === "string") {
       notice = session;
     } else {
@@ -117,9 +115,26 @@ export function createRunsScreen({
     }
   };
 
-  const checkoutHighlighted = () => {
-    const chosen = highlighted();
+  const highlightedOnly = (): RunChoice[] => {
+    const choice = highlighted();
 
+    return choice ? [choice] : [];
+  };
+
+  /** Local builds the highlighted run. Remote builds the checked runs, queued when there are several. */
+  const startBuild = (target: BuildTarget) => {
+    const selected = target === "local" ? highlightedOnly() : selectedRuns();
+
+    if (target === "remote" && selected.length > 1) {
+      beginSession(remoteBuildSession({ choices: selected, chromiumSrc }));
+
+      return;
+    }
+
+    beginSession(buildSession({ choice: selected[0], target, chromiumSrc, force }));
+  };
+
+  const checkoutChoice = (chosen: RunChoice | undefined) => {
     if (chosen?.present) {
       onDone(chosen);
     } else {
@@ -127,15 +142,18 @@ export function createRunsScreen({
     }
   };
 
-  const removeHighlighted = () => {
-    const chosen = highlighted();
-
+  const removeChoice = (chosen: RunChoice | undefined) => {
     if (!chosen) {
       return;
     }
 
     notice = removeListedRun({ choices, chosen });
-    state = clampSelection({ state, matchCount: matches().length, pageSize: pageSize() });
+    const live = new Set(choices.map((choice) => choice.runId));
+    state = clampSelection({
+      state: { ...state, marked: state.marked.filter((runId) => live.has(runId)) },
+      matchCount: matches().length,
+      pageSize: pageSize(),
+    });
   };
 
   /** Swaps in freshly loaded runs, keeping the filter and the highlighted run. Ignores a second ctrl-r mid-load. */
@@ -168,9 +186,7 @@ export function createRunsScreen({
       });
   };
 
-  const openDecision = () => {
-    const chosen = highlighted();
-
+  const openDecision = (chosen: RunChoice | undefined) => {
     if (chosen) {
       decisionDialog = openDecisionDialog({ runId: chosen.runId, decision: chosen.decision });
       notice = "";
@@ -210,11 +226,14 @@ export function createRunsScreen({
     }
   };
 
-  /** Runs what the Enter menu chose. */
-  const runMenuCommand = (command: MenuCommand) => {
+  /** Runs what the Enter menu chose, on the runs that menu was opened for. */
+  const runMenuCommand = ({ command, runIds }: { command: MenuCommand; runIds: string[] }) => {
+    const chosen = runsInOrder({ choices, runIds });
+    const first = chosen[0];
+
     if (command === "decide") {
       // The menu stays under the dialog, so esc from the dialog lands back on the menu.
-      openDecision();
+      openDecision(first);
 
       return;
     }
@@ -222,29 +241,38 @@ export function createRunsScreen({
     actionMenu = null;
 
     if (command === "transcript" || command === "judge") {
-      openChosen(command);
+      openTranscriptChoice({ choice: first, judge: command === "judge" });
+
+      return;
+    }
+
+    if (command === "build-remote" && chosen.length > 1) {
+      beginSession(remoteBuildSession({ choices: chosen, chromiumSrc }));
 
       return;
     }
 
     if (command === "build-local" || command === "build-remote") {
-      startBuild(command === "build-local" ? "local" : "remote");
+      beginSession(
+        buildSession({ choice: first, target: command === "build-local" ? "local" : "remote", chromiumSrc, force }),
+      );
 
       return;
     }
 
     if (command === "checkout") {
-      checkoutHighlighted();
+      checkoutChoice(first);
 
       return;
     }
 
-    removeHighlighted();
+    removeChoice(first);
   };
 
   const onMenuKey = ({ menu, key }: { menu: ActionMenu; key: string }) => {
-    const menuChoice = choices.find((choice) => choice.runId === menu.runId);
-    const outcome = menuChoice ? applyMenuKey({ menu, key, choice: menuChoice }) : { kind: "close" as const };
+    const menuChoices = runsInOrder({ choices, runIds: menu.runIds });
+    const outcome =
+      menuChoices.length > 0 ? applyMenuKey({ menu, key, choices: menuChoices }) : { kind: "close" as const };
 
     if (outcome.kind === "stay") {
       actionMenu = outcome.menu;
@@ -258,7 +286,7 @@ export function createRunsScreen({
       return;
     }
 
-    runMenuCommand(outcome.command);
+    runMenuCommand({ command: outcome.command, runIds: menu.runIds });
   };
 
   const onListAction = (action: SelectAction) => {
@@ -270,10 +298,10 @@ export function createRunsScreen({
 
     if (action === "menu") {
       armedRunId = null;
-      const chosen = highlighted();
+      const chosen = selectedRuns();
 
-      if (chosen) {
-        actionMenu = openActionMenu(chosen.runId);
+      if (chosen.length > 0) {
+        actionMenu = openActionMenu(chosen.map((choice) => choice.runId));
         notice = "";
       }
 
@@ -281,13 +309,13 @@ export function createRunsScreen({
     }
 
     if (action === "checkout") {
-      checkoutHighlighted();
+      checkoutChoice(highlighted());
 
       return;
     }
 
     if (action === "transcript" || action === "judge") {
-      openChosen(action);
+      openTranscriptChoice({ choice: highlighted(), judge: action === "judge" });
 
       return;
     }
@@ -295,14 +323,18 @@ export function createRunsScreen({
     if (action === "build") {
       armedRunId = null;
       choosingBuild = true;
-      notice = "l builds on this Mac, r builds on the other Mac";
+      const count = selectedRuns().length;
+      notice =
+        count > 1
+          ? `l builds the highlighted run here, r queues ${count} runs on the other Mac`
+          : "l builds on this Mac, r builds on the other Mac";
 
       return;
     }
 
     if (action === "decide") {
       armedRunId = null;
-      openDecision();
+      openDecision(highlighted());
 
       return;
     }
@@ -320,7 +352,7 @@ export function createRunsScreen({
       armedRunId = intent.armedRunId;
 
       if (intent.remove && chosen) {
-        removeHighlighted();
+        removeChoice(chosen);
       } else {
         notice = chosen ? "press ^X again to remove this run from the database" : "";
       }
@@ -358,7 +390,13 @@ export function createRunsScreen({
         return;
       }
 
-      const result = applyKey({ state, key, matchCount: matches().length, pageSize: pageSize() });
+      const result = applyKey({
+        state,
+        key,
+        matchCount: matches().length,
+        pageSize: pageSize(),
+        highlightedRunId: highlighted()?.runId ?? null,
+      });
       const nextCount = matchingChoices({ choices, query: result.state.query }).length;
       state = clampSelection({ state: result.state, matchCount: nextCount, pageSize: pageSize() });
       onListAction(result.action);

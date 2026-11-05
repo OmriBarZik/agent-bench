@@ -11,9 +11,9 @@ const RIGHT = "\x1b[C";
 
 test("arrows move through the actions and stop at the ends", () => {
   const run = choice({ transcriptPath: "/runs/t.jsonl" });
-  const opened = openActionMenu(run.runId);
-  const down = stayed(applyMenuKey({ menu: opened, key: DOWN, choice: run }));
-  const stuck = stayed(applyMenuKey({ menu: opened, key: UP, choice: run }));
+  const opened = openActionMenu([run.runId]);
+  const down = stayed(applyMenuKey({ menu: opened, key: DOWN, choices: [run] }));
+  const stuck = stayed(applyMenuKey({ menu: opened, key: UP, choices: [run] }));
 
   expect(currentPage(down).selected).toBe(1);
   expect(currentPage(stuck).selected).toBe(0);
@@ -22,21 +22,21 @@ test("arrows move through the actions and stop at the ends", () => {
 test("enter runs a command and skips one the run can't use", () => {
   const withTranscript = choice({ transcriptPath: "/runs/t.jsonl" });
   const without = choice();
-  const opened = openActionMenu(without.runId);
+  const opened = openActionMenu([without.runId]);
 
-  expect(applyMenuKey({ menu: opened, key: "\r", choice: withTranscript })).toEqual({
+  expect(applyMenuKey({ menu: opened, key: "\r", choices: [withTranscript] })).toEqual({
     kind: "run",
     command: "transcript",
   });
-  expect(applyMenuKey({ menu: opened, key: "\r", choice: without })).toEqual({ kind: "stay", menu: opened });
-  expect(applyMenuKey({ menu: opened, key: "3", choice: without })).toEqual({ kind: "run", command: "decide" });
+  expect(applyMenuKey({ menu: opened, key: "\r", choices: [without] })).toEqual({ kind: "stay", menu: opened });
+  expect(applyMenuKey({ menu: opened, key: "3", choices: [without] })).toEqual({ kind: "run", command: "decide" });
 });
 
 test("build opens a submenu that backMenu steps out of, and left and right arrows do nothing", () => {
   const run = choice();
-  const build = stayed(applyMenuKey({ menu: openActionMenu(run.runId), key: "4", choice: run }));
-  const remote = applyMenuKey({ menu: build, key: "2", choice: run });
-  const local = applyMenuKey({ menu: build, key: "\r", choice: run });
+  const build = stayed(applyMenuKey({ menu: openActionMenu([run.runId]), key: "4", choices: [run] }));
+  const remote = applyMenuKey({ menu: build, key: "2", choices: [run] });
+  const local = applyMenuKey({ menu: build, key: "\r", choices: [run] });
   const back = backMenu(build);
 
   expect(currentPage(build).screen).toBe("build");
@@ -44,23 +44,23 @@ test("build opens a submenu that backMenu steps out of, and left and right arrow
   expect(local).toEqual({ kind: "run", command: "build-local" });
   expect(back && currentPage(back)).toEqual({ screen: "actions", selected: 3 });
   expect(back && backMenu(back)).toBeNull();
-  expect(applyMenuKey({ menu: build, key: LEFT, choice: run })).toEqual({ kind: "stay", menu: build });
-  expect(applyMenuKey({ menu: build, key: RIGHT, choice: run })).toEqual({ kind: "stay", menu: build });
+  expect(applyMenuKey({ menu: build, key: LEFT, choices: [run] })).toEqual({ kind: "stay", menu: build });
+  expect(applyMenuKey({ menu: build, key: RIGHT, choices: [run] })).toEqual({ kind: "stay", menu: build });
 });
 
 test("remove asks first, and no goes back to the actions", () => {
   const run = choice();
-  const confirm = stayed(applyMenuKey({ menu: openActionMenu(run.runId), key: "6", choice: run }));
-  const keep = stayed(applyMenuKey({ menu: confirm, key: "\r", choice: run }));
+  const confirm = stayed(applyMenuKey({ menu: openActionMenu([run.runId]), key: "6", choices: [run] }));
+  const keep = stayed(applyMenuKey({ menu: confirm, key: "\r", choices: [run] }));
 
   expect(currentPage(confirm)).toEqual({ screen: "remove", selected: 0 });
   expect(currentPage(keep).screen).toBe("actions");
-  expect(applyMenuKey({ menu: confirm, key: "2", choice: run })).toEqual({ kind: "run", command: "remove" });
+  expect(applyMenuKey({ menu: confirm, key: "2", choices: [run] })).toEqual({ kind: "run", command: "remove" });
 });
 
 test("a missing branch greys out build and checkout with the reason", () => {
   const run = choice({ present: false });
-  const lines = actionMenuLines({ menu: openActionMenu(run.runId), choice: run, height: 8, columns: 80 });
+  const lines = actionMenuLines({ menu: openActionMenu([run.runId]), choices: [run], height: 8, columns: 80 });
   const text = lines.join("\n");
 
   expect(lines).toHaveLength(8);
@@ -71,10 +71,27 @@ test("a missing branch greys out build and checkout with the reason", () => {
   expect(lines[1]).toContain("\x1b[7m");
 });
 
+test("several checked runs narrow the menu to the queue", () => {
+  const first = choice();
+  const second = choice({ runId: "dino__haiku__r1", branch: "dino__haiku__r1" });
+  const menu = openActionMenu([first.runId, second.runId]);
+  const text = actionMenuLines({ menu, choices: [first, second], height: 8, columns: 80 }).join("\n");
+  const missing = [
+    choice({ present: false }),
+    choice({ runId: "dino__haiku__r1", branch: "dino__haiku__r1", present: false }),
+  ];
+
+  expect(text).toContain("Actions for 2 runs");
+  expect(text).toContain("1  Queue on the build Mac");
+  expect(text).not.toContain("Open run transcript");
+  expect(applyMenuKey({ menu, key: "1", choices: [first, second] })).toEqual({ kind: "run", command: "build-remote" });
+  expect(applyMenuKey({ menu, key: "\r", choices: missing })).toEqual({ kind: "stay", menu });
+});
+
 test("a short pane scrolls to keep the highlight visible", () => {
   const run = choice();
-  const menu: ActionMenu = { runId: run.runId, pages: [{ screen: "actions", selected: 5 }] };
-  const text = actionMenuLines({ menu, choice: run, height: 4, columns: 80 }).join("\n");
+  const menu: ActionMenu = { runIds: [run.runId], pages: [{ screen: "actions", selected: 5 }] };
+  const text = actionMenuLines({ menu, choices: [run], height: 4, columns: 80 }).join("\n");
 
   expect(text).toContain("6  Remove from database…");
   expect(text).not.toContain("1  Open run transcript");

@@ -9,7 +9,7 @@ test("frameLayout gives the detail pane a few rows under the list", () => {
 test("renderFrame shows the run from the database and the files it changed", () => {
   const frame = renderFrame({
     choices: [choice()],
-    state: { query: "", selected: 0, scroll: 0 },
+    state: { query: "", selected: 0, scroll: 0, marked: [] },
     chromiumSrc: "/chromium/src",
     notice: "",
     decisionDialog: null,
@@ -36,7 +36,7 @@ test("renderFrame shows the run from the database and the files it changed", () 
 test("renderFrame lists the four judge decisions while that dialog is open", () => {
   const frame = renderFrame({
     choices: [choice()],
-    state: { query: "", selected: 0, scroll: 0 },
+    state: { query: "", selected: 0, scroll: 0, marked: [] },
     chromiumSrc: "/chromium/src",
     notice: "",
     decisionDialog: { runId: "dino__haiku__r0", selected: 0 },
@@ -52,7 +52,7 @@ test("renderFrame lists the four judge decisions while that dialog is open", () 
 });
 
 test("renderFrame says when the filter matches nothing", () => {
-  const state: SelectState = { query: "nope", selected: 0, scroll: 0 };
+  const state: SelectState = { query: "nope", selected: 0, scroll: 0, marked: [] };
   const frame = renderFrame({
     choices: [choice()],
     state,
@@ -67,10 +67,27 @@ test("renderFrame says when the filter matches nothing", () => {
   expect(frame).toContain("filter: nope");
 });
 
+test("renderFrame marks checked runs once one is selected", () => {
+  const frame = renderFrame({
+    choices: [choice(), choice({ runId: "dino__haiku__r1", branch: "dino__haiku__r1" })],
+    state: { query: "", selected: 1, scroll: 0, marked: ["dino__haiku__r0"] },
+    chromiumSrc: "/chromium/src",
+    notice: "",
+    decisionDialog: null,
+    rows: 24,
+    columns: 120,
+  });
+
+  expect(frame).toContain("[x] ");
+  expect(frame).toContain("[ ] ");
+  expect(frame).toContain("1 selected");
+  expect(frame).toContain("space  enter menu");
+});
+
 test("renderFrame says when the database has no runs", () => {
   const frame = renderFrame({
     choices: [],
-    state: { query: "", selected: 0, scroll: 0 },
+    state: { query: "", selected: 0, scroll: 0, marked: [] },
     chromiumSrc: "/chromium/src",
     notice: "",
     decisionDialog: null,

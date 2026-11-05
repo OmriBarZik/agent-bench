@@ -19,8 +19,10 @@ export function reselect({
   const matches = matchingChoices({ choices, query: state.query });
   const index = matches.findIndex((choice) => choice.runId === highlightedRunId);
   const selected = index === -1 ? state.selected : index;
+  const live = new Set(choices.map((choice) => choice.runId));
+  const marked = state.marked.filter((runId) => live.has(runId));
 
-  return clampSelection({ state: { ...state, selected }, matchCount: matches.length, pageSize });
+  return clampSelection({ state: { ...state, selected, marked }, matchCount: matches.length, pageSize });
 }
 
 /** The notice after a reload, saying how many runs appeared or went away. */

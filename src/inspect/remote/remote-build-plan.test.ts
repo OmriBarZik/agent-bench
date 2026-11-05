@@ -13,7 +13,9 @@ test("the remote script builds chrome and checks out sent submodule commits", ()
   expect(script).toContain("git clean -fdq");
   expect(script).not.toContain("clean -fdx");
   expect(script).toContain("is_debug = false");
-  expect(script).toContain("if [ ! -f out/Default/args.gn ]");
+  expect(script).toContain('cmp -s out/Default/args.gn "$desired_args"');
+  expect(script).toContain("ccache is not on PATH");
+  expect(script).toContain("max_size=50GiB");
   expect(script).toContain('PATH="$depot_tools:$PATH"');
   expect(script).not.toContain("$HOME/depot_tools");
 });

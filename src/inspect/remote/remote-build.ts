@@ -4,8 +4,12 @@ import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { openDb, taskChromiumSha } from "../../db/db";
 import { BENCH_DIR } from "../../paths";
-import { failureNotice, runStep, waitForReturn } from "../build/build-process";
+import { setTerminalTitle } from "../../terminal/terminal-title";
+import { buildTitle } from "../../terminal/title-text";
+import type { BuildStep } from "../../terminal/title-text.types";
+import { failureNotice, openChromiumCommand, runStep, waitForReturn } from "../build/build-process";
 import type { BuilderConfig } from "../build/builder-config.types";
+import { openBuildWatch } from "../build/record/record-build";
 import { gitlinkCommitsBetween } from "../gitlink/gitlink-commits";
 import type { SubmoduleCommit } from "../gitlink/gitlink-diff.types";
 import type { RunChoice } from "../list/select-state.types";
@@ -37,24 +41,33 @@ export async function presentBuild({
   chromiumSrc: string;
   signal: AbortSignal;
 }): Promise<string> {
+  const watch = openBuildWatch({ choice, target: "remote", host: config.host });
+
   try {
+    showStep({ choice, config, step: "check" });
     console.log(`Checking ${config.host}…`);
     const problem = await validateRemote({ config, signal });
 
     if (problem) {
+      watch.failed({ signal, notice: problem });
+      showStep({ choice, config, step: "failed" });
       console.error(`\n${problem}`);
       await waitForReturn(signal);
 
       return problem;
     }
 
-    const built = await buildOnBuilder({ choice, config, chromiumSrc, signal });
+    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal, openApp: true });
+    watch.passed();
+    showStep({ choice, config, step: "built" });
     console.log(`\n${built.notice}`);
     await waitForReturn(signal);
 
     return built.notice;
   } catch (error) {
     const notice = failureNotice({ error, signal });
+    watch.failed({ signal, notice });
+    showStep({ choice, config, step: "failed" });
     console.error(`\n${notice}`);
 
     if (!signal.aborted) {
@@ -65,16 +78,23 @@ export async function presentBuild({
   }
 }
 
-async function buildOnBuilder({
+/**
+ * Sends the branch, builds chrome on the build Mac, and copies Chromium.app back.
+ * Opens the app only when `openApp` is set, so a queue can leave it closed.
+ */
+export async function buildRemoteRun({
   choice,
   config,
   chromiumSrc,
   signal,
+  openApp,
 }: {
   choice: RunChoice;
   config: BuilderConfig;
   chromiumSrc: string;
   signal: AbortSignal;
+  /** When true, launch the copied app. A queue leaves this false. */
+  openApp: boolean;
 }): Promise<BuildResult> {
   const destination = join(config.buildDirectory, choice.runId);
   console.log(`Building ${choice.branch} on ${config.host}`);
@@ -89,6 +109,7 @@ async function buildOnBuilder({
 
   const script = remoteBuildScript({ argsGn, commits });
   const refspec = branchRefspec(choice.branch);
+  showStep({ choice, config, step: "send" });
   console.log("Sending the branch…");
   await runStep({ command: detachCommand({ host: config.host, source: config.source }), signal, label: "detach" });
 
@@ -115,6 +136,7 @@ async function buildOnBuilder({
     signal,
     label: "send branch",
   });
+  showStep({ choice, config, step: "build" });
   console.log("Building chrome…");
   await runStep({
     command: buildCommand({
@@ -127,6 +149,7 @@ async function buildOnBuilder({
     label: "build",
     stdin: script,
   });
+  showStep({ choice, config, step: "copy" });
   console.log("Copying the app back…");
   await mkdir(destination, { recursive: true });
   await runStep({
@@ -140,9 +163,17 @@ async function buildOnBuilder({
     throw new Error(`the build finished, but ${app} is missing`);
   }
 
-  await runStep({ command: ["open", app], signal, label: "open" });
+  if (openApp) {
+    await runStep({ command: openChromiumCommand(app), signal, label: "open" });
+  }
 
   return { notice: `built ${choice.branch} at ${destination}` };
+}
+
+function showStep({ choice, config, step }: { choice: RunChoice; config: BuilderConfig; step: BuildStep }) {
+  setTerminalTitle(
+    buildTitle({ taskId: choice.taskId, configId: choice.configId, repeat: choice.repeat, where: config.host, step }),
+  );
 }
 
 async function commitsToSend({

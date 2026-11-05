@@ -12,6 +12,8 @@ import { judgementText } from "./runner/judge/result/judge-result";
 import { runOne } from "./runner/run-one/run-one";
 import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
 import { DEFAULT_CONFIGS_PATH, DEFAULT_TASKS_PATH, resolveStart } from "./start/resolve-start";
+import { setTerminalTitle } from "./terminal/terminal-title";
+import { benchEndTitle, runTitle } from "./terminal/title-text";
 
 const { values: args } = parseArgs({
   options: {
@@ -134,6 +136,8 @@ async function main() {
     },
   });
   let stopped = false;
+  let total = 0;
+  let finished = 0;
 
   try {
     const { tasks, configs, repeats } = plan;
@@ -167,7 +171,7 @@ async function main() {
       for (const task of tasks) upsertTask({ db, task });
       for (const benchConfig of configs) upsertConfig({ db, config: await toConfigRow(benchConfig) });
 
-      const total = tasks.length * configs.length * repeats;
+      total = tasks.length * configs.length * repeats;
       let runIndex = 0;
       for (const task of tasks) {
         for (const config of configs) {
@@ -177,7 +181,8 @@ async function main() {
               break;
             }
 
-            console.log(`[${++runIndex}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
+            const index = ++runIndex;
+            console.log(`[${index}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
             const { runId, result, seconds, artifact, judge, cancelled } = await runOne({
               db,
               task,
@@ -185,6 +190,11 @@ async function main() {
               repeat,
               options,
               signal: shutdown.signal,
+              onPhase: (phase) => {
+                setTerminalTitle(
+                  runTitle({ index, total, taskId: task.taskId, configId: config.configId, repeat, phase }),
+                );
+              },
             });
             const cost = result.total_cost_usd != null ? `, $${result.total_cost_usd.toFixed(2)}` : "";
             const files =
@@ -197,6 +207,7 @@ async function main() {
               break;
             }
 
+            finished++;
             const judged = judgementText({ judge });
             console.log(
               `  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}, ${judged}`,
@@ -235,6 +246,11 @@ async function main() {
   } finally {
     db?.close();
     shutdown.stop();
+
+    // Left in place after exit, so a finished or stopped benchmark still shows in its tab.
+    if (total > 0) {
+      setTerminalTitle(benchEndTitle({ finished, total, stopped: finished < total }));
+    }
   }
 
   if (stopped) {

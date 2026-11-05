@@ -12,11 +12,13 @@ export type RunChoice = RunBranchRow & {
   judgeTranscriptPath: string | null;
 };
 
-/** Filter text and which row of the filtered list is highlighted. */
+/** Filter text, the highlighted row, and runs checked for an action that takes more than one. */
 export type SelectState = {
   query: string;
   selected: number;
   scroll: number;
+  /** Checked run ids, in the order they were checked. Empty means the highlighted run alone. */
+  marked: string[];
 };
 
 /** What the run list should do after one keypress. */

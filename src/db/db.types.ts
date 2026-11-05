@@ -25,6 +25,32 @@ export type Config = {
 /** Status stored when a run is closed. cancelled means the user stopped it before it was fully recorded. */
 export type FinishedRunStatus = "done" | "crashed" | "cancelled";
 
+/** Where a Runs-tab Chromium build ran. */
+export type ChromiumBuildTarget = "local" | "remote";
+
+/** building until finishChromiumBuild. cancelled means the user stopped it. */
+export type ChromiumBuildStatus = "building" | "passed" | "failed" | "cancelled";
+
+/** A finished build: it passed, the compile failed, or the user cancelled it. */
+export type FinishedBuildStatus = "passed" | "failed" | "cancelled";
+
+/** What startChromiumBuild inserts before chrome is compiled. */
+export type ChromiumBuildStart = {
+  runId: string;
+  target: ChromiumBuildTarget;
+  /** `local`, or the build Mac host. */
+  host: string;
+};
+
+/** What finishChromiumBuild writes when the build ends. */
+export type ChromiumBuildFinish = {
+  id: number;
+  status: FinishedBuildStatus;
+  durationMs: number;
+  /** Why it failed or was cancelled. Null when it passed. */
+  error: string | null;
+};
+
 /** What startRun needs to insert the runs row before claude is spawned. */
 export type RunStart = {
   runId: string;
