@@ -26,6 +26,7 @@ test("renderFrame shows the run from the database and the files it changed", () 
   expect(frame).toContain("no run transcript · no judge transcript");
   expect(frame).toContain("^E judge");
   expect(frame).toContain("^B build");
+  expect(frame).toContain("^P chrome");
   expect(frame).toContain("^F decide");
   expect(frame).toContain("^X delete");
   expect(frame).toContain("^G checkout");
@@ -125,6 +126,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     current: false,
     transcriptPath: null,
     judgeTranscriptPath: null,
+    chromiumAppPath: null,
     ...overrides,
   };
 }

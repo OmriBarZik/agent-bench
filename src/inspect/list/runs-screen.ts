@@ -1,5 +1,6 @@
 import process from "node:process";
 import type { TuiControls, TuiScreen } from "../../tui/open-tui.types";
+import { attachChromiumApps, openBuiltChromium } from "../build/app/chromium-app";
 import { buildSession, remoteBuildSession } from "../build/build-session";
 import type { BuildTarget, BuildWork } from "../build/build-session.types";
 import { applyDecisionKey, openDecisionDialog } from "../decision/decision-dialog";
@@ -25,6 +26,7 @@ const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
  * Ctrl-o opens the highlighted run's transcript in the browser and stays here. Ctrl-e opens the judge session the same way.
  * Arrow keys only move the highlight; every action is enter, esc or a ctrl key.
  * Ctrl-b asks where to build: l builds the highlighted run on this Mac, r builds the selection on the build Mac.
+ * Ctrl-p opens the highlighted run's Chromium.app when a build left one on disk.
  * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
  * Ctrl-r reloads the runs from the database and the branches from Chromium, so new runs show without a restart.
@@ -70,6 +72,13 @@ export function createRunsScreen({
     void work(abort.signal)
       .then((workNotice) => {
         notice = workNotice;
+
+        try {
+          attachChromiumApps({ choices, chromiumSrc });
+        } catch (error) {
+          // The build already finished. A miss here only hides Open Chromium until the next refresh.
+          console.error(error instanceof Error ? error.message : "could not find Chromium.app");
+        }
       })
       .finally(() => {
         cancelBuild = null;
@@ -132,6 +141,44 @@ export function createRunsScreen({
     }
 
     beginSession(buildSession({ choice: selected[0], target, chromiumSrc, force }));
+  };
+
+  const launchChromium = (choice: RunChoice | undefined) => {
+    if (!choice) {
+      notice = "";
+
+      return;
+    }
+
+    try {
+      attachChromiumApps({ choices: [choice], chromiumSrc });
+    } catch (error) {
+      notice = error instanceof Error ? error.message : "could not find Chromium.app";
+
+      return;
+    }
+
+    const app = choice.chromiumAppPath;
+
+    if (!app) {
+      notice = "no Chromium.app for this run";
+
+      return;
+    }
+
+    notice = "opening Chromium…";
+    void openBuiltChromium(app)
+      .then(() => {
+        notice = "opened Chromium.app";
+      })
+      .catch((error: unknown) => {
+        notice = error instanceof Error ? error.message : "could not open Chromium";
+      })
+      .finally(() => {
+        if (!controls.isClosed() && !busy) {
+          controls.repaint();
+        }
+      });
   };
 
   const checkoutChoice = (chosen: RunChoice | undefined) => {
@@ -246,6 +293,12 @@ export function createRunsScreen({
       return;
     }
 
+    if (command === "open-chromium") {
+      launchChromium(first);
+
+      return;
+    }
+
     if (command === "build-remote" && chosen.length > 1) {
       beginSession(remoteBuildSession({ choices: chosen, chromiumSrc }));
 
@@ -301,8 +354,14 @@ export function createRunsScreen({
       const chosen = selectedRuns();
 
       if (chosen.length > 0) {
+        try {
+          attachChromiumApps({ choices: chosen, chromiumSrc });
+          notice = "";
+        } catch (error) {
+          notice = error instanceof Error ? error.message : "could not find Chromium.app";
+        }
+
         actionMenu = openActionMenu(chosen.map((choice) => choice.runId));
-        notice = "";
       }
 
       return;
@@ -316,6 +375,13 @@ export function createRunsScreen({
 
     if (action === "transcript" || action === "judge") {
       openTranscriptChoice({ choice: highlighted(), judge: action === "judge" });
+
+      return;
+    }
+
+    if (action === "chromium") {
+      armedRunId = null;
+      launchChromium(highlighted());
 
       return;
     }

@@ -51,6 +51,14 @@ export type ChromiumBuildFinish = {
   error: string | null;
 };
 
+/** Passed builds the Runs tab uses to find a Chromium.app it can launch. */
+export type PassedChromiumApps = {
+  /** Newest passed build target for each run that has one. */
+  latestTarget: Map<string, ChromiumBuildTarget>;
+  /** The run whose passed local build is the newest, so out/Default is that run's chrome. Null when none passed. */
+  latestLocalRunId: string | null;
+};
+
 /** What startRun needs to insert the runs row before claude is spawned. */
 export type RunStart = {
   runId: string;

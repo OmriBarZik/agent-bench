@@ -10,6 +10,8 @@ export type RunChoice = RunBranchRow & {
   transcriptPath: string | null;
   /** Absolute path to the judge transcript, or null when that session was not saved. */
   judgeTranscriptPath: string | null;
+  /** Chromium.app this run can launch, or null when no build left one on disk. */
+  chromiumAppPath: string | null;
 };
 
 /** Filter text, the highlighted row, and runs checked for an action that takes more than one. */
@@ -23,7 +25,17 @@ export type SelectState = {
 
 /** What the run list should do after one keypress. */
 export type SelectAction =
-  "stay" | "menu" | "transcript" | "judge" | "checkout" | "build" | "decide" | "delete" | "refresh" | "quit";
+  | "stay"
+  | "menu"
+  | "transcript"
+  | "judge"
+  | "checkout"
+  | "build"
+  | "chromium"
+  | "decide"
+  | "delete"
+  | "refresh"
+  | "quit";
 
 /** What one keypress did to the run list. */
 export type SelectResult = {

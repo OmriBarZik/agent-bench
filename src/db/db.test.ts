@@ -12,6 +12,7 @@ import {
   listToolTrouble,
   logToolCall,
   openDb,
+  passedChromiumApps,
   promptVersion,
   saveJudgeRun,
   startChromiumBuild,
@@ -484,6 +485,52 @@ test("a chromium build records how long it took and is removed with the run", ()
     };
 
     expect(finished).toEqual({ status: "failed", duration_ms: 90_000, error: "build failed (1)" });
+    const later = "dino__haiku__r1";
+    startRun({
+      db,
+      run: {
+        runId: later,
+        taskId: "dino",
+        configId: "haiku",
+        repeat: 1,
+        promptVersion: "p1",
+        judgePromptVersion: "j1",
+        claudeVersion: "test",
+        model: "test",
+        branch: later,
+      },
+    });
+    finishChromiumBuild({
+      db,
+      build: {
+        id: startChromiumBuild({ db, build: { runId, target: "remote", host: "build-mac" } }),
+        status: "passed",
+        durationMs: 1,
+        error: null,
+      },
+    });
+    finishChromiumBuild({
+      db,
+      build: {
+        id: startChromiumBuild({ db, build: { runId, target: "local", host: "local" } }),
+        status: "passed",
+        durationMs: 1,
+        error: null,
+      },
+    });
+    finishChromiumBuild({
+      db,
+      build: {
+        id: startChromiumBuild({ db, build: { runId: later, target: "local", host: "local" } }),
+        status: "passed",
+        durationMs: 1,
+        error: null,
+      },
+    });
+    const passed = passedChromiumApps(db);
+
+    expect(passed.latestTarget.get(runId)).toBe("local");
+    expect(passed.latestLocalRunId).toBe(later);
     deleteRun({ db, runId });
     expect(db.query(`SELECT id FROM chromium_builds WHERE id = $id`).get({ id })).toBeNull();
   } finally {

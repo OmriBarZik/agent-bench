@@ -48,9 +48,23 @@ test("build opens a submenu that backMenu steps out of, and left and right arrow
   expect(applyMenuKey({ menu: build, key: RIGHT, choices: [run] })).toEqual({ kind: "stay", menu: build });
 });
 
+test("open chromium runs when an app is on disk and stays put when the run was not built", () => {
+  const built = choice({ chromiumAppPath: "/builds/dino__haiku__r0/Chromium.app" });
+  const missing = choice();
+  const opened = openActionMenu([built.runId]);
+  const missingText = actionMenuLines({ menu: opened, choices: [missing], height: 12, columns: 80 }).join("\n");
+  const builtText = actionMenuLines({ menu: opened, choices: [built], height: 12, columns: 80 }).join("\n");
+
+  expect(applyMenuKey({ menu: opened, key: "5", choices: [built] })).toEqual({ kind: "run", command: "open-chromium" });
+  expect(applyMenuKey({ menu: opened, key: "5", choices: [missing] })).toEqual({ kind: "stay", menu: opened });
+  expect(missingText).toContain("5  Open Chromium");
+  expect(missingText).toContain("(not built)");
+  expect(builtText).toContain("^P");
+});
+
 test("remove asks first, and no goes back to the actions", () => {
   const run = choice();
-  const confirm = stayed(applyMenuKey({ menu: openActionMenu([run.runId]), key: "6", choices: [run] }));
+  const confirm = stayed(applyMenuKey({ menu: openActionMenu([run.runId]), key: "7", choices: [run] }));
   const keep = stayed(applyMenuKey({ menu: confirm, key: "\r", choices: [run] }));
 
   expect(currentPage(confirm)).toEqual({ screen: "remove", selected: 0 });
@@ -90,10 +104,10 @@ test("several checked runs narrow the menu to the queue", () => {
 
 test("a short pane scrolls to keep the highlight visible", () => {
   const run = choice();
-  const menu: ActionMenu = { runIds: [run.runId], pages: [{ screen: "actions", selected: 5 }] };
+  const menu: ActionMenu = { runIds: [run.runId], pages: [{ screen: "actions", selected: 6 }] };
   const text = actionMenuLines({ menu, choices: [run], height: 4, columns: 80 }).join("\n");
 
-  expect(text).toContain("6  Remove from database…");
+  expect(text).toContain("7  Remove from database…");
   expect(text).not.toContain("1  Open run transcript");
 });
 
@@ -132,6 +146,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     current: false,
     transcriptPath: null,
     judgeTranscriptPath: null,
+    chromiumAppPath: null,
     ...overrides,
   };
 }

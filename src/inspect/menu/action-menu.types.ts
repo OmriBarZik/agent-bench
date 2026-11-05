@@ -9,7 +9,8 @@ export type MenuScreen = "actions" | "build" | "remove";
 export type MenuScope = "one" | "many" | "any";
 
 /** What choosing a menu item asks the run list to do for the highlighted run. */
-export type MenuCommand = "transcript" | "judge" | "checkout" | "decide" | "build-local" | "build-remote" | "remove";
+export type MenuCommand =
+  "transcript" | "judge" | "checkout" | "decide" | "build-local" | "build-remote" | "open-chromium" | "remove";
 
 /** One row of a menu page. It either opens a submenu or runs a command. */
 export type MenuItem = {
