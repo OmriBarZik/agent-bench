@@ -10,6 +10,8 @@ import { applyMenuKey, backMenu, openActionMenu } from "../menu/action-menu";
 import type { ActionMenu, MenuCommand } from "../menu/action-menu.types";
 import { frameLayout, renderFrame } from "../render/render-frame";
 import { openTranscript } from "../transcript/open-transcript";
+import { loadChoices } from "./load-choices";
+import { refreshNotice, reselect } from "./refresh-list";
 import { resumeList } from "./restore-list";
 import { applyKey, buildTarget, clampSelection, matchingChoices } from "./select-state";
 import type { RunChoice, SelectAction, SelectState } from "./select-state.types";
@@ -18,11 +20,13 @@ const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 
 /**
  * The Runs tab: a filterable list of runs. Enter opens a menu of everything the list can do to the highlighted run,
- * with submenus for building and removing, so no shortcut needs remembering. ← or esc steps back out of it.
- * Ctrl-o opens that run's transcript in the browser and stays here. Right arrow opens the judge session the same way.
+ * with submenus for building and removing, so no shortcut needs remembering. Esc steps back out of it.
+ * Ctrl-o opens that run's transcript in the browser and stays here. Ctrl-e opens the judge session the same way.
+ * Arrow keys only move the highlight; every action is enter, esc or a ctrl key.
  * Ctrl-b asks where to build the highlighted run: l on this Mac, r on the build Mac.
  * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
+ * Ctrl-r reloads the runs from the database and the branches from Chromium, so new runs show without a restart.
  * Ctrl-g calls `onDone` with the highlighted run so the caller can check its branch out; ctrl-c calls it with null.
  * Esc closes the build question, the decision dialog, or a menu page; otherwise it is left to the TUI, which quits.
  */
@@ -46,6 +50,7 @@ export function createRunsScreen({
   let actionMenu: ActionMenu | null = null;
   let choosingBuild = false;
   let busy = false;
+  let refreshing = false;
   let cancelBuild: (() => void) | null = null;
 
   const pageSize = () => frameLayout(controls.size().rows).listHeight;
@@ -131,6 +136,36 @@ export function createRunsScreen({
 
     notice = removeListedRun({ choices, chosen });
     state = clampSelection({ state, matchCount: matches().length, pageSize: pageSize() });
+  };
+
+  /** Swaps in freshly loaded runs, keeping the filter and the highlighted run. Ignores a second ctrl-r mid-load. */
+  const refresh = () => {
+    if (refreshing) {
+      return;
+    }
+
+    refreshing = true;
+    notice = "refreshing…";
+    const highlightedRunId = highlighted()?.runId ?? null;
+    const before = choices.length;
+    void loadChoices()
+      .then((fresh) => {
+        // In place, because the caller and the delete helper hold this same array.
+        choices.splice(0, choices.length, ...fresh);
+        state = reselect({ state, choices, highlightedRunId, pageSize: pageSize() });
+        armedRunId = null;
+        notice = refreshNotice({ before, after: fresh.length });
+      })
+      .catch((error: unknown) => {
+        notice = error instanceof Error ? error.message : "could not reload the runs";
+      })
+      .finally(() => {
+        refreshing = false;
+
+        if (!controls.isClosed() && !busy) {
+          controls.repaint();
+        }
+      });
   };
 
   const openDecision = () => {
@@ -268,6 +303,13 @@ export function createRunsScreen({
     if (action === "decide") {
       armedRunId = null;
       openDecision();
+
+      return;
+    }
+
+    if (action === "refresh") {
+      armedRunId = null;
+      refresh();
 
       return;
     }

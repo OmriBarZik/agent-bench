@@ -4,7 +4,7 @@ import { currentPage } from "./action-menu";
 import type { ActionMenu, MenuItem } from "./action-menu.types";
 import { menuItems, menuTitle } from "./menu-items";
 
-const FOOTER = "↑↓ move  enter or → choose  1-9 pick  ← or esc back";
+const FOOTER = "↑↓ move  enter choose  1-9 pick  esc back";
 
 /**
  * The menu pane: a title, one row per item with its shortcut on the right, and a key hint.

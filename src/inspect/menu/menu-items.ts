@@ -41,7 +41,7 @@ function actionItems(choice: RunChoice): MenuItem[] {
     },
     {
       label: "Open judge transcript",
-      shortcut: "→",
+      shortcut: "^E",
       unavailable: choice.judgeTranscriptPath ? null : "no judge transcript saved",
       target: { kind: "command", command: "judge" },
     },

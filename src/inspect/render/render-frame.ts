@@ -158,7 +158,7 @@ function hintLine({ state, columns }: { state: SelectState; columns: number }): 
   const filter = state.query === "" ? "type to filter" : `filter: ${state.query}`;
   const text = fit({
     // The filter comes first so a narrow terminal cuts shortcuts, which the enter menu also lists, not the query.
-    text: `${filter}  enter menu  ^O run  → judge  ^G checkout  ^B build  ^F decide  ^X delete  esc quit`,
+    text: `${filter}  enter menu  ^O run  ^E judge  ^G checkout  ^B build  ^F decide  ^X delete  ^R refresh  esc quit`,
     width: columns,
   });
 
