@@ -1,19 +1,18 @@
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import type { RemoteBuildFile } from "./remote-file.types";
-import { renderSshConfig, withSshInclude } from "./ssh";
+import { withSshInclude } from "./ssh";
 import type { SshInstall } from "./ssh.types";
 
 /**
  * Writes the SSH fragment and includes it from the user SSH config.
- * The fragment is replaced on every run so it matches `file`. The Include line is added once.
+ * The fragment is replaced on every run with `fragment`. The Include line is added once.
  */
 export function installSshInclude({
-  file,
+  fragment,
   fragmentPath,
   userSshConfigPath,
 }: {
-  file: RemoteBuildFile;
+  fragment: string;
   fragmentPath: string;
   userSshConfigPath: string;
 }): SshInstall {
@@ -21,7 +20,7 @@ export function installSshInclude({
     throw new Error(`SSH cannot Include ${fragmentPath} because the path has a space`);
   }
 
-  writeFileSync(fragmentPath, renderSshConfig(file));
+  writeFileSync(fragmentPath, fragment);
   mkdirSync(dirname(userSshConfigPath), { recursive: true, mode: 0o700 });
   const existing = readIfPresent(userSshConfigPath);
   const included = withSshInclude({ existing, includePath: fragmentPath });

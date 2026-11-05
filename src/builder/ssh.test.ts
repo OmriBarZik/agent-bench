@@ -7,10 +7,11 @@ hostName: 10.55.0.2
 user: omri
 identityFile: ~/.ssh/id_ed25519
 source: /src
+depotTools: /depot_tools
 `);
 
 test("renderSshConfig is one Host block", () => {
-  expect(renderSshConfig(file)).toBe(`Host builder
+  expect(renderSshConfig({ file })).toBe(`Host builder
   HostName 10.55.0.2
   User omri
   IdentityFile ~/.ssh/id_ed25519

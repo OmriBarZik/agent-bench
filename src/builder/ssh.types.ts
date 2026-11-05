@@ -1,3 +1,13 @@
+import type { RemoteBuildFile } from "./remote-file.types";
+
+/** What the ssh_config fragment is written from. */
+export type SshHost = {
+  /** The parsed remote.yaml. */
+  file: RemoteBuildFile;
+  /** ProxyCommand that finds the build Mac. Set when remote.yaml names a connection instead of hostName. */
+  proxyCommand?: string;
+};
+
 /** An SSH config after ensuring it includes one path. */
 export type SshIncludeUpdate = {
   /** The config text to write. */

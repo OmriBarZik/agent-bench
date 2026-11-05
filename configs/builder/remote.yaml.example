@@ -8,6 +8,10 @@ host: builder
 # The build Mac's current address: an IP, or a name such as Mac-mini.local.
 hostName: build-mac.local
 
+# Or, instead of hostName: the connection that links only the two Macs.
+# SSH finds the build Mac on it each time it connects, so a changing Thunderbolt IP does not matter.
+# connection: Thunderbolt Bridge
+
 # Account on the build Mac. Replace your-user before running setup again.
 user: your-user
 

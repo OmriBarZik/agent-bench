@@ -2,8 +2,13 @@
 export type RemoteBuildFile = {
   /** SSH host alias, as in `ssh <host>`. */
   host: string;
-  /** Address SSH uses for the build Mac: its current IP, or its .local name. */
-  hostName: string;
+  /** Address SSH uses for the build Mac: its current IP, or its .local name. Set this or `connection`. */
+  hostName?: string;
+  /**
+   * Network connection that reaches only the build Mac, such as "Thunderbolt Bridge" or bridge0.
+   * SSH finds the build Mac's address on it each time it connects. Set this or `hostName`.
+   */
+  connection?: string;
   /** Login on the build Mac. */
   user: string;
   /** SSH key. `~` is left for ssh to expand. Omitted to use the default key. */
