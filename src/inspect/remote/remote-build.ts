@@ -53,7 +53,7 @@ export async function presentBuild({
       return problem;
     }
 
-    const built = await buildOnBuilder({ choice, config, chromiumSrc, signal });
+    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal });
     showStep({ choice, config, step: "built" });
     console.log(`\n${built.notice}`);
     await waitForReturn(signal);
@@ -72,7 +72,8 @@ export async function presentBuild({
   }
 }
 
-async function buildOnBuilder({
+/** Sends the branch, builds chrome on the build Mac, copies Chromium.app back, and opens it. */
+export async function buildRemoteRun({
   choice,
   config,
   chromiumSrc,

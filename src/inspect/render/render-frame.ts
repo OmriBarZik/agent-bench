@@ -1,6 +1,6 @@
 import { decisionDialogLines } from "../decision/decision-dialog";
 import type { DecisionDialog } from "../decision/decision-dialog.types";
-import { matchingChoices } from "../list/select-state";
+import { matchingChoices, runsInOrder } from "../list/select-state";
 import { actionMenuLines } from "../menu/menu-lines";
 import type { ActionMenu } from "../menu/action-menu.types";
 import type { RunChoice, SelectState } from "../list/select-state.types";
@@ -92,10 +92,10 @@ function paneLines({
     return decisionDialogLines({ dialog: decisionDialog, height, columns });
   }
 
-  const menuChoice = actionMenu ? choices.find((choice) => choice.runId === actionMenu.runId) : undefined;
+  const menuChoices = actionMenu ? runsInOrder({ choices, runIds: actionMenu.runIds }) : [];
 
-  if (actionMenu && menuChoice) {
-    return actionMenuLines({ menu: actionMenu, choice: menuChoice, height, columns });
+  if (actionMenu && menuChoices.length > 0) {
+    return actionMenuLines({ menu: actionMenu, choices: menuChoices, height, columns });
   }
 
   return detailLines({ choice: matches[state.selected], notice, height, columns });
@@ -123,8 +123,9 @@ function listLine({
   }
 
   const selected = state.scroll + index === state.selected;
+  const marking = state.marked.length > 0;
   const text = fit({
-    text: `${markerFor({ choice, selected })}${choiceLabel(choice)}  ${choice.model}`,
+    text: `${markerFor({ choice, selected })}${checkPrefix({ marking, marked: state.marked.includes(choice.runId) })}${choiceLabel(choice)}  ${choice.model}`,
     width: columns,
   });
 
@@ -156,9 +157,10 @@ function headerLine({
 
 function hintLine({ state, columns }: { state: SelectState; columns: number }): string {
   const filter = state.query === "" ? "type to filter" : `filter: ${state.query}`;
+  const checked = state.marked.length === 0 ? "" : `  ${state.marked.length} selected`;
   const text = fit({
     // The filter comes first so a narrow terminal cuts shortcuts, which the enter menu also lists, not the query.
-    text: `${filter}  enter menu  ^O run  ^E judge  ^G checkout  ^B build  ^F decide  ^X delete  ^R refresh  esc quit`,
+    text: `${filter}${checked}  space  enter menu  ^O run  ^E judge  ^G checkout  ^B build  ^F decide  ^X delete  ^R refresh  esc quit`,
     width: columns,
   });
 
@@ -185,6 +187,15 @@ function rowKind({ selected, present }: { selected: boolean; present: boolean })
   }
 
   return "plain";
+}
+
+/** Shown only once a run is checked, so a plain list keeps its old markers. */
+function checkPrefix({ marking, marked }: { marking: boolean; marked: boolean }): string {
+  if (!marking) {
+    return "";
+  }
+
+  return marked ? "[x] " : "[ ] ";
 }
 
 function markerFor({ choice, selected }: { choice: RunChoice; selected: boolean }): string {
