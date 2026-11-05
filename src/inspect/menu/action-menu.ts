@@ -22,8 +22,8 @@ export function backMenu(menu: ActionMenu): ActionMenu | null {
 }
 
 /**
- * Arrow keys move the highlight. Enter or → chooses it, and 1–9 choose that row.
- * ← goes back a page and closes the menu from the first page. A row the run can't use stays put.
+ * ↑↓ move the highlight; left and right do nothing. Enter chooses it, and 1–9 choose that row.
+ * A row the run can't use stays put.
  * Esc is handled by the caller, which calls backMenu, because a lone escape needs a timer.
  */
 export function applyMenuKey({
@@ -43,12 +43,6 @@ export function applyMenuKey({
     const selected = Math.min(items.length - 1, Math.max(0, page.selected + delta));
 
     return { kind: "stay", menu: withSelected({ menu, selected }) };
-  }
-
-  if (isLeft(key)) {
-    const previous = backMenu(menu);
-
-    return previous ? { kind: "stay", menu: previous } : { kind: "close" };
   }
 
   const index = chosenIndex({ key, selected: page.selected });
@@ -83,7 +77,7 @@ function choose({ menu, item }: { menu: ActionMenu; item: MenuItem }): MenuKeyRe
 }
 
 function chosenIndex({ key, selected }: { key: string; selected: number }): number | null {
-  if (key === "\r" || key === "\n" || isRight(key)) {
+  if (key === "\r" || key === "\n") {
     return selected;
   }
 
@@ -107,12 +101,4 @@ function isUp(key: string): boolean {
 
 function isDown(key: string): boolean {
   return key === "\x1b[B" || key === "\x1bOB";
-}
-
-function isRight(key: string): boolean {
-  return key === "\x1b[C" || key === "\x1bOC";
-}
-
-function isLeft(key: string): boolean {
-  return key === "\x1b[D" || key === "\x1bOD";
 }

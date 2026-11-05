@@ -32,19 +32,20 @@ test("enter runs a command and skips one the run can't use", () => {
   expect(applyMenuKey({ menu: opened, key: "3", choice: without })).toEqual({ kind: "run", command: "decide" });
 });
 
-test("build opens a submenu that left arrow and backMenu step out of", () => {
+test("build opens a submenu that backMenu steps out of, and left and right arrows do nothing", () => {
   const run = choice();
   const build = stayed(applyMenuKey({ menu: openActionMenu(run.runId), key: "4", choice: run }));
   const remote = applyMenuKey({ menu: build, key: "2", choice: run });
-  const local = applyMenuKey({ menu: build, key: RIGHT, choice: run });
-  const back = stayed(applyMenuKey({ menu: build, key: LEFT, choice: run }));
+  const local = applyMenuKey({ menu: build, key: "\r", choice: run });
+  const back = backMenu(build);
 
   expect(currentPage(build).screen).toBe("build");
   expect(remote).toEqual({ kind: "run", command: "build-remote" });
   expect(local).toEqual({ kind: "run", command: "build-local" });
-  expect(currentPage(back)).toEqual({ screen: "actions", selected: 3 });
-  expect(backMenu(back)).toBeNull();
-  expect(applyMenuKey({ menu: back, key: LEFT, choice: run })).toEqual({ kind: "close" });
+  expect(back && currentPage(back)).toEqual({ screen: "actions", selected: 3 });
+  expect(back && backMenu(back)).toBeNull();
+  expect(applyMenuKey({ menu: build, key: LEFT, choice: run })).toEqual({ kind: "stay", menu: build });
+  expect(applyMenuKey({ menu: build, key: RIGHT, choice: run })).toEqual({ kind: "stay", menu: build });
 });
 
 test("remove asks first, and no goes back to the actions", () => {

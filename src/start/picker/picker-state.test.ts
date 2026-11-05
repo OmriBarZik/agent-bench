@@ -52,7 +52,8 @@ describe("picker state", () => {
     const typed = press({ state: onRepeats, keys: ["3", "2"] });
 
     expect(typed.repeats).toBe(32);
-    expect(press({ state: typed, keys: [RIGHT] }).repeats).toBe(33);
+    expect(press({ state: typed, keys: ["+"] }).repeats).toBe(33);
+    expect(press({ state: typed, keys: [RIGHT] }).repeats).toBe(32);
   });
 
   test("enter refuses an empty task list", () => {

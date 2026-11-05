@@ -43,8 +43,9 @@ const { values: args } = parseArgs({
  * tab and shift-tab switch between them, and esc quits.
  *   Start: check the tasks and configs to run, set repeats, timeout, and sync, then enter starts. It prints
  *     the equivalent --cli command first.
- *   Runs: the runs in the database. Enter opens a menu of every action below, with submenus; ← or esc goes back.
- *     Ctrl-o opens the run transcript in the browser, right arrow the judge session.
+ *   Runs: the runs in the database. Enter opens a menu of every action below, with submenus; esc goes back.
+ *     Ctrl-o opens the run transcript in the browser, ctrl-e the judge session.
+ *     Ctrl-r reloads the runs from the database. Left and right arrows do nothing.
  *     Ctrl-b then l builds on this Mac, r on the build Mac in configs/builder/remote.yaml. Ctrl-f sets the judge
  *     decision (1–4 or enter). Ctrl-x twice removes the run from the database; the branch and artifact files stay.
  *     Ctrl-g checks the branch out in CHROMIUM_SRC and exits. Type to filter.

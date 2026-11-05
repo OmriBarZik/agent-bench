@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { refreshNotice, reselect } from "./refresh-list";
 import { applyKey, buildTarget, clampSelection, matchingChoices } from "./select-state";
 import type { RunChoice, SelectState } from "./select-state.types";
 
@@ -14,13 +15,13 @@ test("arrow keys move the highlight and stop at the ends", () => {
   expect(stuck.state.selected).toBe(0);
 });
 
-test("enter opens the menu, ctrl-o opens the run, right arrow opens the judge, and ctrl-g checks out", () => {
+test("enter opens the menu, ctrl-o opens the run, ctrl-e opens the judge, and ctrl-g checks out", () => {
   const menu = applyKey({ state: idle, key: "\r", matchCount: 2, pageSize: 5 });
   const transcript = applyKey({ state: idle, key: "\x0f", matchCount: 2, pageSize: 5 });
-  const judge = applyKey({ state: idle, key: "\x1b[C", matchCount: 2, pageSize: 5 });
+  const judge = applyKey({ state: idle, key: "\x05", matchCount: 2, pageSize: 5 });
   const checkout = applyKey({ state: idle, key: "\x07", matchCount: 2, pageSize: 5 });
   const empty = applyKey({ state: idle, key: "\r", matchCount: 0, pageSize: 5 });
-  const emptyJudge = applyKey({ state: idle, key: "\x1bOC", matchCount: 0, pageSize: 5 });
+  const emptyJudge = applyKey({ state: idle, key: "\x05", matchCount: 0, pageSize: 5 });
 
   expect(menu.action).toBe("menu");
   expect(transcript.action).toBe("transcript");
@@ -99,6 +100,31 @@ test("matchingChoices finds a changed path and ignores case", () => {
   expect(matchingChoices({ choices, query: "  " })).toEqual(choices);
 });
 
+test("a refresh keeps the highlight on the same run when new runs come in above it", () => {
+  const fresh = [
+    choice({ branch: "new__haiku__r0" }),
+    choice({ branch: "a__haiku__r0" }),
+    choice({ branch: "b__haiku__r0" }),
+  ];
+  const state = reselect({
+    state: { ...idle, selected: 1 },
+    choices: fresh,
+    highlightedRunId: "b__haiku__r0",
+    pageSize: 5,
+  });
+  const gone = reselect({
+    state: { ...idle, selected: 4 },
+    choices: fresh,
+    highlightedRunId: "x__haiku__r0",
+    pageSize: 5,
+  });
+
+  expect(state.selected).toBe(2);
+  expect(gone.selected).toBe(2);
+  expect(refreshNotice({ before: 2, after: 3 })).toBe("refreshed: 3 runs, 1 new");
+  expect(refreshNotice({ before: 3, after: 3 })).toBe("refreshed: 3 runs, none new");
+});
+
 function choice(overrides: Partial<RunChoice> = {}): RunChoice {
   return {
     runId: overrides.branch ?? "dino__haiku__r0",
@@ -129,3 +155,9 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     ...overrides,
   };
 }
+
+test("left and right arrows do nothing, and ctrl-r asks for a refresh even with no matches", () => {
+  expect(applyKey({ state: idle, key: "\x1b[C", matchCount: 2, pageSize: 5 })).toEqual({ state: idle, action: "stay" });
+  expect(applyKey({ state: idle, key: "\x1b[D", matchCount: 2, pageSize: 5 })).toEqual({ state: idle, action: "stay" });
+  expect(applyKey({ state: idle, key: "\x12", matchCount: 0, pageSize: 5 }).action).toBe("refresh");
+});

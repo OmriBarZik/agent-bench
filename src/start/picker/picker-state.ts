@@ -1,5 +1,5 @@
 import { adjust, eraseDigit, toggleRow, toggleSection, typeDigit } from "./picker-edit";
-import { isDown, isEnd, isHome, isLeft, isRight, isUp } from "./picker-keys";
+import { isDown, isEnd, isHome, isUp } from "./picker-keys";
 import type {
   PickerChoices,
   PickerDefaults,
@@ -112,11 +112,11 @@ export function applyPickerKey({
     return stay(toggleSection({ state: cleared, kind: row.kind }));
   }
 
-  if (isLeft(key) || key === "-") {
+  if (key === "-") {
     return stay(adjust({ state: cleared, kind: row.kind, delta: -1 }));
   }
 
-  if (isRight(key) || key === "+") {
+  if (key === "+") {
     return stay(adjust({ state: cleared, kind: row.kind, delta: 1 }));
   }
 

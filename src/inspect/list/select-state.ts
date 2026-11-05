@@ -17,8 +17,8 @@ export function buildTarget(key: string): BuildTarget | null {
 
 /**
  * Applies one keypress. Letters always filter, including q. Enter opens the action menu, ctrl-o opens the run
- * transcript, ctrl-g checks the branch out, ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision,
- * and ctrl-x deletes. Tab never arrives here: it switches tabs.
+ * transcript, ctrl-e the judge transcript, ctrl-g checks the branch out, ctrl-c quits, ctrl-b asks where to build, ctrl-f sets the judge decision,
+ * ctrl-x deletes, and ctrl-r reloads the runs from the database. Tab never arrives here: it switches tabs.
  */
 export function applyKey({
   state,
@@ -43,7 +43,7 @@ export function applyKey({
     return { state, action: matchCount === 0 ? "stay" : "transcript" };
   }
 
-  if (isRight(key)) {
+  if (key === "\x05") {
     return { state, action: matchCount === 0 ? "stay" : "judge" };
   }
 
@@ -61,6 +61,10 @@ export function applyKey({
 
   if (key === "\x18") {
     return { state, action: matchCount === 0 ? "stay" : "delete" };
+  }
+
+  if (key === "\x12") {
+    return { state, action: "refresh" };
   }
 
   if (key === "\x7f" || key === "\b" || key === "\x1b[3~") {
@@ -206,10 +210,6 @@ function isUp(key: string): boolean {
 
 function isDown(key: string): boolean {
   return key === "\x1b[B" || key === "\x1bOB";
-}
-
-function isRight(key: string): boolean {
-  return key === "\x1b[C" || key === "\x1bOC";
 }
 
 function isPageUp(key: string): boolean {

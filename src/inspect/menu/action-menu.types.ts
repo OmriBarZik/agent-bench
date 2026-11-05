@@ -24,7 +24,7 @@ export type MenuPage = {
   selected: number;
 };
 
-/** The Enter menu for one run. The last page is the one showing; earlier pages are where ← and esc go back to. */
+/** The Enter menu for one run. The last page is the one showing; earlier pages are where esc goes back to. */
 export type ActionMenu = {
   runId: string;
   pages: MenuPage[];
