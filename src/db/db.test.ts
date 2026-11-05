@@ -4,10 +4,13 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  abandonOpenBuilds,
   cancelRun,
   deleteRun,
+  finishBuild,
   finishChromiumBuild,
   finishRun,
+  listBuilds,
   listRunBranches,
   listToolTrouble,
   logToolCall,
@@ -15,6 +18,7 @@ import {
   passedChromiumApps,
   promptVersion,
   saveJudgeRun,
+  startBuild,
   startChromiumBuild,
   startRun,
   taskChromiumSha,
@@ -733,6 +737,51 @@ const judged: JudgeMetrics = {
   blocked: false,
   blockers: [],
 };
+
+test("builds rows record every build, close open ones as abandoned, and roll up per run", () => {
+  const db = openDb(tempDb());
+  try {
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc" } });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    const runId = "dino__haiku__r0";
+    seedRun({ db, runId, startedAt: "2026-10-24T12:00:00.000Z" });
+    const failed = startBuild({ db, build: { runId, buildNumber: 1, logPath: "/logs/build-1.log" } });
+    finishBuild({
+      db,
+      buildId: failed,
+      finish: { status: "failed", snapshotSha: "a1", durationMs: 90_000, failedStep: "build", error: "error: hat" },
+    });
+    const ok = startBuild({ db, build: { runId, buildNumber: 2, logPath: "/logs/build-2.log" } });
+    finishBuild({ db, buildId: ok, finish: { status: "ok", snapshotSha: "b2", durationMs: 60_000, buildMs: 50_000 } });
+    startBuild({ db, build: { runId, buildNumber: 3, logPath: "/logs/build-3.log" } });
+
+    abandonOpenBuilds({ db, runId });
+
+    expect(listBuilds({ db, runId }).map((build) => [build.build_number, build.status, build.failed_step])).toEqual([
+      [1, "failed", "build"],
+      [2, "ok", null],
+      [3, "abandoned", null],
+    ]);
+    expect(db.query("SELECT * FROM run_build_stats WHERE run_id = $runId").get({ runId })).toMatchObject({
+      builds: 3,
+      ok_builds: 1,
+      failed_builds: 1,
+      first_ok_build: 2,
+      last_build_status: "abandoned",
+    });
+    const activity = db
+      .query(`SELECT status FROM build_activity WHERE run_id = $runId AND source = 'agent'`)
+      .all({ runId }) as { status: string }[];
+
+    expect(activity.map((row) => row.status).sort()).toEqual(["cancelled", "failed", "passed"]);
+
+    deleteRun({ db, runId });
+
+    expect(listBuilds({ db, runId })).toEqual([]);
+  } finally {
+    db.close();
+  }
+});
 
 function seedRun({ db, runId, startedAt }: { db: Database; runId: string; startedAt: string }) {
   startRun({

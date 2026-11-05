@@ -4,9 +4,21 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { BASELINE_PROMPT } from "../../baseline-policy";
 import type { ClaudeResult, Task } from "../../db/db.types";
-import { BENCH_DIR, CHROMIUM_SRC, HOOK_SETTINGS, TRANSCRIPT_FILE } from "../../paths";
+import {
+  BENCH_DIR,
+  CHROMIUM_SRC,
+  HOOK_SETTINGS,
+  TRANSCRIPT_FILE,
+  VALIDATE_PLUGIN_DIR,
+  VALIDATE_SERVER,
+} from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { captureClaude } from "./claude-process";
+
+/** The allowedTools pattern for the chrome-validate tools. Headless sessions cannot answer a permission prompt. */
+const VALIDATE_TOOLS = "mcp__chrome-validate__*";
+/** wait_build blocks up to 50 minutes; Claude Code's MCP tool timeout must outlast it. */
+const MCP_TOOL_TIMEOUT_MS = String(60 * 60_000);
 
 /** Output of `claude --version`, stored on every run. */
 export async function claudeVersion(): Promise<string> {
@@ -18,10 +30,13 @@ export function claudeArgs({
   task,
   config,
   sessionId,
+  runId,
 }: {
   task: Task;
   config: BenchConfig;
   sessionId: string;
+  /** Passed to the chrome-validate server so its builds are stored on this run. */
+  runId: string;
 }): string[] {
   const args = [
     "claude",
@@ -41,17 +56,16 @@ export function claudeArgs({
     args.push("--model", config.model);
   }
 
-  if (config.mcpConfig?.length) {
-    args.push("--mcp-config", ...config.mcpConfig.map((path) => resolve(BENCH_DIR, path)));
-  }
+  // chrome-validate is baseline: every config gets it next to its own MCP servers, and may call it.
+  const mcpConfigs = (config.mcpConfig ?? []).map((path) => resolve(BENCH_DIR, path));
+  args.push("--mcp-config", validateMcpConfig({ runId, taskSha: task.chromiumSha }), ...mcpConfigs);
+  args.push("--plugin-dir", VALIDATE_PLUGIN_DIR);
 
   if (config.strictMcpConfig) {
     args.push("--strict-mcp-config");
   }
 
-  if (config.allowedTools?.length) {
-    args.push("--allowedTools", ...config.allowedTools);
-  }
+  args.push("--allowedTools", VALIDATE_TOOLS, ...(config.allowedTools ?? []));
 
   if (config.disallowedTools?.length) {
     args.push("--disallowedTools", ...config.disallowedTools);
@@ -62,6 +76,19 @@ export function claudeArgs({
   }
 
   return args;
+}
+
+/** The chrome-validate server as an inline --mcp-config JSON, with the run it records builds on. */
+export function validateMcpConfig({ runId, taskSha }: { runId: string; taskSha: string }): string {
+  return JSON.stringify({
+    mcpServers: {
+      "chrome-validate": {
+        command: "bun",
+        args: [VALIDATE_SERVER],
+        env: { BENCH_RUN_ID: runId, BENCH_TASK_SHA: taskSha, CHROMIUM_SRC },
+      },
+    },
+  });
 }
 
 /** Baseline rules, then this config's note about its tools when it has one. */
@@ -96,7 +123,7 @@ export async function runClaude({
   const captured = await captureClaude({
     command,
     cwd: CHROMIUM_SRC,
-    env: { ...process.env, BENCH_RUN_ID: runId },
+    env: { ...process.env, BENCH_RUN_ID: runId, MCP_TOOL_TIMEOUT: MCP_TOOL_TIMEOUT_MS },
     timeoutMs,
     signal,
   });

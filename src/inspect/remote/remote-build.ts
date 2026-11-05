@@ -1,6 +1,5 @@
 import { $ } from "bun";
 import { existsSync } from "node:fs";
-import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { openDb, taskChromiumSha } from "../../db/db";
 import { BENCH_DIR } from "../../paths";
@@ -13,6 +12,8 @@ import { openBuildWatch } from "../build/record/record-build";
 import { gitlinkCommitsBetween } from "../gitlink/gitlink-commits";
 import type { SubmoduleCommit } from "../gitlink/gitlink-diff.types";
 import type { RunChoice } from "../list/select-state.types";
+import { publishCopiedTree } from "./guard/publish-app";
+import { withRemoteBuildLock } from "./guard/remote-build-lock";
 import {
   branchRefspec,
   buildCommand,
@@ -138,24 +139,33 @@ export async function buildRemoteRun({
   });
   showStep({ choice, config, step: "build" });
   console.log("Building chrome…");
-  await runStep({
-    command: buildCommand({
-      host: config.host,
-      source: config.source,
-      branch: choice.branch,
-      depotTools: config.depotTools,
-    }),
+  await withRemoteBuildLock({
+    directory: config.buildDirectory,
     signal,
-    label: "build",
-    stdin: script,
-  });
-  showStep({ choice, config, step: "copy" });
-  console.log("Copying the app back…");
-  await mkdir(destination, { recursive: true });
-  await runStep({
-    command: copyBackCommand({ host: config.host, source: config.source, destination }),
-    signal,
-    label: "copy",
+    body: async () => {
+      await runStep({
+        command: buildCommand({
+          host: config.host,
+          source: config.source,
+          revision: choice.branch,
+          depotTools: config.depotTools,
+        }),
+        signal,
+        label: "build",
+        stdin: script,
+      });
+      showStep({ choice, config, step: "copy" });
+      console.log("Copying the app back…");
+      await publishCopiedTree({
+        destination,
+        copy: (staging) =>
+          runStep({
+            command: copyBackCommand({ host: config.host, source: config.source, destination: staging }),
+            signal,
+            label: "copy",
+          }),
+      });
+    },
   });
   const app = join(destination, "Chromium.app");
 

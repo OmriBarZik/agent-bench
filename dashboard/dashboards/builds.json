@@ -51,8 +51,8 @@
         {
           "refId": "A",
           "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-          "queryText": "SELECT count(*) AS builds FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT count(*) AS builds FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "queryText": "SELECT count(*) AS builds FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT count(*) AS builds FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
           "queryType": "table"
         }
       ],
@@ -73,8 +73,8 @@
         {
           "refId": "A",
           "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-          "queryText": "SELECT count(*) AS passed FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'passed' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT count(*) AS passed FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'passed' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "queryText": "SELECT count(*) AS passed FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'passed' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT count(*) AS passed FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'passed' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
           "queryType": "table"
         }
       ],
@@ -98,8 +98,8 @@
         {
           "refId": "A",
           "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-          "queryText": "SELECT count(*) AS failed FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'failed' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT count(*) AS failed FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'failed' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "queryText": "SELECT count(*) AS failed FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'failed' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT count(*) AS failed FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'failed' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
           "queryType": "table"
         }
       ],
@@ -131,8 +131,8 @@
         {
           "refId": "A",
           "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-          "queryText": "SELECT count(*) AS cancelled FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'cancelled' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT count(*) AS cancelled FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'cancelled' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "queryText": "SELECT count(*) AS cancelled FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'cancelled' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT count(*) AS cancelled FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'cancelled' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
           "queryType": "table"
         }
       ],
@@ -154,8 +154,8 @@
         {
           "refId": "A",
           "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-          "queryText": "SELECT count(*) AS building FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'building' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT count(*) AS building FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'building' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "queryText": "SELECT count(*) AS building FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'building' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT count(*) AS building FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'building' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
           "queryType": "table"
         }
       ],
@@ -176,8 +176,8 @@
         {
           "refId": "A",
           "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-          "queryText": "SELECT avg(chromium_builds.duration_ms) AS duration FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'passed' AND chromium_builds.duration_ms IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
-          "rawQueryText": "SELECT avg(chromium_builds.duration_ms) AS duration FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'passed' AND chromium_builds.duration_ms IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "queryText": "SELECT avg(build_activity.duration_ms) AS duration FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'passed' AND build_activity.duration_ms IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
+          "rawQueryText": "SELECT avg(build_activity.duration_ms) AS duration FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'passed' AND build_activity.duration_ms IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote})",
           "queryType": "table"
         }
       ],
@@ -198,8 +198,8 @@
         {
           "refId": "A",
           "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-          "queryText": "SELECT runs.task_id || ' / ' || runs.config_id AS setup, avg(chromium_builds.duration_ms) / 1000.0 AS seconds FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'passed' AND chromium_builds.duration_ms IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY seconds DESC",
-          "rawQueryText": "SELECT runs.task_id || ' / ' || runs.config_id AS setup, avg(chromium_builds.duration_ms) / 1000.0 AS seconds FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE chromium_builds.status = 'passed' AND chromium_builds.duration_ms IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY seconds DESC",
+          "queryText": "SELECT runs.task_id || ' / ' || runs.config_id AS setup, avg(build_activity.duration_ms) / 1000.0 AS seconds FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'passed' AND build_activity.duration_ms IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY seconds DESC",
+          "rawQueryText": "SELECT runs.task_id || ' / ' || runs.config_id AS setup, avg(build_activity.duration_ms) / 1000.0 AS seconds FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE build_activity.status = 'passed' AND build_activity.duration_ms IS NOT NULL AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY seconds DESC",
           "queryType": "table"
         }
       ],
@@ -215,15 +215,15 @@
       "id": 8,
       "type": "table",
       "title": "Builds (newest first)",
-      "description": "Every Chromium build started from the Runs tab. duration is the whole build. error is set when it failed or was cancelled.",
+      "description": "Every Chromium build from the Runs tab or an agent. source is runs-tab or agent. Agent ok is shown as passed, and abandoned as cancelled. duration is the whole build. error is set when it failed or was cancelled.",
       "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
       "gridPos": { "x": 0, "y": 12, "w": 24, "h": 14 },
       "targets": [
         {
           "refId": "A",
           "datasource": { "type": "frser-sqlite-datasource", "uid": "bench-sqlite" },
-          "queryText": "SELECT runs.task_id, runs.config_id, chromium_builds.target, chromium_builds.host, chromium_builds.status, chromium_builds.started_at, chromium_builds.duration_ms AS duration, chromium_builds.error, chromium_builds.run_id FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) ORDER BY chromium_builds.started_at DESC LIMIT 200",
-          "rawQueryText": "SELECT runs.task_id, runs.config_id, chromium_builds.target, chromium_builds.host, chromium_builds.status, chromium_builds.started_at, chromium_builds.duration_ms AS duration, chromium_builds.error, chromium_builds.run_id FROM chromium_builds JOIN runs ON runs.run_id = chromium_builds.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) ORDER BY chromium_builds.started_at DESC LIMIT 200",
+          "queryText": "SELECT runs.task_id, runs.config_id, build_activity.source, build_activity.target, build_activity.host, build_activity.status, build_activity.started_at, build_activity.duration_ms AS duration, build_activity.error, build_activity.run_id FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) ORDER BY build_activity.started_at DESC LIMIT 200",
+          "rawQueryText": "SELECT runs.task_id, runs.config_id, build_activity.source, build_activity.target, build_activity.host, build_activity.status, build_activity.started_at, build_activity.duration_ms AS duration, build_activity.error, build_activity.run_id FROM build_activity JOIN runs ON runs.run_id = build_activity.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) ORDER BY build_activity.started_at DESC LIMIT 200",
           "queryType": "table"
         }
       ],

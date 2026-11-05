@@ -3,6 +3,9 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import type {
+  BuildFinish,
+  BuildRow,
+  BuildStart,
   ChangedFile,
   ChromiumBuildFinish,
   ChromiumBuildStart,
@@ -517,6 +520,57 @@ export function logToolCall({ db, call }: { db: Database; call: ToolCall }) {
   });
 }
 
+/** Inserts a builds row with status `building` and returns its id. */
+export function startBuild({ db, build }: { db: Database; build: BuildStart }): number {
+  const row = db
+    .query(`INSERT INTO builds (run_id, build_number, log_path) VALUES ($runId, $buildNumber, $logPath) RETURNING id`)
+    .get({ runId: build.runId, buildNumber: build.buildNumber, logPath: build.logPath }) as { id: number };
+
+  return row.id;
+}
+
+/** Stores how one agent-requested build ended. */
+export function finishBuild({ db, buildId, finish }: { db: Database; buildId: number; finish: BuildFinish }) {
+  db.query(
+    `UPDATE builds SET status = $status, snapshot_sha = $snapshotSha, duration_ms = $durationMs,
+            send_ms = $sendMs, build_ms = $buildMs, copy_ms = $copyMs, failed_step = $failedStep, error = $error,
+            finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+     WHERE id = $buildId`,
+  ).run({
+    buildId,
+    status: finish.status,
+    snapshotSha: finish.snapshotSha ?? null,
+    durationMs: finish.durationMs,
+    sendMs: finish.sendMs ?? null,
+    buildMs: finish.buildMs ?? null,
+    copyMs: finish.copyMs ?? null,
+    failedStep: finish.failedStep ?? null,
+    error: finish.error ?? null,
+  });
+}
+
+/**
+ * Marks the run's builds that are still `building` as `abandoned`. The runner calls this after the session ends,
+ * because a killed MCP server cannot record its own last build.
+ */
+export function abandonOpenBuilds({ db, runId }: { db: Database; runId: string }) {
+  db.query(
+    `UPDATE builds SET status = 'abandoned', finished_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+            duration_ms = CAST((julianday('now') - julianday(started_at)) * 86400000 AS INTEGER)
+     WHERE run_id = $runId AND status = 'building'`,
+  ).run({ runId });
+}
+
+/** The run's builds, oldest first. */
+export function listBuilds({ db, runId }: { db: Database; runId: string }): BuildRow[] {
+  return db
+    .query(
+      `SELECT run_id, build_number, snapshot_sha, status, duration_ms, failed_step, error
+       FROM builds WHERE run_id = $runId ORDER BY build_number`,
+    )
+    .all({ runId }) as BuildRow[];
+}
+
 /** Inserts a Chromium build as `building` and returns its id. The Runs tab finishes the row when chrome exits. */
 export function startChromiumBuild({ db, build }: { db: Database; build: ChromiumBuildStart }): number {
   const row = db
@@ -582,9 +636,10 @@ export function passedChromiumApps(db: Database): PassedChromiumApps {
   return { latestTarget, latestLocalRunId };
 }
 
-/** Removes one run and the judge, tool-call, and build rows that belong to it. The task and config rows stay. */
+/** Removes one run and the judge, tool-call, and both build tables' rows. The task and config rows stay. */
 export function deleteRun({ db, runId }: { db: Database; runId: string }) {
   const remove = db.transaction(() => {
+    db.query(`DELETE FROM builds WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM tool_calls WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM judge_runs WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM chromium_builds WHERE run_id = $runId`).run({ runId });

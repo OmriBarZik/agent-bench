@@ -1,0 +1,5 @@
+{
+  "name": "chrome-validate",
+  "version": "1.0.0",
+  "description": "agent-bench baseline: build the agent's Chromium change on the build Mac and check it in a real browser"
+}

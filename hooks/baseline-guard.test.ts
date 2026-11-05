@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { BRANCH_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import { BRANCH_DENIAL, BUILD_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
 import { baselineDenial } from "./baseline-guard";
 
 describe("baseline other branches", () => {
@@ -67,7 +67,6 @@ describe("baseline directory changes", () => {
     expect(baselineDenial("git -C /abs/path status")).toBeNull();
     expect(baselineDenial("git status")).toBeNull();
     expect(baselineDenial("ls chrome/browser")).toBeNull();
-    expect(baselineDenial("ninja -C out/Default chrome")).toBeNull();
     expect(baselineDenial("echo cd")).toBeNull();
     expect(baselineDenial("echo hello # cd /tmp")).toBeNull();
     expect(baselineDenial("command -v cd")).toBeNull();
@@ -105,5 +104,23 @@ describe("baseline shell file edits", () => {
     expect(baselineDenial("python3 -c 'print(open(\"a\").read())'")).toBeNull();
     expect(baselineDenial("git diff")).toBeNull();
     expect(baselineDenial("git status")).toBeNull();
+  });
+});
+
+describe("baseline local builds", () => {
+  test("denies gn, ninja, autoninja, and siso, including a path and a wrapper", () => {
+    expect(baselineDenial("ninja -C out/Default chrome")).toBe(BUILD_DENIAL);
+    expect(baselineDenial("autoninja -C out/Default chrome")).toBe(BUILD_DENIAL);
+    expect(baselineDenial("gn gen out/Default")).toBe(BUILD_DENIAL);
+    expect(baselineDenial("siso ninja -C out/Default chrome")).toBe(BUILD_DENIAL);
+    expect(baselineDenial("/abs/depot_tools/autoninja -C out/Default chrome")).toBe(BUILD_DENIAL);
+    expect(baselineDenial("sudo -n ninja -C out/Default chrome")).toBe(BUILD_DENIAL);
+    expect(baselineDenial("bash -c 'gn gen out/Default'")).toBe(BUILD_DENIAL);
+  });
+
+  test("allows mentioning the tools without running them", () => {
+    expect(baselineDenial("echo ninja")).toBeNull();
+    expect(baselineDenial("ls third_party/ninja")).toBeNull();
+    expect(baselineDenial("command -v ninja")).toBeNull();
   });
 });

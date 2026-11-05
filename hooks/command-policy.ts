@@ -1,10 +1,11 @@
 import { basename } from "node:path";
 import type { Command, CommandArgument } from "unbash";
-import { BRANCH_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import { BRANCH_DENIAL, BUILD_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
 import { gitSubcommand } from "./bash/git-subcommand";
 import { readsOtherBranches } from "./bash/other-branches";
 
 const DIRECTORY_COMMANDS = new Set(["cd", "pushd", "popd"]);
+const BUILD_PROGRAMS = new Set(["gn", "ninja", "autoninja", "siso"]);
 const EDITORS = new Set(["ed", "ex", "vi", "vim", "nvim", "nano", "emacs", "pico"]);
 const INTERPRETERS = new Set(["python", "python3", "node", "nodejs", "ruby", "perl", "bun"]);
 const DISCARD_TARGETS = new Set(["/dev/null", "/dev/stdout", "/dev/stderr", "/dev/tty", "/dev/fd/1", "/dev/fd/2"]);
@@ -31,6 +32,10 @@ export function commandDenial(command: Command): string | null {
   }
 
   const program = programName(command);
+
+  if (program && BUILD_PROGRAMS.has(program)) {
+    return BUILD_DENIAL;
+  }
 
   if (program && readsOtherBranches({ program, words: wordValues(command.args) })) {
     return BRANCH_DENIAL;

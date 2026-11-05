@@ -46,6 +46,11 @@ export async function commitDirtySubmodules({ repo, message }: { repo: string; m
   }
 }
 
+/** Submodules that have uncommitted work, plus any submodule that contains one, deepest path first. */
+export async function dirtySubmodulePaths(repo: string): Promise<string[]> {
+  return submodulesToCommit(await listSubmodules(repo));
+}
+
 function syncScript(force: boolean): string {
   const checkout = force ? `git checkout --quiet --force --detach "$sha"` : `git checkout --quiet --detach "$sha"`;
 
