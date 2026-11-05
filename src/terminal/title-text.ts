@@ -1,8 +1,10 @@
 import type { RunPhase } from "../runner/run-one/run-one.types";
 import type { BenchEndTitle, BuildStep, BuildTitle, RunTitle } from "./title-text.types";
 
-/** The title while the TUI shows its tabs. */
-export const IDLE_TITLE = "agent-bench";
+/** `agent-bench · Runs`: the title while the TUI shows the tab labelled `label`. */
+export function tabTitle(label: string): string {
+  return `agent-bench · ${label}`;
+}
 
 const PHASE_LABEL: Record<RunPhase, string> = { reset: "reset", agent: "agent", judge: "judge" };
 

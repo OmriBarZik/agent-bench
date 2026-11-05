@@ -1,6 +1,4 @@
 import process from "node:process";
-import { setTerminalTitle } from "../../terminal/terminal-title";
-import { IDLE_TITLE } from "../../terminal/title-text";
 import type { TuiControls, TuiScreen } from "../../tui/open-tui.types";
 import { buildSession } from "../build/build-session";
 import type { BuildTarget } from "../build/build-session.types";
@@ -74,7 +72,6 @@ export function createRunsScreen({
       .finally(() => {
         cancelBuild = null;
         busy = false;
-        setTerminalTitle(IDLE_TITLE);
 
         if (controls.isClosed()) {
           return;
