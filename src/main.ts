@@ -1,9 +1,8 @@
 #!/usr/bin/env bun
-import { join } from "node:path";
 import { parseArgs } from "node:util";
 import { openDb, upsertConfig, upsertTask } from "./db/db";
-import { BENCH_DIR, CHROMIUM_SRC } from "./paths";
-import { loadSelection, toConfigRow } from "./runner/bench-config/bench-config";
+import { CHROMIUM_SRC } from "./paths";
+import { toConfigRow } from "./runner/bench-config/bench-config";
 import { claudeVersion } from "./runner/claude/claude";
 import { confirmDiscardUncommittedChanges } from "./runner/chromium/confirm-discard";
 import { uncommittedStatus } from "./runner/chromium/chromium";
@@ -11,18 +10,21 @@ import { blockerAlert } from "./runner/judge/result/judge-blockers";
 import { judgementText } from "./runner/judge/result/judge-result";
 import { runOne } from "./runner/run-one/run-one";
 import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
+import { DEFAULT_CONFIGS_PATH, DEFAULT_TASKS_PATH, resolveRunPlan } from "./start/run-plan";
 
 const { values: args } = parseArgs({
   options: {
-    tasks: { type: "string", default: join(BENCH_DIR, "configs/benchmark-tasks.json") },
-    configs: { type: "string", default: join(BENCH_DIR, "configs/benchmark-setup.json") },
-    repeats: { type: "string", default: "1" },
-    "only-task": { type: "string" },
-    "only-config": { type: "string" },
+    tasks: { type: "string", default: DEFAULT_TASKS_PATH },
+    configs: { type: "string", default: DEFAULT_CONFIGS_PATH },
+    repeats: { type: "string" }, // no default, so the picker knows whether it was passed
+    "only-task": { type: "string", multiple: true },
+    "only-config": { type: "string", multiple: true },
     "timeout-min": { type: "string", default: "60" },
     "judge-model": { type: "string", default: "claude-sonnet-5-5" },
     sync: { type: "boolean", default: false }, // run `gclient sync -D` after each checkout
     force: { type: "boolean", default: false }, // wipe uncommitted changes in src/ without asking
+    interactive: { type: "boolean", short: "i", default: false }, // open the picker even with selection flags
+    cli: { type: "boolean", default: false }, // never open the picker
   },
 });
 
@@ -30,8 +32,14 @@ const { values: args } = parseArgs({
  * Benchmark runner: tasks × configs × repeats, one `claude -p` session per run.
  *
  *   bun run start [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
- *                     [--only-task id] [--only-config id] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
- *                     [--sync] [--force]
+ *                     [--only-task id[,id]] [--only-config id[,id]] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
+ *                     [--sync] [--force] [--interactive | --cli]
+ *
+ * On a terminal with none of --only-task, --only-config, or --repeats, it opens a picker: check the tasks
+ * and configs to run, set repeats, timeout, and sync, then enter starts (esc quits). It prints the
+ * equivalent --cli command first. --interactive opens the picker with the flags as its starting values,
+ * and --cli (or no terminal) skips it and runs exactly what the flags say. --only-task and --only-config
+ * take comma-separated ids and may be repeated.
  *
  * Uncommitted tracked changes in the Chromium checkout block the run. On a terminal the runner
  * asks whether to delete them and continue. Answering no, or running without a terminal, exits
@@ -81,13 +89,25 @@ async function main() {
   let stopped = false;
 
   try {
-    const { tasks, configs } = await loadSelection({
+    const plan = await resolveRunPlan({
       tasksPath: args.tasks,
       configsPath: args.configs,
       onlyTask: args["only-task"],
       onlyConfig: args["only-config"],
+      repeats: args.repeats,
+      timeoutMin: args["timeout-min"],
+      sync: args.sync,
+      interactive: args.interactive,
+      cli: args.cli,
     });
-    const repeats = Number(args.repeats);
+
+    if (!plan) {
+      console.log("Nothing started.");
+
+      return;
+    }
+
+    const { tasks, configs, repeats } = plan;
 
     if (shutdown.signal.aborted) {
       stopped = true;
@@ -110,8 +130,8 @@ async function main() {
     if (!stopped) {
       const options = {
         claudeVersion: await claudeVersion(),
-        timeoutMs: Number(args["timeout-min"]) * 60_000,
-        sync: args.sync,
+        timeoutMs: plan.timeoutMin * 60_000,
+        sync: plan.sync,
         judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
       };
       db = openDb();

@@ -27,7 +27,7 @@ The runner defaults `CHROMIUM_SRC` to `../src`. The hooks in `hooks/settings.exa
 
 ```sh
 bun install                        # @types/bun + husky (installs the pre-commit hook)
-bun run start                      # reads configs/benchmark-tasks.json + configs/benchmark-setup.json
+bun run start                      # on a terminal, opens a picker over configs/benchmark-tasks.json + configs/benchmark-setup.json
 bun run start --only-task t1 --repeats 3
 bun run start:inspect              # pick a run: enter opens its transcript, ctrl-b then l or r builds it here or on the other Mac, ctrl-f sets the judge decision, ctrl-x twice removes it, tab checks out its branch
 bun run start:dashboard            # view results in Grafana at http://localhost:3000
@@ -35,7 +35,7 @@ bun run start:dashboard            # view results in Grafana at http://localhost
 
 > ⚠️ The runner **wipes uncommitted work** in the Chromium checkout (`git reset --hard` + `git clean -fd`), including every checked-out submodule, before every run. It refuses to start if tracked files are modified, unless you pass `--force` or answer yes when asked to delete those changes.
 
-Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config`, `--timeout-min` (default 60), `--sync` (run `gclient sync -D` after each checkout) and `--force`. What to install for each config is in [setup.md](setup.md).
+Flags: `--tasks`, `--configs`, `--repeats`, `--only-task`, `--only-config` (both take comma-separated ids), `--timeout-min` (default 60), `--sync` (run `gclient sync -D` after each checkout), `--force`, `--interactive`/`-i` and `--cli`. On a terminal with none of `--only-task`, `--only-config` or `--repeats`, `bun run start` opens a picker (`src/start/picker/`): space checks tasks and configs, `a` toggles a whole section, left/right or digits set repeats and timeout, enter starts and prints the equivalent `--cli` command, esc quits. `--interactive` opens it with the flags as starting values; `--cli` or a non-terminal never opens it. What to install for each config is in [setup.md](setup.md).
 
 ## How a run works
 
