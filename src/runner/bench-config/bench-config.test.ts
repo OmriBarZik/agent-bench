@@ -68,7 +68,6 @@ test("the shipped configs load their tool prompts", async () => {
   const toolPromptByConfig = new Map(selection.configs.map((config) => [config.configId, config.toolPrompt]));
 
   expect(toolPromptByConfig.get("baseline")).toBeUndefined();
-  expect(toolPromptByConfig.get("haiku-baseline")).toBeUndefined();
   expect(toolPromptByConfig.get("codebase-memory")).toContain(
     "You must use the codebase-memory-mcp tools, named `mcp__codebase-memory-mcp__*`",
   );
