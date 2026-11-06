@@ -4,7 +4,7 @@
   "tags": ["agent-bench"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 24,
+  "version": 27,
   "refresh": "30s",
   "time": {
     "from": "now-7d",
@@ -53,6 +53,26 @@
         "sort": 1
       },
       {
+        "name": "baseline",
+        "label": "Compare against",
+        "type": "query",
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "bench-sqlite"
+        },
+        "query": "SELECT DISTINCT config_id FROM runs ORDER BY config_id",
+        "definition": "SELECT DISTINCT config_id FROM runs ORDER BY config_id",
+        "multi": false,
+        "includeAll": false,
+        "current": {
+          "selected": true,
+          "text": "baseline",
+          "value": "baseline"
+        },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
         "name": "run",
         "label": "Run",
         "type": "query",
@@ -76,6 +96,1764 @@
   },
   "panels": [
     {
+      "id": 124,
+      "type": "row",
+      "title": "Tokens and cost",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 120,
+      "type": "barchart",
+      "title": "Tokens per run by config",
+      "description": "Average tokens in one run, split by type. The label shows how many runs each bar averages. Lower is better.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id || ' (' || count(*) || ' runs)' AS config, avg(runs.input_tokens) AS \"fresh input\", avg(runs.cache_creation_tokens) AS \"cache write\", avg(runs.cache_read_tokens) AS \"cache read\", avg(runs.output_tokens) AS output FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY avg(runs.total_tokens)",
+          "rawQueryText": "SELECT runs.config_id || ' (' || count(*) || ' runs)' AS config, avg(runs.input_tokens) AS \"fresh input\", avg(runs.cache_creation_tokens) AS \"cache write\", avg(runs.cache_read_tokens) AS \"cache read\", avg(runs.output_tokens) AS output FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY avg(runs.total_tokens)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "never",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "fresh input"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cache write"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cache read"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "output"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 121,
+      "type": "barchart",
+      "title": "Tokens vs ${baseline} (%)",
+      "description": "Average tokens per run relative to the baseline, compared task by task with every task weighted equally, so a config that ran more of the big tasks isn't penalised. Below zero uses fewer tokens.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg(judge_runs.success) AS pass, avg(runs.cost_usd) AS cost, avg(runs.total_tokens) AS tokens, avg(runs.duration_ms) AS duration FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(100.0 * avg(config.tokens / base.tokens - 1), 1) AS \"token change\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2 DESC",
+          "rawQueryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg(judge_runs.success) AS pass, avg(runs.cost_usd) AS cost, avg(runs.total_tokens) AS tokens, avg(runs.duration_ms) AS duration FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(100.0 * avg(config.tokens / base.tokens - 1), 1) AS \"token change\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2 DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 6,
+        "h": 9
+      }
+    },
+    {
+      "id": 104,
+      "type": "barchart",
+      "title": "Cost vs ${baseline} (%)",
+      "description": "Average cost per run relative to the baseline on the same tasks. Below zero is cheaper.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg(judge_runs.success) AS pass, avg(runs.cost_usd) AS cost, avg(runs.duration_ms) AS duration FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(100.0 * avg(config.cost / base.cost - 1), 1) AS \"cost change\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2 DESC",
+          "rawQueryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg(judge_runs.success) AS pass, avg(runs.cost_usd) AS cost, avg(runs.duration_ms) AS duration FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(100.0 * avg(config.cost / base.cost - 1), 1) AS \"cost change\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2 DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 1,
+        "w": 6,
+        "h": 9
+      }
+    },
+    {
+      "id": 122,
+      "type": "barchart",
+      "title": "Tokens per passing run",
+      "description": "All tokens spent divided by the number of passing runs, so failed runs count against a config. Lower is better; empty means no run passed.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, 1.0 * sum(runs.total_tokens) / nullif(sum(judge_runs.success), 0) AS \"tokens per pass\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY 2",
+          "rawQueryText": "SELECT runs.config_id AS config, 1.0 * sum(runs.total_tokens) / nullif(sum(judge_runs.success), 0) AS \"tokens per pass\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY 2",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "tokens per pass"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 6,
+        "h": 8
+      }
+    },
+    {
+      "id": 110,
+      "type": "barchart",
+      "title": "Tokens per run (min / avg / max)",
+      "description": "",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, min(runs.total_tokens) AS min, avg(runs.total_tokens) AS avg, max(runs.total_tokens) AS max FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND runs.total_tokens IS NOT NULL GROUP BY runs.config_id ORDER BY avg(runs.total_tokens)",
+          "rawQueryText": "SELECT runs.config_id AS config, min(runs.total_tokens) AS min, avg(runs.total_tokens) AS avg, max(runs.total_tokens) AS max FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND runs.total_tokens IS NOT NULL GROUP BY runs.config_id ORDER BY avg(runs.total_tokens)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF6966"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C66"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 10,
+        "w": 6,
+        "h": 8
+      }
+    },
+    {
+      "id": 123,
+      "type": "barchart",
+      "title": "Avg tokens by task and config",
+      "description": "One bar per config inside each task group. Log scale, so small and large tasks both stay readable.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.task_id AS task, runs.config_id AS config, avg(runs.total_tokens) AS tokens FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "rawQueryText": "SELECT runs.task_id AS task, runs.config_id AS config, avg(runs.total_tokens) AS tokens FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "task\\config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1,
+          "custom": {
+            "scaleDistribution": {
+              "type": "log",
+              "log": 10
+            }
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "config",
+            "rowField": "task",
+            "valueField": "tokens",
+            "emptyValue": "null"
+          }
+        }
+      ]
+    },
+    {
+      "id": 116,
+      "type": "row",
+      "title": "Pass rate, cost and time",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 101,
+      "type": "barchart",
+      "title": "Pass rate by config",
+      "description": "Share of judged runs the judge passed. The label shows how many judged runs each bar is based on.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id || ' (' || count(judge_runs.decision) || ' judged)' AS config, round(100.0 * avg(judge_runs.success), 1) AS \"pass or partial pass\", round(100.0 * avg(CASE WHEN judge_runs.decision IS NULL THEN NULL WHEN judge_runs.decision = 'pass' THEN 1 ELSE 0 END), 1) AS \"full pass\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY avg(judge_runs.success) DESC, runs.config_id",
+          "rawQueryText": "SELECT runs.config_id || ' (' || count(judge_runs.decision) || ' judged)' AS config, round(100.0 * avg(judge_runs.success), 1) AS \"pass or partial pass\", round(100.0 * avg(CASE WHEN judge_runs.decision IS NULL THEN NULL WHEN judge_runs.decision = 'pass' THEN 1 ELSE 0 END), 1) AS \"full pass\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY avg(judge_runs.success) DESC, runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pass or partial pass"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "full pass"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "dark-green"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 102,
+      "type": "barchart",
+      "title": "Judge decisions by config",
+      "description": "Number of finished runs per judge decision.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, count(CASE WHEN judge_runs.decision = 'pass' THEN 1 END) AS pass, count(CASE WHEN judge_runs.decision = 'partially-pass' THEN 1 END) AS \"partially pass\", count(CASE WHEN judge_runs.decision = 'partially-failed' THEN 1 END) AS \"partially failed\", count(CASE WHEN judge_runs.decision = 'failed' THEN 1 END) AS failed, count(CASE WHEN judge_runs.decision IS NULL THEN 1 END) AS \"not judged\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY runs.config_id",
+          "rawQueryText": "SELECT runs.config_id AS config, count(CASE WHEN judge_runs.decision = 'pass' THEN 1 END) AS pass, count(CASE WHEN judge_runs.decision = 'partially-pass' THEN 1 END) AS \"partially pass\", count(CASE WHEN judge_runs.decision = 'partially-failed' THEN 1 END) AS \"partially failed\", count(CASE WHEN judge_runs.decision = 'failed' THEN 1 END) AS failed, count(CASE WHEN judge_runs.decision IS NULL THEN 1 END) AS \"not judged\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "pass"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "partially pass"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "light-green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "partially failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "failed"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "not judged"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "gray"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 19,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 103,
+      "type": "barchart",
+      "title": "Pass rate vs ${baseline} (points)",
+      "description": "Pass rate minus the baseline's pass rate, compared task by task and averaged over the tasks both ran. Above zero is better.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg(judge_runs.success) AS pass, avg(runs.cost_usd) AS cost, avg(runs.duration_ms) AS duration FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(100.0 * avg(config.pass - base.pass), 1) AS \"pass rate change\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2 DESC",
+          "rawQueryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg(judge_runs.success) AS pass, avg(runs.cost_usd) AS cost, avg(runs.duration_ms) AS duration FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(100.0 * avg(config.pass - base.pass), 1) AS \"pass rate change\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2 DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 105,
+      "type": "barchart",
+      "title": "Duration vs ${baseline} (%)",
+      "description": "Average wall time per run relative to the baseline on the same tasks. Below zero is faster.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg(judge_runs.success) AS pass, avg(runs.cost_usd) AS cost, avg(runs.duration_ms) AS duration FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(100.0 * avg(config.duration / base.duration - 1), 1) AS \"duration change\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2 DESC",
+          "rawQueryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg(judge_runs.success) AS pass, avg(runs.cost_usd) AS cost, avg(runs.duration_ms) AS duration FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(100.0 * avg(config.duration / base.duration - 1), 1) AS \"duration change\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2 DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 106,
+      "type": "barchart",
+      "title": "Cost per passing run",
+      "description": "Total spend divided by the number of passing runs, so failed runs count against a config. Lower is better; empty means no run passed.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, sum(runs.cost_usd) / nullif(sum(judge_runs.success), 0) AS \"cost per pass\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY 2",
+          "rawQueryText": "SELECT runs.config_id AS config, sum(runs.cost_usd) / nullif(sum(judge_runs.success), 0) AS \"cost per pass\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY 2",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "cost per pass"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 28,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 107,
+      "type": "barchart",
+      "title": "Cost per run (min / avg / max)",
+      "description": "",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, min(runs.cost_usd) AS min, avg(runs.cost_usd) AS avg, max(runs.cost_usd) AS max FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND runs.cost_usd IS NOT NULL GROUP BY runs.config_id ORDER BY avg(runs.cost_usd)",
+          "rawQueryText": "SELECT runs.config_id AS config, min(runs.cost_usd) AS min, avg(runs.cost_usd) AS avg, max(runs.cost_usd) AS max FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND runs.cost_usd IS NOT NULL GROUP BY runs.config_id ORDER BY avg(runs.cost_usd)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF6966"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C66"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 108,
+      "type": "barchart",
+      "title": "Duration per run (min / avg / max)",
+      "description": "",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, min(runs.duration_ms / 1000.0) AS min, avg(runs.duration_ms / 1000.0) AS avg, max(runs.duration_ms / 1000.0) AS max FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND runs.duration_ms / 1000.0 IS NOT NULL GROUP BY runs.config_id ORDER BY avg(runs.duration_ms / 1000.0)",
+          "rawQueryText": "SELECT runs.config_id AS config, min(runs.duration_ms / 1000.0) AS min, avg(runs.duration_ms / 1000.0) AS avg, max(runs.duration_ms / 1000.0) AS max FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND runs.duration_ms / 1000.0 IS NOT NULL GROUP BY runs.config_id ORDER BY avg(runs.duration_ms / 1000.0)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF6966"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C66"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 109,
+      "type": "barchart",
+      "title": "Turns per run (min / avg / max)",
+      "description": "",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, min(runs.num_turns) AS min, avg(runs.num_turns) AS avg, max(runs.num_turns) AS max FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND runs.num_turns IS NOT NULL GROUP BY runs.config_id ORDER BY avg(runs.num_turns)",
+          "rawQueryText": "SELECT runs.config_id AS config, min(runs.num_turns) AS min, avg(runs.num_turns) AS avg, max(runs.num_turns) AS max FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND runs.num_turns IS NOT NULL GROUP BY runs.config_id ORDER BY avg(runs.num_turns)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF6966"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C66"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 36,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 117,
+      "type": "row",
+      "title": "By task",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 111,
+      "type": "barchart",
+      "title": "Pass rate by task and config",
+      "description": "One bar per config inside each task group.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.task_id AS task, runs.config_id AS config, round(100.0 * avg(judge_runs.success), 1) AS pass_rate FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "rawQueryText": "SELECT runs.task_id AS task, runs.config_id AS config, round(100.0 * avg(judge_runs.success), 1) AS pass_rate FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "task\\config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "config",
+            "rowField": "task",
+            "valueField": "pass_rate",
+            "emptyValue": "null"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "id": 112,
+      "type": "barchart",
+      "title": "Avg cost by task and config",
+      "description": "",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.task_id AS task, runs.config_id AS config, avg(runs.cost_usd) AS cost FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "rawQueryText": "SELECT runs.task_id AS task, runs.config_id AS config, avg(runs.cost_usd) AS cost FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "task\\config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "config",
+            "rowField": "task",
+            "valueField": "cost",
+            "emptyValue": "null"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 8,
+        "y": 45,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "id": 113,
+      "type": "barchart",
+      "title": "Avg duration by task and config",
+      "description": "",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.task_id AS task, runs.config_id AS config, avg(runs.duration_ms) / 1000.0 AS seconds FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "rawQueryText": "SELECT runs.task_id AS task, runs.config_id AS config, avg(runs.duration_ms) / 1000.0 AS seconds FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "task\\config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "transformations": [
+        {
+          "id": "groupingToMatrix",
+          "options": {
+            "columnField": "config",
+            "rowField": "task",
+            "valueField": "seconds",
+            "emptyValue": "null"
+          }
+        }
+      ],
+      "gridPos": {
+        "x": 16,
+        "y": 45,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "id": 118,
+      "type": "row",
+      "title": "Tool use",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 114,
+      "type": "barchart",
+      "title": "Tool calls per run by kind",
+      "description": "Average number of tool calls in one run, split by kind. Shows whether an MCP config actually uses its MCP tools and what it replaces.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, round(1.0 * count(CASE WHEN calls.category = 'read & search' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"read & search\", round(1.0 * count(CASE WHEN calls.category = 'edit' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"edit\", round(1.0 * count(CASE WHEN calls.category = 'shell' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"shell\", round(1.0 * count(CASE WHEN calls.category = 'MCP' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"MCP\", round(1.0 * count(CASE WHEN calls.category = 'subagent' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"subagent\", round(1.0 * count(CASE WHEN calls.category = 'other' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"other\" FROM runs LEFT JOIN (SELECT run_id, tool_use_id, CASE WHEN substr(tool, 1, 5) = 'mcp__' THEN 'MCP' WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'NotebookRead') THEN 'read & search' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'edit' WHEN tool = 'Bash' THEN 'shell' WHEN tool IN ('Task', 'Agent') THEN 'subagent' ELSE 'other' END AS category FROM tool_calls WHERE phase = 'pre' GROUP BY tool_use_id) AS calls ON calls.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY runs.config_id",
+          "rawQueryText": "SELECT runs.config_id AS config, round(1.0 * count(CASE WHEN calls.category = 'read & search' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"read & search\", round(1.0 * count(CASE WHEN calls.category = 'edit' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"edit\", round(1.0 * count(CASE WHEN calls.category = 'shell' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"shell\", round(1.0 * count(CASE WHEN calls.category = 'MCP' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"MCP\", round(1.0 * count(CASE WHEN calls.category = 'subagent' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"subagent\", round(1.0 * count(CASE WHEN calls.category = 'other' THEN 1 END) / count(DISTINCT runs.run_id), 1) AS \"other\" FROM runs LEFT JOIN (SELECT run_id, tool_use_id, CASE WHEN substr(tool, 1, 5) = 'mcp__' THEN 'MCP' WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'NotebookRead') THEN 'read & search' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'edit' WHEN tool = 'Bash' THEN 'shell' WHEN tool IN ('Task', 'Agent') THEN 'subagent' ELSE 'other' END AS category FROM tool_calls WHERE phase = 'pre' GROUP BY tool_use_id) AS calls ON calls.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "read & search"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "edit"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "green"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "shell"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "MCP"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "purple"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "subagent"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "yellow"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "other"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "gray"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 55,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 115,
+      "type": "barchart",
+      "title": "Runs blocked by a tool (judge)",
+      "description": "Share of judged runs where the judge found a missing, denied, or failing tool stopped the agent. Details are in the Blockers row.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, round(100.0 * avg(judge_runs.blocked), 1) AS \"blocked runs\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND judge_runs.blocked IS NOT NULL GROUP BY runs.config_id ORDER BY runs.config_id",
+          "rawQueryText": "SELECT runs.config_id AS config, round(100.0 * avg(judge_runs.blocked), 1) AS \"blocked runs\" FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) AND judge_runs.blocked IS NOT NULL GROUP BY runs.config_id ORDER BY runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "blocked runs"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "red"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 55,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 10,
+      "type": "barchart",
+      "title": "Tool calls by tool",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
+          "rawQueryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "tool",
+        "orientation": "horizontal",
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 11,
+      "type": "barchart",
+      "title": "Calls by action type",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 64,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY action ORDER BY calls DESC",
+          "rawQueryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY action ORDER BY calls DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "action",
+        "orientation": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "showValue": "always"
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      }
+    },
+    {
+      "id": 119,
+      "type": "row",
+      "title": "Totals",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 72,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
       "id": 1,
       "type": "stat",
       "title": "Runs",
@@ -85,7 +1863,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 73,
         "w": 4,
         "h": 4
       },
@@ -124,7 +1902,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 0,
+        "y": 73,
         "w": 4,
         "h": 4
       },
@@ -163,7 +1941,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 0,
+        "y": 73,
         "w": 4,
         "h": 4
       },
@@ -202,7 +1980,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 0,
+        "y": 73,
         "w": 4,
         "h": 4
       },
@@ -244,7 +2022,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 0,
+        "y": 73,
         "w": 4,
         "h": 4
       },
@@ -286,7 +2064,7 @@
       },
       "gridPos": {
         "x": 20,
-        "y": 0,
+        "y": 73,
         "w": 4,
         "h": 4
       },
@@ -327,7 +2105,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 4,
+        "y": 77,
         "w": 4,
         "h": 4
       },
@@ -377,7 +2155,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 8,
+        "y": 81,
         "w": 4,
         "h": 4
       },
@@ -427,7 +2205,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 4,
+        "y": 77,
         "w": 4,
         "h": 8
       },
@@ -478,8 +2256,8 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 4,
-        "w": 16,
+        "y": 77,
+        "w": 8,
         "h": 8
       },
       "targets": [
@@ -510,90 +2288,6 @@
       }
     },
     {
-      "id": 7,
-      "type": "barchart",
-      "title": "Avg cost by task / config",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 12,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT task_id || ' / ' || config_id AS setup, avg(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
-          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, avg(cost_usd) AS cost_usd FROM runs WHERE cost_usd IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY cost_usd DESC",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "xField": "setup",
-        "orientation": "auto",
-        "legend": {
-          "showLegend": false
-        },
-        "showValue": "always"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "currencyUSD",
-          "decimals": 3
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 8,
-      "type": "barchart",
-      "title": "Avg duration by task / config",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 12,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT task_id || ' / ' || config_id AS setup, avg(duration_ms) / 1000.0 AS seconds FROM runs WHERE duration_ms IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY seconds DESC",
-          "rawQueryText": "SELECT task_id || ' / ' || config_id AS setup, avg(duration_ms) / 1000.0 AS seconds FROM runs WHERE duration_ms IS NOT NULL AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY task_id, config_id ORDER BY seconds DESC",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "xField": "setup",
-        "orientation": "auto",
-        "legend": {
-          "showLegend": false
-        },
-        "showValue": "always"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "decimals": 0
-        },
-        "overrides": []
-      }
-    },
-    {
       "id": 9,
       "type": "piechart",
       "title": "Cost share by task / config",
@@ -602,9 +2296,9 @@
         "uid": "bench-sqlite"
       },
       "gridPos": {
-        "x": 0,
-        "y": 20,
-        "w": 12,
+        "x": 16,
+        "y": 77,
+        "w": 8,
         "h": 8
       },
       "targets": [
@@ -650,84 +2344,6 @@
       }
     },
     {
-      "id": 10,
-      "type": "barchart",
-      "title": "Tool calls by tool",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 20,
-        "w": 6,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
-          "rawQueryText": "SELECT tool, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY tool ORDER BY calls DESC LIMIT 15",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "xField": "tool",
-        "orientation": "horizontal",
-        "legend": {
-          "showLegend": false
-        },
-        "showValue": "always"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
-    },
-    {
-      "id": 11,
-      "type": "barchart",
-      "title": "Calls by action type",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 18,
-        "y": 20,
-        "w": 6,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY action ORDER BY calls DESC",
-          "rawQueryText": "SELECT CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, count(*) AS calls FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) GROUP BY action ORDER BY calls DESC",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "xField": "action",
-        "orientation": "auto",
-        "legend": {
-          "showLegend": false
-        },
-        "showValue": "always"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
-    },
-    {
       "id": 22,
       "type": "row",
       "title": "Blockers",
@@ -735,7 +2351,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 85,
         "w": 24,
         "h": 1
       }
@@ -751,7 +2367,7 @@
       "description": "Runs where the judge found that a missing, denied, or failing tool or program stopped the agent.",
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 86,
         "w": 4,
         "h": 4
       },
@@ -808,7 +2424,7 @@
       "description": "Blocked runs out of the runs the judge checked for blockers.",
       "gridPos": {
         "x": 0,
-        "y": 33,
+        "y": 90,
         "w": 4,
         "h": 4
       },
@@ -866,7 +2482,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 29,
+        "y": 86,
         "w": 20,
         "h": 8
       },
@@ -960,517 +2576,518 @@
       }
     },
     {
-      "id": 26,
-      "type": "table",
-      "title": "Blockers (newest first)",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "description": "One row per tool problem the judge said stopped the agent. what happened is the judge's own words; when it named no blocker, its reason is shown instead.",
-      "gridPos": {
-        "x": 0,
-        "y": 37,
-        "w": 24,
-        "h": 16
-      },
-      "targets": [
+      "id": 27,
+      "type": "row",
+      "title": "Run details (tables)",
+      "collapsed": true,
+      "panels": [
         {
-          "refId": "A",
+          "id": 26,
+          "type": "table",
+          "title": "Blockers (newest first)",
           "datasource": {
             "type": "frser-sqlite-datasource",
             "uid": "bench-sqlite"
           },
-          "queryText": "SELECT runs.started_at, runs.task_id, runs.config_id, judge_runs.decision, json_extract(blocker.value, '$.kind') AS kind, json_extract(blocker.value, '$.tool') AS tool, COALESCE(json_extract(blocker.value, '$.detail'), judge_runs.reason) AS \"what happened\", runs.run_id FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id LEFT JOIN json_each(judge_runs.blockers) AS blocker WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, blocker.key LIMIT 200",
-          "rawQueryText": "SELECT runs.started_at, runs.task_id, runs.config_id, judge_runs.decision, json_extract(blocker.value, '$.kind') AS kind, json_extract(blocker.value, '$.tool') AS tool, COALESCE(json_extract(blocker.value, '$.detail'), judge_runs.reason) AS \"what happened\", runs.run_id FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id LEFT JOIN json_each(judge_runs.blockers) AS blocker WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, blocker.key LIMIT 200",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "showHeader": true,
-        "cellHeight": "lg"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "filterable": true,
-            "align": "left"
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "started_at"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 170
-              }
-            ]
+          "description": "One row per tool problem the judge said stopped the agent. what happened is the judge's own words; when it named no blocker, its reason is shown instead.",
+          "gridPos": {
+            "x": 0,
+            "y": 95,
+            "w": 24,
+            "h": 10
           },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "task_id"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 150
-              }
-            ]
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "frser-sqlite-datasource",
+                "uid": "bench-sqlite"
+              },
+              "queryText": "SELECT runs.started_at, runs.task_id, runs.config_id, judge_runs.decision, json_extract(blocker.value, '$.kind') AS kind, json_extract(blocker.value, '$.tool') AS tool, COALESCE(json_extract(blocker.value, '$.detail'), judge_runs.reason) AS \"what happened\", runs.run_id FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id LEFT JOIN json_each(judge_runs.blockers) AS blocker WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, blocker.key LIMIT 200",
+              "rawQueryText": "SELECT runs.started_at, runs.task_id, runs.config_id, judge_runs.decision, json_extract(blocker.value, '$.kind') AS kind, json_extract(blocker.value, '$.tool') AS tool, COALESCE(json_extract(blocker.value, '$.detail'), judge_runs.reason) AS \"what happened\", runs.run_id FROM judge_runs JOIN runs ON runs.run_id = judge_runs.run_id LEFT JOIN json_each(judge_runs.blockers) AS blocker WHERE judge_runs.blocked = 1 AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, blocker.key LIMIT 200",
+              "queryType": "table"
+            }
+          ],
+          "options": {
+            "showHeader": true,
+            "cellHeight": "lg"
           },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "config_id"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 150
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "filterable": true,
+                "align": "left"
               }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "decision"
             },
-            "properties": [
+            "overrides": [
               {
-                "id": "custom.width",
-                "value": 120
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "kind"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 120
+                "matcher": {
+                  "id": "byName",
+                  "options": "started_at"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 170
+                  }
+                ]
               },
               {
-                "id": "mappings",
-                "value": [
+                "matcher": {
+                  "id": "byName",
+                  "options": "task_id"
+                },
+                "properties": [
                   {
-                    "type": "value",
-                    "options": {
-                      "missing-tool": {
-                        "color": "orange",
-                        "index": 0,
-                        "text": "missing tool"
-                      },
-                      "denied": {
-                        "color": "red",
-                        "index": 1,
-                        "text": "denied"
-                      },
-                      "exec-failed": {
-                        "color": "purple",
-                        "index": 2,
-                        "text": "exec failed"
+                    "id": "custom.width",
+                    "value": 150
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "config_id"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 150
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "decision"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "kind"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 120
+                  },
+                  {
+                    "id": "mappings",
+                    "value": [
+                      {
+                        "type": "value",
+                        "options": {
+                          "missing-tool": {
+                            "color": "orange",
+                            "index": 0,
+                            "text": "missing tool"
+                          },
+                          "denied": {
+                            "color": "red",
+                            "index": 1,
+                            "text": "denied"
+                          },
+                          "exec-failed": {
+                            "color": "purple",
+                            "index": 2,
+                            "text": "exec failed"
+                          }
+                        }
                       }
+                    ]
+                  },
+                  {
+                    "id": "custom.cellOptions",
+                    "value": {
+                      "type": "color-background",
+                      "mode": "basic"
                     }
                   }
                 ]
               },
               {
-                "id": "custom.cellOptions",
-                "value": {
-                  "type": "color-background",
-                  "mode": "basic"
-                }
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "tool"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 220
+                "matcher": {
+                  "id": "byName",
+                  "options": "tool"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 220
+                  },
+                  {
+                    "id": "custom.wrapText",
+                    "value": true
+                  }
+                ]
               },
               {
-                "id": "custom.wrapText",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "what happened"
-            },
-            "properties": [
-              {
-                "id": "custom.minWidth",
-                "value": 400
+                "matcher": {
+                  "id": "byName",
+                  "options": "what happened"
+                },
+                "properties": [
+                  {
+                    "id": "custom.minWidth",
+                    "value": 400
+                  },
+                  {
+                    "id": "custom.wrapText",
+                    "value": true
+                  }
+                ]
               },
               {
-                "id": "custom.wrapText",
-                "value": true
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "run_id"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 260
+                "matcher": {
+                  "id": "byName",
+                  "options": "run_id"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 260
+                  }
+                ]
               }
             ]
           }
-        ]
-      }
-    },
-    {
-      "id": 27,
-      "type": "row",
-      "title": "Runs and tool calls",
-      "collapsed": false,
-      "panels": [],
+        },
+        {
+          "id": 21,
+          "type": "table",
+          "title": "Prompt versions",
+          "description": "One row per task and prompt version. prompt and judge_prompt are the first 8 hex chars of the sha256 of prompt.md and judge.md, so any edit gives a new version. current marks the version in configs/tasks today. unknown is a run from before versions were recorded. first_run and last_run show when each version was in use.",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 105,
+            "w": 24,
+            "h": 10
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "frser-sqlite-datasource",
+                "uid": "bench-sqlite"
+              },
+              "queryText": "SELECT runs.task_id, coalesce(runs.prompt_version, 'unknown') AS prompt, coalesce(runs.judge_prompt_version, 'unknown') AS judge_prompt, CASE WHEN runs.prompt_version = tasks.prompt_version AND runs.judge_prompt_version = tasks.judge_prompt_version THEN 'yes' ELSE '' END AS current, count(*) AS runs, count(judge_runs.decision) AS judged, coalesce(sum(judge_runs.success), 0) AS passed, round(100.0 * avg(judge_runs.success)) AS pass_rate, avg(runs.cost_usd) AS avg_cost, round(avg(runs.duration_ms) / 1000.0) AS avg_seconds, min(runs.started_at) AS first_run, max(runs.started_at) AS last_run FROM runs LEFT JOIN tasks ON tasks.task_id = runs.task_id LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.prompt_version, runs.judge_prompt_version ORDER BY runs.task_id, first_run DESC",
+              "rawQueryText": "SELECT runs.task_id, coalesce(runs.prompt_version, 'unknown') AS prompt, coalesce(runs.judge_prompt_version, 'unknown') AS judge_prompt, CASE WHEN runs.prompt_version = tasks.prompt_version AND runs.judge_prompt_version = tasks.judge_prompt_version THEN 'yes' ELSE '' END AS current, count(*) AS runs, count(judge_runs.decision) AS judged, coalesce(sum(judge_runs.success), 0) AS passed, round(100.0 * avg(judge_runs.success)) AS pass_rate, avg(runs.cost_usd) AS avg_cost, round(avg(runs.duration_ms) / 1000.0) AS avg_seconds, min(runs.started_at) AS first_run, max(runs.started_at) AS last_run FROM runs LEFT JOIN tasks ON tasks.task_id = runs.task_id LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.prompt_version, runs.judge_prompt_version ORDER BY runs.task_id, first_run DESC",
+              "queryType": "table"
+            }
+          ],
+          "options": {
+            "showHeader": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "filterable": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "avg_cost"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "pass_rate"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "percent"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": 12,
+          "type": "table",
+          "title": "Runs (newest first)",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 115,
+            "w": 24,
+            "h": 10
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "frser-sqlite-datasource",
+                "uid": "bench-sqlite"
+              },
+              "queryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, judge_runs.blocked, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
+              "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, judge_runs.blocked, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
+              "queryType": "table"
+            }
+          ],
+          "options": {
+            "showHeader": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "filterable": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "cost_usd"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "judge_cost"
+                },
+                "properties": [
+                  {
+                    "id": "unit",
+                    "value": "currencyUSD"
+                  },
+                  {
+                    "id": "decimals",
+                    "value": 3
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "tools"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 280
+                  },
+                  {
+                    "id": "custom.wrapText",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": 19,
+          "type": "table",
+          "title": "Tools by run",
+          "description": "For Bash, each row is the program the script actually ran (git, grep, head). calls counts distinct invocations. blocked means the call has no post-hook result, so it was denied or never finished.",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 125,
+            "w": 24,
+            "h": 10
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "frser-sqlite-datasource",
+                "uid": "bench-sqlite"
+              },
+              "queryText": "SELECT runs.task_id, runs.config_id, runs.run_id, counts.name AS tool, counts.calls, counts.blocked, counts.errors FROM runs JOIN (SELECT pre.run_id, CASE WHEN pre.tool = 'Bash' AND coalesce(pre.program, '') != '' THEN pre.program ELSE pre.tool END AS name, count(DISTINCT pre.tool_use_id) AS calls, count(DISTINCT CASE WHEN post.id IS NULL THEN pre.tool_use_id END) AS blocked, count(DISTINCT CASE WHEN post.is_error = 1 THEN pre.tool_use_id END) AS errors FROM tool_calls pre LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' GROUP BY pre.run_id, name) AS counts ON counts.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, counts.calls DESC LIMIT 500",
+              "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.run_id, counts.name AS tool, counts.calls, counts.blocked, counts.errors FROM runs JOIN (SELECT pre.run_id, CASE WHEN pre.tool = 'Bash' AND coalesce(pre.program, '') != '' THEN pre.program ELSE pre.tool END AS name, count(DISTINCT pre.tool_use_id) AS calls, count(DISTINCT CASE WHEN post.id IS NULL THEN pre.tool_use_id END) AS blocked, count(DISTINCT CASE WHEN post.is_error = 1 THEN pre.tool_use_id END) AS errors FROM tool_calls pre LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' GROUP BY pre.run_id, name) AS counts ON counts.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, counts.calls DESC LIMIT 500",
+              "queryType": "table"
+            }
+          ],
+          "options": {
+            "showHeader": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "filterable": true
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 20,
+          "type": "table",
+          "title": "Bash commands",
+          "description": "One row per Bash invocation. programs are the executables that script runs, from the same parse the baseline guard uses. A pipe inside quotes stays part of the command.",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 135,
+            "w": 24,
+            "h": 10
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "frser-sqlite-datasource",
+                "uid": "bench-sqlite"
+              },
+              "queryText": "SELECT runs.task_id, runs.config_id, runs.run_id, replace(group_concat(DISTINCT pre.program), ',', ', ') AS programs, substr(min(pre.command), 1, 200) AS command, CASE WHEN max(post.id) IS NULL THEN 1 ELSE 0 END AS blocked, max(coalesce(post.is_error, 0)) AS is_error FROM tool_calls pre JOIN runs ON runs.run_id = pre.run_id LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' AND pre.tool = 'Bash' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY pre.tool_use_id ORDER BY max(pre.id) DESC LIMIT 200",
+              "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.run_id, replace(group_concat(DISTINCT pre.program), ',', ', ') AS programs, substr(min(pre.command), 1, 200) AS command, CASE WHEN max(post.id) IS NULL THEN 1 ELSE 0 END AS blocked, max(coalesce(post.is_error, 0)) AS is_error FROM tool_calls pre JOIN runs ON runs.run_id = pre.run_id LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' AND pre.tool = 'Bash' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY pre.tool_use_id ORDER BY max(pre.id) DESC LIMIT 200",
+              "queryType": "table"
+            }
+          ],
+          "options": {
+            "showHeader": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "filterable": true
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byName",
+                  "options": "command"
+                },
+                "properties": [
+                  {
+                    "id": "custom.width",
+                    "value": 640
+                  },
+                  {
+                    "id": "custom.wrapText",
+                    "value": true
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "id": 18,
+          "type": "table",
+          "title": "Changed files",
+          "description": "Paths that differ from the task commit. branch is the git branch in the Chromium checkout, and it is the same as the run id.",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 145,
+            "w": 24,
+            "h": 10
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "frser-sqlite-datasource",
+                "uid": "bench-sqlite"
+              },
+              "queryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
+              "rawQueryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
+              "queryType": "table"
+            }
+          ],
+          "options": {
+            "showHeader": true
+          },
+          "fieldConfig": {
+            "defaults": {
+              "custom": {
+                "filterable": true
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 13,
+          "type": "table",
+          "title": "Latest tool calls (live)",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "gridPos": {
+            "x": 0,
+            "y": 155,
+            "w": 24,
+            "h": 10
+          },
+          "targets": [
+            {
+              "refId": "A",
+              "datasource": {
+                "type": "frser-sqlite-datasource",
+                "uid": "bench-sqlite"
+              },
+              "queryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, program, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
+              "rawQueryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, program, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
+              "queryType": "table"
+            }
+          ],
+          "options": {
+            "showHeader": true
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          }
+        }
+      ],
       "gridPos": {
         "x": 0,
-        "y": 53,
+        "y": 94,
         "w": 24,
         "h": 1
-      }
-    },
-    {
-      "id": 21,
-      "type": "table",
-      "title": "Prompt versions",
-      "description": "One row per task and prompt version. prompt and judge_prompt are the first 8 hex chars of the sha256 of prompt.md and judge.md, so any edit gives a new version. current marks the version in configs/tasks today. unknown is a run from before versions were recorded. first_run and last_run show when each version was in use.",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 54,
-        "w": 24,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT runs.task_id, coalesce(runs.prompt_version, 'unknown') AS prompt, coalesce(runs.judge_prompt_version, 'unknown') AS judge_prompt, CASE WHEN runs.prompt_version = tasks.prompt_version AND runs.judge_prompt_version = tasks.judge_prompt_version THEN 'yes' ELSE '' END AS current, count(*) AS runs, count(judge_runs.decision) AS judged, coalesce(sum(judge_runs.success), 0) AS passed, round(100.0 * avg(judge_runs.success)) AS pass_rate, avg(runs.cost_usd) AS avg_cost, round(avg(runs.duration_ms) / 1000.0) AS avg_seconds, min(runs.started_at) AS first_run, max(runs.started_at) AS last_run FROM runs LEFT JOIN tasks ON tasks.task_id = runs.task_id LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.prompt_version, runs.judge_prompt_version ORDER BY runs.task_id, first_run DESC",
-          "rawQueryText": "SELECT runs.task_id, coalesce(runs.prompt_version, 'unknown') AS prompt, coalesce(runs.judge_prompt_version, 'unknown') AS judge_prompt, CASE WHEN runs.prompt_version = tasks.prompt_version AND runs.judge_prompt_version = tasks.judge_prompt_version THEN 'yes' ELSE '' END AS current, count(*) AS runs, count(judge_runs.decision) AS judged, coalesce(sum(judge_runs.success), 0) AS passed, round(100.0 * avg(judge_runs.success)) AS pass_rate, avg(runs.cost_usd) AS avg_cost, round(avg(runs.duration_ms) / 1000.0) AS avg_seconds, min(runs.started_at) AS first_run, max(runs.started_at) AS last_run FROM runs LEFT JOIN tasks ON tasks.task_id = runs.task_id LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.prompt_version, runs.judge_prompt_version ORDER BY runs.task_id, first_run DESC",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "showHeader": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "filterable": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "avg_cost"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "currencyUSD"
-              },
-              {
-                "id": "decimals",
-                "value": 3
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "pass_rate"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "percent"
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": 12,
-      "type": "table",
-      "title": "Runs (newest first)",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 62,
-        "w": 24,
-        "h": 8
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, judge_runs.blocked, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
-          "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.prompt_version AS prompt, runs.judge_prompt_version AS judge_prompt, (SELECT group_concat(name || ' ×' || calls, ', ') FROM (SELECT CASE WHEN tool = 'Bash' AND coalesce(program, '') != '' THEN program ELSE tool END AS name, count(DISTINCT tool_use_id) AS calls FROM tool_calls WHERE tool_calls.run_id = runs.run_id AND phase = 'pre' GROUP BY name ORDER BY calls DESC, name)) AS tools, judge_runs.decision, judge_runs.success, judge_runs.blocked, substr(judge_runs.reason, 1, 160) AS judge, judge_runs.cost_usd AS judge_cost, judge_runs.num_turns AS judge_turns, round(judge_runs.duration_ms / 1000.0) AS judge_seconds, runs.input_tokens AS fresh, runs.cache_creation_tokens AS cache_write, runs.cache_read_tokens AS cache_read, runs.output_tokens AS output, runs.total_tokens AS tokens, runs.cost_usd, runs.num_turns AS turns, runs.status, COALESCE(json_array_length(runs.changed_files), 0) AS files, substr(runs.commit_sha, 1, 12) AS \"commit\", round(runs.duration_ms / 1000.0) AS seconds, runs.model, runs.started_at, runs.run_id, runs.branch, runs.permission_denials AS denials FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC LIMIT 100",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "showHeader": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "filterable": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "cost_usd"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "currencyUSD"
-              },
-              {
-                "id": "decimals",
-                "value": 3
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "judge_cost"
-            },
-            "properties": [
-              {
-                "id": "unit",
-                "value": "currencyUSD"
-              },
-              {
-                "id": "decimals",
-                "value": 3
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "tools"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 280
-              },
-              {
-                "id": "custom.wrapText",
-                "value": true
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": 19,
-      "type": "table",
-      "title": "Tools by run",
-      "description": "For Bash, each row is the program the script actually ran (git, grep, head). calls counts distinct invocations. blocked means the call has no post-hook result, so it was denied or never finished.",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 70,
-        "w": 24,
-        "h": 10
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT runs.task_id, runs.config_id, runs.run_id, counts.name AS tool, counts.calls, counts.blocked, counts.errors FROM runs JOIN (SELECT pre.run_id, CASE WHEN pre.tool = 'Bash' AND coalesce(pre.program, '') != '' THEN pre.program ELSE pre.tool END AS name, count(DISTINCT pre.tool_use_id) AS calls, count(DISTINCT CASE WHEN post.id IS NULL THEN pre.tool_use_id END) AS blocked, count(DISTINCT CASE WHEN post.is_error = 1 THEN pre.tool_use_id END) AS errors FROM tool_calls pre LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' GROUP BY pre.run_id, name) AS counts ON counts.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, counts.calls DESC LIMIT 500",
-          "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.run_id, counts.name AS tool, counts.calls, counts.blocked, counts.errors FROM runs JOIN (SELECT pre.run_id, CASE WHEN pre.tool = 'Bash' AND coalesce(pre.program, '') != '' THEN pre.program ELSE pre.tool END AS name, count(DISTINCT pre.tool_use_id) AS calls, count(DISTINCT CASE WHEN post.id IS NULL THEN pre.tool_use_id END) AS blocked, count(DISTINCT CASE WHEN post.is_error = 1 THEN pre.tool_use_id END) AS errors FROM tool_calls pre LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' GROUP BY pre.run_id, name) AS counts ON counts.run_id = runs.run_id WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, counts.calls DESC LIMIT 500",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "showHeader": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "filterable": true
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 20,
-      "type": "table",
-      "title": "Bash commands",
-      "description": "One row per Bash invocation. programs are the executables that script runs, from the same parse the baseline guard uses. A pipe inside quotes stays part of the command.",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 80,
-        "w": 24,
-        "h": 10
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT runs.task_id, runs.config_id, runs.run_id, replace(group_concat(DISTINCT pre.program), ',', ', ') AS programs, substr(min(pre.command), 1, 200) AS command, CASE WHEN max(post.id) IS NULL THEN 1 ELSE 0 END AS blocked, max(coalesce(post.is_error, 0)) AS is_error FROM tool_calls pre JOIN runs ON runs.run_id = pre.run_id LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' AND pre.tool = 'Bash' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY pre.tool_use_id ORDER BY max(pre.id) DESC LIMIT 200",
-          "rawQueryText": "SELECT runs.task_id, runs.config_id, runs.run_id, replace(group_concat(DISTINCT pre.program), ',', ', ') AS programs, substr(min(pre.command), 1, 200) AS command, CASE WHEN max(post.id) IS NULL THEN 1 ELSE 0 END AS blocked, max(coalesce(post.is_error, 0)) AS is_error FROM tool_calls pre JOIN runs ON runs.run_id = pre.run_id LEFT JOIN tool_calls post ON post.tool_use_id = pre.tool_use_id AND post.phase = 'post' WHERE pre.phase = 'pre' AND pre.tool = 'Bash' AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY pre.tool_use_id ORDER BY max(pre.id) DESC LIMIT 200",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "showHeader": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "filterable": true
-          }
-        },
-        "overrides": [
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "command"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 640
-              },
-              {
-                "id": "custom.wrapText",
-                "value": true
-              }
-            ]
-          }
-        ]
-      }
-    },
-    {
-      "id": 18,
-      "type": "table",
-      "title": "Changed files",
-      "description": "Paths that differ from the task commit. branch is the git branch in the Chromium checkout, and it is the same as the run id.",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 90,
-        "w": 24,
-        "h": 10
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
-          "rawQueryText": "SELECT runs.branch, substr(runs.commit_sha, 1, 12) AS \"commit\", json_extract(file.value, '$.status') AS status, json_extract(file.value, '$.path') AS path, json_extract(file.value, '$.previousPath') AS previous_path, runs.task_id, runs.config_id, runs.started_at FROM runs, json_each(runs.changed_files) AS file WHERE runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) ORDER BY runs.started_at DESC, path LIMIT 500",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "showHeader": true
-      },
-      "fieldConfig": {
-        "defaults": {
-          "custom": {
-            "filterable": true
-          }
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 13,
-      "type": "table",
-      "title": "Latest tool calls (live)",
-      "datasource": {
-        "type": "frser-sqlite-datasource",
-        "uid": "bench-sqlite"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 100,
-        "w": 24,
-        "h": 10
-      },
-      "targets": [
-        {
-          "refId": "A",
-          "datasource": {
-            "type": "frser-sqlite-datasource",
-            "uid": "bench-sqlite"
-          },
-          "queryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, program, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
-          "rawQueryText": "SELECT tool_calls.ts, tool_calls.run_id, tool, program, CASE WHEN tool IN ('Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch', 'NotebookRead') THEN 'read' WHEN tool IN ('Edit', 'Write', 'MultiEdit', 'NotebookEdit') THEN 'write' WHEN tool = 'Bash' THEN 'shell' ELSE 'other' END AS action, substr(command, 1, 160) AS command, is_error FROM tool_calls JOIN runs USING (run_id) WHERE phase = 'pre' AND task_id IN (${task:singlequote}) AND config_id IN (${config:singlequote}) AND run_id IN (${run:singlequote}) ORDER BY tool_calls.id DESC LIMIT 100",
-          "queryType": "table"
-        }
-      ],
-      "options": {
-        "showHeader": true
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
       }
     }
   ]
