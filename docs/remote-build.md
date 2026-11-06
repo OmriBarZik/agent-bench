@@ -82,7 +82,7 @@ Highlight a run and press Ctrl-B. The list asks where to build:
 - `r` checks that the build Mac answers and that `source` is a git checkout, then:
 
   1. Sends the run branch, and any submodule commits that branch added.
-  2. Checks that branch out on the build Mac and runs `autoninja -C out/Default chrome`.
+  2. Checks that branch out on the build Mac and runs `autoninja --fast_local -C out/Default chrome`. SSH has no tty, and siso turns fast local off unless the flag is passed. The ccache wrapper also sets `modules` sloppiness and depend mode, because Chromium compiles with `-fmodules` and ccache otherwise refuses those calls.
   3. Copies `Chromium.app` and the libraries beside it back to `buildDirectory/<run id>/` and opens the app with `--use-mock-keychain` and `--disable-features=DialMediaRouteProvider`. A queue copies each app back and leaves it closed.
 
 Object files stay on the build Mac. The build writes [configs/builder/args.gn](../configs/builder/args.gn) into `out/Default` when that file is missing or differs, then runs `gn gen`. Later builds reuse `out/`, so only the branch's changes compile. A non-interactive ssh session does not load Homebrew's PATH. When `ccache` is not already visible, the build appends `/opt/homebrew/bin` and `/usr/local/bin`.

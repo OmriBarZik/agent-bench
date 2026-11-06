@@ -67,7 +67,8 @@ if [ ! -f out/Default/args.gn ] || ! cmp -s out/Default/args.gn "$desired_args";
   fi
 fi
 rm -f "$desired_args" "$previous_args"
-autoninja -C out/Default chrome
+# SSH has no tty, so siso turns fast local off. Pass it back on, as the build log says.
+autoninja --fast_local -C out/Default chrome
 `;
 }
 

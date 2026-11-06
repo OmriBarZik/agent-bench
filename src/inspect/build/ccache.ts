@@ -64,7 +64,7 @@ export function extendPathForCcache(path: string): string {
 
 /**
  * Fails when ccache is missing, and raises its ceiling to 50 GiB when the current one is lower.
- * `CCACHE_SLOPPINESS=time_macros` is set on the compiler wrapper in configs/builder/args.gn, which is what docs/ccache_mac.md specifies.
+ * The compiler wrapper in configs/builder/args.gn sets the sloppiness ccache needs for this tree.
  */
 export function prepareCcacheScript(): string {
   return `set -eu

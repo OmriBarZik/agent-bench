@@ -2,10 +2,13 @@
 # app plus its libraries is what gets copied back. The rest is Chromium's
 # faster Mac build: Apple's linker, and ccache (docs/ccache_mac.md).
 # Rewritten into out/Default whenever this file differs, then gn gen runs.
+# time_macros matches ccache_mac.md. modules and depend mode are also required:
+# Chromium compiles with -fmodules, and without them ccache refuses the call
+# ("Could not use modules") so the next build compiles those files again.
 is_debug = false
 is_component_build = true
 symbol_level = 0
 blink_symbol_level = 0
 target_cpu = "arm64"
 use_lld = false
-cc_wrapper = "env CCACHE_SLOPPINESS=time_macros ccache"
+cc_wrapper = "env CCACHE_SLOPPINESS=time_macros,modules CCACHE_DEPEND=1 ccache"

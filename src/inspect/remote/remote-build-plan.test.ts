@@ -8,7 +8,7 @@ test("the remote script builds chrome and checks out sent submodule commits", ()
     commits: [{ path: "third_party/foo", sha }],
   });
 
-  expect(script).toContain("autoninja -C out/Default chrome");
+  expect(script).toContain("autoninja --fast_local -C out/Default chrome");
   expect(script).toContain(`git -C "$source_dir/third_party/foo" checkout --quiet --force --detach ${sha}`);
   expect(script).toContain("git clean -fdq");
   expect(script).not.toContain("clean -fdx");

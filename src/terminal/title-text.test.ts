@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { titleSequence } from "./terminal-title";
+import { restoreTerminalTitle, saveTerminalTitle, setTerminalTitle, titleSequence } from "./terminal-title";
 import { benchEndTitle, buildTitle, formatElapsed, runTitle, tabTitle } from "./title-text";
 
 describe("terminal titles", () => {
@@ -48,5 +48,30 @@ describe("terminal titles", () => {
 
   test("control characters cannot end the title sequence early", () => {
     expect(titleSequence("a\x07b\x1bc")).toBe("\x1b]0;a b c\x07");
+  });
+
+  test("the process name follows the tab title", () => {
+    const previous = process.title;
+
+    try {
+      setTerminalTitle("a\x07b · agent-bench");
+
+      expect(process.title).toBe("a b · agent-bench");
+    } finally {
+      process.title = previous;
+    }
+  });
+
+  test("leaving the TUI restores the process name", () => {
+    const previous = process.title;
+    saveTerminalTitle();
+
+    try {
+      setTerminalTitle("agent-bench · Runs");
+    } finally {
+      restoreTerminalTitle();
+    }
+
+    expect(process.title).toBe(previous);
   });
 });
