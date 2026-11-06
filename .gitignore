@@ -28,5 +28,6 @@ logs/
 # OS / editor
 .DS_Store
 .idea/
-.vscode/
+.vscode/*
+!.vscode/settings.json
 dashboard/snapshot/
