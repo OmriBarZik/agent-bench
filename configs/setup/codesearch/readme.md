@@ -1,6 +1,6 @@
 # codesearch
 
-[baseline](../baseline/readme.md) plus [Code Search](https://github.com/google/codesearch): `cindex`, `csearch`, and `cgrep`, the trigram-index tools from [Regular Expression Matching with a Trigram Index](https://swtch.com/~rsc/regexp/regexp4.html). They are ordinary commands. The agent runs `csearch` and `cgrep` through Bash. There is no MCP server. With `strictMcpConfig` and no `mcpConfig`, the session does not load MCP servers from `~/.claude.json`.
+[baseline](../baseline/readme.md) plus [Code Search](https://github.com/google/codesearch): `cindex`, `csearch`, and `cgrep`, the trigram-index tools from [Regular Expression Matching with a Trigram Index](https://swtch.com/~rsc/regexp/regexp4.html). They are ordinary commands. The agent runs `csearch` and `cgrep` through Bash. There is no MCP server. With `strictMcpConfig` and no `mcpConfig`, the session does not load MCP servers from `~/.claude.json`. `allowedTools` includes `Bash(csearch *)` and `Bash(cgrep *)`, so a headless session can run the searches the tool prompt requires without a permission prompt.
 
 [tools.md](tools.md) is appended to the session prompt. It tells the agent it must search with `csearch` and `cgrep`, and how to call them. The checkout is indexed before the run, so that prompt tells the agent not to index it again.
 

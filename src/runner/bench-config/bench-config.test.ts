@@ -66,6 +66,7 @@ test("the shipped configs load their tool prompts", async () => {
     configsPath: join(BENCH_DIR, "configs/benchmark-setup.json"),
   });
   const toolPromptByConfig = new Map(selection.configs.map((config) => [config.configId, config.toolPrompt]));
+  const allowedToolsByConfig = new Map(selection.configs.map((config) => [config.configId, config.allowedTools]));
 
   expect(toolPromptByConfig.get("baseline")).toBeUndefined();
   expect(toolPromptByConfig.get("codebase-memory")).toContain(
@@ -76,6 +77,7 @@ test("the shipped configs load their tool prompts", async () => {
   );
   expect(toolPromptByConfig.get("codesearch")).toContain("You must search this checkout with Code Search");
   expect(toolPromptByConfig.get("codesearch")).toContain("Code Search is not an MCP server");
+  expect(allowedToolsByConfig.get("codesearch")).toEqual(["Bash(csearch *)", "Bash(cgrep *)"]);
   expect(toolPromptByConfig.get("sift")).toContain("You must search with `sift`");
   expect(toolPromptByConfig.get("clangd")).toContain("You have clangd, a C and C++ language server");
   expect(toolPromptByConfig.get("typescript")).toContain("You have a TypeScript language server");
