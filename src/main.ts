@@ -71,8 +71,8 @@ const { values: args } = parseArgs({
  *                              "disallowedTools"?: [..], "permissionMode"?,
  *                              "extraFiles"?: [paths hashed into config_hash] }]
  *
- * toolPromptFile is markdown, relative to the repo root. It tells the agent which tools that
- * config adds and when to use them. The text is appended after the baseline prompt. Its contents
+ * toolPromptFile is markdown, relative to the repo root. It names the tools that config adds
+ * and tells the agent it must use them. The text is appended after the baseline prompt. Its contents
  * are part of config_hash.
  *
  * Per run (src/runner/run-one/run-one.ts): reset src/ to the task's SHA, check out a branch named

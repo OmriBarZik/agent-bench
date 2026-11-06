@@ -1,12 +1,14 @@
 ---
 name: validate-build
-description: Build your Chromium change and check it in the real browser with the chrome-validate tools (start_build, wait_build, run_chrome). Use after you have made a change that should compile, before you say you are done, and again after every fix.
+description: Build your Chromium change and check it in the real browser with the chrome-validate MCP tools (start_build, wait_build, run_chrome). You must use these tools after a change that should compile, before you say you are done, and again after every fix.
 ---
 
 # Build and check your change
 
-You cannot build Chromium on this machine. Do not run `gn`, `ninja`, `autoninja` or `siso` yourself. The
-`chrome-validate` MCP tools build your working tree on a separate build Mac and run the result here.
+You cannot build Chromium on this machine. Do not run `gn`, `ninja`, `autoninja` or `siso` yourself. You must
+use the `chrome-validate` MCP tools (`start_build`, `wait_build`, `run_chrome`) to build your working tree on a
+separate build Mac and run the result here. If they are not in your tool list yet, load them with tool search.
+Do not finish while the change is unbuilt.
 
 ## The loop
 

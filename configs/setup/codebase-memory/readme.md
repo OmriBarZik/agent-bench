@@ -2,7 +2,7 @@
 
 [baseline](../baseline/readme.md) plus the [codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) graph. [`mcp.json`](mcp.json) starts the `codebase-memory-mcp` binary on stdio. `allowedTools` includes `mcp__codebase-memory-mcp__*`, so a headless session can call every tool from that server without a permission prompt.
 
-[tools.md](tools.md) is appended to the session prompt. It names these tools and when to use them. The checkout is indexed before the run, so that prompt tells the agent not to index it again.
+[tools.md](tools.md) is appended to the session prompt. It tells the agent it must use the codebase-memory-mcp tools before Grep, Glob, or Read. The checkout is indexed before the run, so that prompt tells the agent not to index it again.
 
 Install the [shared requirements](../../../docs/setup.md#requirements) first, then the binary and the index below.
 

@@ -2,7 +2,7 @@
 
 [baseline](../baseline/readme.md) plus [sift](https://github.com/svent/sift), a grep alternative. It is an ordinary command. The agent runs `sift` through Bash. There is no MCP server and no index. With `strictMcpConfig` and no `mcpConfig`, the session does not load MCP servers from `~/.claude.json`.
 
-[tools.md](tools.md) is appended to the session prompt. It names `sift` and when to use it. Each search reads the checkout, so there is nothing to build beforehand.
+[tools.md](tools.md) is appended to the session prompt. It tells the agent it must search with `sift` instead of Grep. Each search reads the checkout, so there is nothing to build beforehand.
 
 Install the [shared requirements](../../../docs/setup.md#requirements) first, then the binary below.
 

@@ -69,10 +69,15 @@ test("the shipped configs load their tool prompts", async () => {
 
   expect(toolPromptByConfig.get("baseline")).toBeUndefined();
   expect(toolPromptByConfig.get("haiku-baseline")).toBeUndefined();
-  expect(toolPromptByConfig.get("codebase-memory")).toContain("mcp__codebase-memory-mcp__");
-  expect(toolPromptByConfig.get("serena")).toContain("mcp__serena__");
-  expect(toolPromptByConfig.get("codesearch")).toContain("csearch");
-  expect(toolPromptByConfig.get("sift")).toContain("sift");
+  expect(toolPromptByConfig.get("codebase-memory")).toContain(
+    "You must use the codebase-memory-mcp tools, named `mcp__codebase-memory-mcp__*`",
+  );
+  expect(toolPromptByConfig.get("serena")).toContain(
+    "You must use Serena's language-server tools, named `mcp__serena__*`",
+  );
+  expect(toolPromptByConfig.get("codesearch")).toContain("You must search this checkout with Code Search");
+  expect(toolPromptByConfig.get("codesearch")).toContain("Code Search is not an MCP server");
+  expect(toolPromptByConfig.get("sift")).toContain("You must search with `sift`");
 });
 
 test("loadSelection reads a config's tool prompt", async () => {

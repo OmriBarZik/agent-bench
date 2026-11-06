@@ -1,6 +1,6 @@
 # Setup
 
-Every config shares the baseline guard: the shell stays at the checkout root, and file edits go through the Edit and Write tools. `strictMcpConfig` is on for every config, so a session loads only the MCP servers named in that config. A config can also set `toolPromptFile`. That markdown is appended to the session prompt so the agent knows which tools it has and when to use them. How a run works is in [overview.md](overview.md).
+Every config shares the baseline guard: the shell stays at the checkout root, and file edits go through the Edit and Write tools. `strictMcpConfig` is on for every config, so a session loads only the MCP servers named in that config. A config can also set `toolPromptFile`. That markdown is appended to the session prompt. It names the tools that config adds and tells the agent it must use them. `baseline` and `haiku-baseline` add no tools, so they have no file. How a run works is in [overview.md](overview.md).
 
 Install the [shared requirements](#requirements) first. The steps for a config live in that config's folder.
 

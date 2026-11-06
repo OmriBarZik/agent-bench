@@ -1,6 +1,4 @@
-You have `sift` on `PATH`. Call it with Bash. The shell stays at the checkout root, and `sift` searches from there. Do not use `cd`.
-
-Prefer `sift` over Grep for a regular expression or a literal string in the tree or in files you name.
+You must search with `sift`. Call it with Bash. Do not use the Grep tool, and do not run `grep`, `rg`, or `git grep`. The shell stays at the checkout root, and `sift` searches from there. Do not use `cd`.
 
 `sift [options] pattern [path...]` searches `pattern` under each path. With no path, it searches the checkout recursively.
 
@@ -17,6 +15,6 @@ Use this form:
 - `-t cpp` limits the search to C++ files. Other types come from `sift --list-types`. `-x cc,h` limits it to those extensions.
 - `--exclude-dirs glob` skips directories. `--path pattern` keeps paths that match.
 
-Exit status 1 means there was no match. Do not pass `--output` or `-o`.
+Exit status 1 means there was no match. Do not pass `--output` or `-o`. Do not repeat that search with Grep or `grep`.
 
 Edit and Write remain the way to change a file. The baseline shell rules still apply.

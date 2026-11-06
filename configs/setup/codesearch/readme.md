@@ -2,7 +2,7 @@
 
 [baseline](../baseline/readme.md) plus [Code Search](https://github.com/google/codesearch): `cindex`, `csearch`, and `cgrep`, the trigram-index tools from [Regular Expression Matching with a Trigram Index](https://swtch.com/~rsc/regexp/regexp4.html). They are ordinary commands. The agent runs `csearch` and `cgrep` through Bash. There is no MCP server. With `strictMcpConfig` and no `mcpConfig`, the session does not load MCP servers from `~/.claude.json`.
 
-[tools.md](tools.md) is appended to the session prompt. It names these commands and when to use them. The checkout is indexed before the run, so that prompt tells the agent not to index it again.
+[tools.md](tools.md) is appended to the session prompt. It tells the agent it must search with `csearch` and `cgrep`, and how to call them. The checkout is indexed before the run, so that prompt tells the agent not to index it again.
 
 Install the [shared requirements](../../../docs/setup.md#requirements) first, then the binaries and the index below.
 

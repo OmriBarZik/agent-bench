@@ -8,7 +8,7 @@ const BASELINE_RULES = [
 const LOCAL_BUILD_RULE = "Do not run gn, ninja, autoninja, or siso on this machine.";
 
 const AUTO_REVIEW_RULE =
-  "Do not run gn, ninja, autoninja, or siso on this machine. To build your change and check it in Chromium, use the chrome-validate tools as the validate-build skill describes.";
+  "Do not run gn, ninja, autoninja, or siso on this machine. You must build your change and check it in Chromium with the chrome-validate MCP tools (mcp__chrome-validate__start_build, mcp__chrome-validate__wait_build, and mcp__chrome-validate__run_chrome) as the validate-build skill describes. If they are not in your tool list yet, load them with tool search before you finish. Do not finish while the change is unbuilt.";
 
 /**
  * Instructions added to every agent session when auto review is on.

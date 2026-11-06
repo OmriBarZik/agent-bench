@@ -2,7 +2,7 @@
 
 [baseline](../baseline/readme.md) plus [Serena](https://github.com/oraios/serena). [`mcp.json`](mcp.json) is what starts the server: `serena start-mcp-server` on stdio, in the session directory. The `serena` entry in [`benchmark-setup.json`](../../benchmark-setup.json) allows `mcp__serena__*`, so the agent can call every tool that server exposes. Nothing is written to `~/.claude.json`.
 
-[tools.md](tools.md) is appended to the session prompt. It names these tools and when to use them instead of Grep and Read.
+[tools.md](tools.md) is appended to the session prompt. It tells the agent it must use Serena's MCP tools before Grep, Glob, or Read.
 
 Install the [shared requirements](../../../docs/setup.md#requirements) first, then the binary below. The same binary is what you point at another repo. This config does not hardcode the Chromium checkout: the runner starts `claude` in `CHROMIUM_SRC`, and `--project-from-cwd` activates that tree.
 

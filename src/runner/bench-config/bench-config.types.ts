@@ -19,7 +19,7 @@ export type BenchConfigEntry = {
   disallowedTools?: string[];
   permissionMode?: string;
   /**
-   * Markdown that tells the agent which tools this config adds and when to use them.
+   * Markdown that names the tools this config adds and tells the agent it must use them.
    * Relative to the repo root. Hashed into config_hash.
    */
   toolPromptFile?: string;

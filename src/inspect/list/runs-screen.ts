@@ -13,11 +13,9 @@ import { frameLayout, renderFrame } from "../render/render-frame";
 import { openTranscript } from "../transcript/open-transcript";
 import { loadChoices } from "./load-choices";
 import { refreshNotice, reselect } from "./refresh-list";
-import { resumeList } from "./restore-list";
+import { presentLogScreen, resumeList } from "./restore-list";
 import { actionRuns, applyKey, buildTarget, clampSelection, matchingChoices, runsInOrder } from "./select-state";
 import type { RunChoice, SelectAction, SelectState } from "./select-state.types";
-
-const LEAVE_SCREEN = "\x1b[?25h\x1b[?1049l";
 
 /**
  * The Runs tab: a filterable list of runs. Space checks the highlighted run. Enter opens a menu for the checked runs,
@@ -65,11 +63,18 @@ export function createRunsScreen({
   const handOff = (work: (signal: AbortSignal) => Promise<string>) => {
     busy = true;
     choosingBuild = false;
-    process.stdin.setRawMode(false);
-    process.stdout.write(LEAVE_SCREEN);
     const abort = new AbortController();
     cancelBuild = () => abort.abort();
-    void work(abort.signal)
+    void presentLogScreen()
+      .then(() => {
+        if (abort.signal.aborted || controls.isClosed()) {
+          return "";
+        }
+
+        process.stdin.setRawMode(false);
+
+        return work(abort.signal);
+      })
       .then((workNotice) => {
         notice = workNotice;
 
