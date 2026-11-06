@@ -113,7 +113,11 @@ function rowText({
     return `${"Timeout".padEnd(14)}‹ ${state.timeoutMin} ›  minutes per claude session`;
   }
 
-  return `${"gclient sync".padEnd(14)}${box(state.sync)}  run gclient sync -D after each checkout`;
+  if (row.kind === "sync") {
+    return `${"gclient sync".padEnd(14)}${box(state.sync)}  run gclient sync -D after each checkout`;
+  }
+
+  return `${"auto review".padEnd(14)}${box(state.autoReview)}  build the change and check it in Chromium`;
 }
 
 function itemText({

@@ -207,11 +207,12 @@ async function runAgent({
 }): Promise<ClaudeResult> {
   try {
     return await runClaude({
-      command: claudeArgs({ task, config, sessionId, runId }),
+      command: claudeArgs({ task, config, sessionId, runId, autoReview: options.autoReview }),
       runId,
       outDir,
       timeoutMs: options.timeoutMs,
       signal,
+      autoReview: options.autoReview,
     });
   } catch (error) {
     if (!signal.aborted) {

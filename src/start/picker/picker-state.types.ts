@@ -12,7 +12,7 @@ export type PickerChoices = {
 };
 
 /** What a picker row edits. `task` and `config` rows are checkboxes; the rest are settings. */
-export type PickerRowKind = "task" | "config" | "repeats" | "timeoutMin" | "sync";
+export type PickerRowKind = "task" | "config" | "repeats" | "timeoutMin" | "sync" | "autoReview";
 
 /** One row the cursor can stop on. `index` is the task or config position, and 0 for settings. */
 export type PickerRow = {
@@ -27,6 +27,8 @@ export type PickerDefaults = {
   repeats: number;
   timeoutMin: number;
   sync: boolean;
+  /** Attach chrome-validate so the agent builds its change and checks it in Chromium. */
+  autoReview: boolean;
 };
 
 /** Everything the picker has chosen so far, plus where the cursor is. */
@@ -38,6 +40,7 @@ export type PickerState = {
   repeats: number;
   timeoutMin: number;
   sync: boolean;
+  autoReview: boolean;
   /** Index into `pickerRows(choices)`. */
   cursor: number;
   /** True once a digit was typed on the current number row, so the next digit appends instead of replacing. */
@@ -61,4 +64,5 @@ export type PickerResult = {
   repeats: number;
   timeoutMin: number;
   sync: boolean;
+  autoReview: boolean;
 };

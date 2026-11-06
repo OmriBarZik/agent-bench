@@ -12,7 +12,7 @@ import { TOOL_DEFINITIONS } from "./tools/tool-definitions";
 import { callTool } from "./tools/tools";
 
 /**
- * The chrome-validate MCP server (stdio). The runner starts it for every agent session:
+ * The chrome-validate MCP server (stdio). The runner starts it when auto review is on:
  *
  *   bun src/validate/main.ts      with BENCH_RUN_ID and BENCH_TASK_SHA in the environment
  *

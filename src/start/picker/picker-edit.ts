@@ -16,6 +16,10 @@ export function toggleRow({ state, row }: { state: PickerState; row: PickerRow }
     return { ...state, sync: !state.sync };
   }
 
+  if (row.kind === "autoReview") {
+    return { ...state, autoReview: !state.autoReview };
+  }
+
   return state;
 }
 
@@ -32,7 +36,7 @@ export function toggleSection({ state, kind }: { state: PickerState; kind: Picke
   return state;
 }
 
-/** Moves a number row by `delta`, staying within 1–999, or flips the sync box. */
+/** Moves a number row by `delta`, staying within 1–999, or flips a checkbox. */
 export function adjust({
   state,
   kind,
@@ -52,6 +56,10 @@ export function adjust({
 
   if (kind === "sync") {
     return { ...state, sync: !state.sync };
+  }
+
+  if (kind === "autoReview") {
+    return { ...state, autoReview: !state.autoReview };
   }
 
   return state;

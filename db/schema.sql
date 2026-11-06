@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS runs (
     artifacts_path     TEXT,       -- folder with transcript + hook logs for this run
     branch             TEXT,       -- git branch in the Chromium checkout, named after run_id
     commit_sha         TEXT,       -- tip of that branch; NULL when the tree still matches the task SHA
-    changed_files      TEXT        -- JSON: [{ "status", "path", "previousPath"? }] vs the task SHA; submodule paths are prefixed
+    changed_files      TEXT,       -- JSON: [{ "status", "path", "previousPath"? }] vs the task SHA; submodule paths are prefixed
+    auto_review        INTEGER     -- 1 when this run attached chrome-validate; NULL on runs from before the toggle
 );
 
 -- One judge session per agent run. These metrics are the judge's; the agent's stay on runs.

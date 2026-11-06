@@ -77,6 +77,7 @@ test("openDb adds the artifact columns to a database created before them", () =>
     expect(names).toContain("branch");
     expect(names).toContain("commit_sha");
     expect(names).toContain("changed_files");
+    expect(names).toContain("auto_review");
     expect(names).not.toContain("score");
     expect(names).not.toContain("success");
     expect(names).not.toContain("score_details");
@@ -84,6 +85,40 @@ test("openDb adds the artifact columns to a database created before them", () =>
       (row) => row.name,
     );
     expect(tables).toContain("judge_runs");
+  } finally {
+    db.close();
+  }
+});
+
+test("startRun stores whether auto review was on", () => {
+  const db = openDb(tempDb());
+
+  try {
+    upsertTask({
+      db,
+      task: { taskId: "t1", prompt: "do the thing", judgePrompt: "score it", chromiumSha: "abc" },
+    });
+    upsertConfig({ db, config: { configId: "baseline", configHash: "hash" } });
+    const shared = {
+      taskId: "t1",
+      configId: "baseline",
+      repeat: 0,
+      promptVersion: "p1",
+      judgePromptVersion: "j1",
+      claudeVersion: "test",
+      model: "test",
+    };
+    startRun({ db, run: { ...shared, runId: "reviewed", branch: "reviewed", autoReview: true } });
+    startRun({ db, run: { ...shared, runId: "plain", branch: "plain", autoReview: false } });
+    const reviewed = db.query("SELECT auto_review AS autoReview FROM runs WHERE run_id = $runId").get({
+      runId: "reviewed",
+    }) as { autoReview: number };
+    const plain = db.query("SELECT auto_review AS autoReview FROM runs WHERE run_id = $runId").get({
+      runId: "plain",
+    }) as { autoReview: number };
+
+    expect(reviewed.autoReview).toBe(1);
+    expect(plain.autoReview).toBe(0);
   } finally {
     db.close();
   }

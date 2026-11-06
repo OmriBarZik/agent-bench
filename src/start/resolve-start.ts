@@ -39,7 +39,10 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
   if (!useTui) {
     const selection = await loadSelection({ ...flags, onlyTasks, onlyConfigs });
 
-    return { kind: "run", plan: { ...selection, repeats, timeoutMin, sync: flags.sync } };
+    return {
+      kind: "run",
+      plan: { ...selection, repeats, timeoutMin, sync: flags.sync, autoReview: flags.autoReview },
+    };
   }
 
   const everything = await loadSelection({ tasksPath: flags.tasksPath, configsPath: flags.configsPath });
@@ -47,7 +50,14 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
   narrowSelection({ selection: everything, taskIds: onlyTasks, configIds: onlyConfigs });
   const picked = await openStartTui({
     selection: everything,
-    defaults: { taskIds: onlyTasks, configIds: onlyConfigs, repeats, timeoutMin, sync: flags.sync },
+    defaults: {
+      taskIds: onlyTasks,
+      configIds: onlyConfigs,
+      repeats,
+      timeoutMin,
+      sync: flags.sync,
+      autoReview: flags.autoReview,
+    },
     initialTab: flags.runs ? "runs" : "start",
     force: flags.force,
   });
@@ -74,6 +84,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
       repeats: picked.picked.repeats,
       timeoutMin: picked.picked.timeoutMin,
       sync: picked.picked.sync,
+      autoReview: picked.picked.autoReview,
     },
   };
 }
@@ -95,6 +106,10 @@ function equivalentCommand({ picked, flags }: { picked: PickerResult; flags: Run
 
   if (picked.sync) {
     parts.push("--sync");
+  }
+
+  if (!picked.autoReview) {
+    parts.push("--no-auto-review");
   }
 
   return parts.join(" ");

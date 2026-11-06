@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { forEachChild, parse, type SyntaxNode } from "unbash";
-import { BRANCH_DENIAL, BUILD_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import { BRANCH_DENIAL, BUILD_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL, buildDenial } from "../src/baseline-policy";
 import type { GuardDeny, GuardPayload } from "./baseline-guard.types";
 import { commandDenial } from "./command-policy";
 import { nestedScripts } from "./nested-scripts";
@@ -68,7 +68,7 @@ function denialIn({ source, depth }: { source: string; depth: number }): string 
   }
 
   if (localBuild) {
-    return BUILD_DENIAL;
+    return buildDenial();
   }
 
   for (const scriptText of nested) {

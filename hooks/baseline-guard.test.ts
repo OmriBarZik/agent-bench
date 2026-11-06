@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { BRANCH_DENIAL, BUILD_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import {
+  BRANCH_DENIAL,
+  BUILD_DENIAL,
+  BUILD_DENIAL_WITHOUT_REVIEW,
+  DIRECTORY_DENIAL,
+  FILE_DENIAL,
+} from "../src/baseline-policy";
 import { baselineDenial } from "./baseline-guard";
 
 describe("baseline other branches", () => {
@@ -116,6 +122,21 @@ describe("baseline local builds", () => {
     expect(baselineDenial("/abs/depot_tools/autoninja -C out/Default chrome")).toBe(BUILD_DENIAL);
     expect(baselineDenial("sudo -n ninja -C out/Default chrome")).toBe(BUILD_DENIAL);
     expect(baselineDenial("bash -c 'gn gen out/Default'")).toBe(BUILD_DENIAL);
+  });
+
+  test("omits the chrome-validate hint when auto review is off", () => {
+    const previous = process.env.BENCH_AUTO_REVIEW;
+    process.env.BENCH_AUTO_REVIEW = "0";
+
+    try {
+      expect(baselineDenial("ninja -C out/Default chrome")).toBe(BUILD_DENIAL_WITHOUT_REVIEW);
+    } finally {
+      if (previous == null) {
+        delete process.env.BENCH_AUTO_REVIEW;
+      } else {
+        process.env.BENCH_AUTO_REVIEW = previous;
+      }
+    }
   });
 
   test("allows mentioning the tools without running them", () => {

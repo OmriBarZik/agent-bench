@@ -1,14 +1,25 @@
-/**
- * Instructions added to every agent session.
- * This is the benchmark baseline, not a config in benchmark-setup.json.
- */
-export const BASELINE_PROMPT = [
+const BASELINE_RULES = [
   "The shell stays at the checkout root for the whole session.",
   "Do not use cd, pushd, or popd. Use an absolute path, or git -C <absolute-path> for git.",
   "Create and modify file contents only with the Edit and Write tools.",
   "Do not update a file from the shell: no redirection into a file, tee, in-place sed/perl/ruby, patch, or an interpreter one-liner or here-document that writes a file.",
-  "Do not run gn, ninja, autoninja, or siso on this machine. To build your change and check it in Chromium, use the chrome-validate tools as the validate-build skill describes.",
-].join(" ");
+];
+
+const LOCAL_BUILD_RULE = "Do not run gn, ninja, autoninja, or siso on this machine.";
+
+const AUTO_REVIEW_RULE =
+  "Do not run gn, ninja, autoninja, or siso on this machine. To build your change and check it in Chromium, use the chrome-validate tools as the validate-build skill describes.";
+
+/**
+ * Instructions added to every agent session when auto review is on.
+ * This is the benchmark baseline, not a config in benchmark-setup.json.
+ */
+export const BASELINE_PROMPT = [...BASELINE_RULES, AUTO_REVIEW_RULE].join(" ");
+
+/** Baseline instructions for one session. Auto review adds how to build and check the change. */
+export function baselinePrompt({ autoReview }: { autoReview: boolean }): string {
+  return [...BASELINE_RULES, autoReview ? AUTO_REVIEW_RULE : LOCAL_BUILD_RULE].join(" ");
+}
 
 /** Shown to the agent when a Bash command would change the working directory. */
 export const DIRECTORY_DENIAL =
@@ -25,6 +36,21 @@ export const BRANCH_DENIAL =
 export const FILE_DENIAL =
   "Updating a file from the shell is denied. Use the Edit or Write tool, not redirection, tee, an in-place editor, patch, or a script that writes the file.";
 
-/** Shown to the agent when a Bash command would build Chromium on this machine. */
+/** Shown to the agent when a Bash command would build Chromium on this machine and chrome-validate is attached. */
 export const BUILD_DENIAL =
   "gn, ninja, autoninja, and siso are denied on this machine. Use the chrome-validate tools to build your change and check it in Chromium.";
+
+/** Shown when a local build is denied and this session was started with --no-auto-review. */
+export const BUILD_DENIAL_WITHOUT_REVIEW = "gn, ninja, autoninja, and siso are denied on this machine.";
+
+/**
+ * The local-build denial for this hook process.
+ * The runner sets BENCH_AUTO_REVIEW=0 when the session has no chrome-validate tools. Unset means they are attached.
+ */
+export function buildDenial(): string {
+  if (process.env.BENCH_AUTO_REVIEW === "0") {
+    return BUILD_DENIAL_WITHOUT_REVIEW;
+  }
+
+  return BUILD_DENIAL;
+}

@@ -49,6 +49,7 @@ export async function runOne({
       model: config.model ?? "default",
       artifactsPath: outDir,
       branch: runId,
+      autoReview: options.autoReview,
     },
   });
 

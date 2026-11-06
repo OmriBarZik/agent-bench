@@ -6,7 +6,7 @@ export const BENCH_DIR = resolve(dirname(import.meta.path), "..");
 export const CHROMIUM_SRC = process.env.CHROMIUM_SRC ?? resolve(BENCH_DIR, "../src");
 /** Hook registration passed to `claude --settings`; part of every config_hash. */
 export const HOOK_SETTINGS = join(BENCH_DIR, "hooks/settings.example.json");
-/** The chrome-validate MCP server every agent session gets (build on the build Mac, check in Chromium). */
+/** The chrome-validate MCP server. Attached when the start command's auto-review toggle is on. */
 export const VALIDATE_SERVER = join(BENCH_DIR, "src/validate/main.ts");
 /** Plugin passed with --plugin-dir; it carries the validate-build skill. */
 export const VALIDATE_PLUGIN_DIR = join(BENCH_DIR, "plugins/chrome-validate");

@@ -7,6 +7,8 @@ export type RunOptions = {
   sync: boolean;
   /** Model for the read-only judge session. The same model scores every config. */
   judgeModel: string;
+  /** Attach chrome-validate so the agent builds its change and checks it in Chromium. */
+  autoReview: boolean;
 };
 
 /** The step a run is on: resetting the checkout, the agent session, or the judge session. */

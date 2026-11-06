@@ -4,7 +4,7 @@ import type { PickerChoices, PickerDefaults, PickerResult } from "./picker-state
 import { renderPicker } from "./render-picker";
 
 /**
- * The Start tab: a checklist of tasks and configs plus repeats, timeout, and sync.
+ * The Start tab: a checklist of tasks and configs plus repeats, timeout, sync, and auto review.
  * Calls `onDone` with the confirmed matrix on enter, or null on q or ctrl-c. Esc is left to the TUI, which quits.
  */
 export function createPickerScreen({

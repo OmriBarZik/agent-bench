@@ -2,7 +2,7 @@ import { $ } from "bun";
 import { cpSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
-import { BASELINE_PROMPT } from "../../baseline-policy";
+import { baselinePrompt } from "../../baseline-policy";
 import type { ClaudeResult, Task } from "../../db/db.types";
 import {
   BENCH_DIR,
@@ -31,12 +31,15 @@ export function claudeArgs({
   config,
   sessionId,
   runId,
+  autoReview = true,
 }: {
   task: Task;
   config: BenchConfig;
   sessionId: string;
   /** Passed to the chrome-validate server so its builds are stored on this run. */
   runId: string;
+  /** Attach chrome-validate so the agent builds its change and checks it in Chromium. */
+  autoReview?: boolean;
 }): string[] {
   const args = [
     "claude",
@@ -49,23 +52,50 @@ export function claudeArgs({
     "--settings",
     HOOK_SETTINGS,
     "--append-system-prompt",
-    sessionPrompt(config),
+    sessionPrompt({ config, autoReview }),
   ];
 
   if (config.model) {
     args.push("--model", config.model);
   }
 
-  // chrome-validate is baseline: every config gets it next to its own MCP servers, and may call it.
+  appendSessionTools({ args, task, config, runId, autoReview });
+
+  return args;
+}
+
+/** This config's MCP servers, plus chrome-validate when auto review is on. */
+function appendSessionTools({
+  args,
+  task,
+  config,
+  runId,
+  autoReview,
+}: {
+  args: string[];
+  task: Task;
+  config: BenchConfig;
+  runId: string;
+  autoReview: boolean;
+}) {
   const mcpConfigs = (config.mcpConfig ?? []).map((path) => resolve(BENCH_DIR, path));
-  args.push("--mcp-config", validateMcpConfig({ runId, taskSha: task.chromiumSha }), ...mcpConfigs);
-  args.push("--plugin-dir", VALIDATE_PLUGIN_DIR);
+
+  if (autoReview) {
+    args.push("--mcp-config", validateMcpConfig({ runId, taskSha: task.chromiumSha }), ...mcpConfigs);
+    args.push("--plugin-dir", VALIDATE_PLUGIN_DIR);
+  } else if (mcpConfigs.length > 0) {
+    args.push("--mcp-config", ...mcpConfigs);
+  }
 
   if (config.strictMcpConfig) {
     args.push("--strict-mcp-config");
   }
 
-  args.push("--allowedTools", VALIDATE_TOOLS, ...(config.allowedTools ?? []));
+  const allowed = [...(autoReview ? [VALIDATE_TOOLS] : []), ...(config.allowedTools ?? [])];
+
+  if (allowed.length > 0) {
+    args.push("--allowedTools", ...allowed);
+  }
 
   if (config.disallowedTools?.length) {
     args.push("--disallowedTools", ...config.disallowedTools);
@@ -74,8 +104,6 @@ export function claudeArgs({
   if (config.permissionMode) {
     args.push("--permission-mode", config.permissionMode);
   }
-
-  return args;
 }
 
 /** The chrome-validate server as an inline --mcp-config JSON, with the run it records builds on. */
@@ -92,12 +120,14 @@ export function validateMcpConfig({ runId, taskSha }: { runId: string; taskSha: 
 }
 
 /** Baseline rules, then this config's note about its tools when it has one. */
-function sessionPrompt(config: BenchConfig): string {
+function sessionPrompt({ config, autoReview }: { config: BenchConfig; autoReview: boolean }): string {
+  const baseline = baselinePrompt({ autoReview });
+
   if (!config.toolPrompt) {
-    return BASELINE_PROMPT;
+    return baseline;
   }
 
-  return `${BASELINE_PROMPT}\n\n${config.toolPrompt}`;
+  return `${baseline}\n\n${config.toolPrompt}`;
 }
 
 /**
@@ -111,6 +141,7 @@ export async function runClaude({
   outDir,
   timeoutMs,
   signal,
+  autoReview,
 }: {
   command: string[];
   runId: string;
@@ -118,12 +149,19 @@ export async function runClaude({
   timeoutMs: number;
   /** Aborted on Ctrl+C. The process is killed and the result is marked cancelled. */
   signal?: AbortSignal;
+  /** Passed through to the baseline guard so a denied local build matches this session's tools. */
+  autoReview: boolean;
 }): Promise<ClaudeResult> {
   writeFileSync(join(outDir, "command.json"), JSON.stringify(command, null, 2));
   const captured = await captureClaude({
     command,
     cwd: CHROMIUM_SRC,
-    env: { ...process.env, BENCH_RUN_ID: runId, MCP_TOOL_TIMEOUT: MCP_TOOL_TIMEOUT_MS },
+    env: {
+      ...process.env,
+      BENCH_RUN_ID: runId,
+      BENCH_AUTO_REVIEW: autoReview ? "1" : "0",
+      MCP_TOOL_TIMEOUT: MCP_TOOL_TIMEOUT_MS,
+    },
     timeoutMs,
     signal,
   });

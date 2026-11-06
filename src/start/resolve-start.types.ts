@@ -14,6 +14,8 @@ export type RunPlanFlags = {
   repeats?: string;
   timeoutMin: string;
   sync: boolean;
+  /** --auto-review: the agent builds its change and checks it in Chromium. Default on. */
+  autoReview: boolean;
   /** --force: discard uncommitted changes in the Chromium checkout when a build or checkout needs it. */
   force: boolean;
   /** --interactive: open the TUI even when selection flags were passed; they become the Start tab's values. */
@@ -31,6 +33,8 @@ export type RunPlan = {
   repeats: number;
   timeoutMin: number;
   sync: boolean;
+  /** Attach chrome-validate for every run in this plan. */
+  autoReview: boolean;
 };
 
 /** Run the benchmark with this plan. */

@@ -136,6 +136,7 @@ function ensureRunColumns(db: Database) {
     ["cache_creation_tokens", "INTEGER"],
     ["prompt_version", "TEXT"],
     ["judge_prompt_version", "TEXT"],
+    ["auto_review", "INTEGER"],
   ] as const;
   for (const [name, definition] of added) {
     if (present.has(name)) {
@@ -267,9 +268,9 @@ export async function hashFiles(paths: string[]): Promise<string> {
 export function startRun({ db, run }: { db: Database; run: RunStart }) {
   db.query(
     `INSERT INTO runs (run_id, task_id, config_id, repeat, prompt_version, judge_prompt_version,
-                       claude_version, model, machine, artifacts_path, branch)
+                       claude_version, model, machine, artifacts_path, branch, auto_review)
      VALUES ($runId, $taskId, $configId, $repeat, $promptVersion, $judgePromptVersion,
-             $claudeVersion, $model, $machine, $artifactsPath, $branch)`,
+             $claudeVersion, $model, $machine, $artifactsPath, $branch, $autoReview)`,
   ).run({
     runId: run.runId,
     taskId: run.taskId,
@@ -282,6 +283,7 @@ export function startRun({ db, run }: { db: Database; run: RunStart }) {
     machine: hostname(),
     artifactsPath: run.artifactsPath ?? null,
     branch: run.branch,
+    autoReview: run.autoReview == null ? null : run.autoReview ? 1 : 0,
   });
 }
 

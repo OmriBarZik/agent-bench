@@ -74,6 +74,8 @@ export type RunStart = {
   artifactsPath?: string;
   /** Git branch checked out for this run. The same string as runId. */
   branch: string;
+  /** True when this run attached chrome-validate. Omitted on rows written before the toggle. */
+  autoReview?: boolean;
 };
 
 /** One path that differs between the task SHA and the run branch. */

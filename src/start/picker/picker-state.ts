@@ -10,7 +10,7 @@ import type {
   PickerState,
 } from "./picker-state.types";
 
-/** The rows the cursor moves over: every task, every config, then repeats, timeout, and sync. */
+/** The rows the cursor moves over: every task, every config, then repeats, timeout, sync, and auto review. */
 export function pickerRows(choices: PickerChoices): PickerRow[] {
   return [
     ...indexRows({ kind: "task", count: choices.tasks.length }),
@@ -18,6 +18,7 @@ export function pickerRows(choices: PickerChoices): PickerRow[] {
     { kind: "repeats", index: 0 },
     { kind: "timeoutMin", index: 0 },
     { kind: "sync", index: 0 },
+    { kind: "autoReview", index: 0 },
   ];
 }
 
@@ -37,6 +38,7 @@ export function initialPickerState({
     repeats: defaults.repeats,
     timeoutMin: defaults.timeoutMin,
     sync: defaults.sync,
+    autoReview: defaults.autoReview,
     cursor: 0,
     editing: false,
     notice: "",
@@ -56,12 +58,13 @@ export function pickerResult({ state, choices }: { state: PickerState; choices: 
     repeats: state.repeats,
     timeoutMin: state.timeoutMin,
     sync: state.sync,
+    autoReview: state.autoReview,
   };
 }
 
 /**
  * Applies one keypress. Up/down (or k/j) move, space toggles, a toggles the whole section,
- * left/right change a number or the sync box, digits type a number, enter starts, and esc, q, or ctrl-c quit.
+ * left/right change a number or a checkbox, digits type a number, enter starts, and esc, q, or ctrl-c quit.
  */
 export function applyPickerKey({
   state,

@@ -20,7 +20,10 @@ function press({ state, keys }: { state: PickerState; keys: string[] }): PickerS
 }
 
 describe("picker state", () => {
-  const fresh = initialPickerState({ choices: CHOICES, defaults: { repeats: 1, timeoutMin: 60, sync: false } });
+  const fresh = initialPickerState({
+    choices: CHOICES,
+    defaults: { repeats: 1, timeoutMin: 60, sync: false, autoReview: true },
+  });
 
   test("checks everything when no ids are given", () => {
     expect(runCount(fresh)).toBe(4);
@@ -29,7 +32,7 @@ describe("picker state", () => {
   test("checks only the flagged ids", () => {
     const state = initialPickerState({
       choices: CHOICES,
-      defaults: { taskIds: ["t2"], configIds: ["serena"], repeats: 2, timeoutMin: 60, sync: false },
+      defaults: { taskIds: ["t2"], configIds: ["serena"], repeats: 2, timeoutMin: 60, sync: false, autoReview: true },
     });
 
     expect(pickerResult({ state, choices: CHOICES })).toMatchObject({ taskIds: ["t2"], configIds: ["serena"] });
@@ -62,6 +65,14 @@ describe("picker state", () => {
 
     expect(outcome.action).toBe("stay");
     expect(outcome.state.notice).toBe("check at least one task");
+  });
+
+  test("space toggles auto review", () => {
+    const onReview = press({ state: fresh, keys: [DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN] });
+
+    expect(onReview.autoReview).toBe(true);
+    expect(press({ state: onReview, keys: [" "] }).autoReview).toBe(false);
+    expect(pickerResult({ state: press({ state: onReview, keys: [" "] }), choices: CHOICES }).autoReview).toBe(false);
   });
 
   test("enter starts and esc quits", () => {

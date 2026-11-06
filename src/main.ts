@@ -16,6 +16,7 @@ import { setTerminalTitle } from "./terminal/terminal-title";
 import { benchEndTitle, runTitle } from "./terminal/title-text";
 
 const { values: args } = parseArgs({
+  allowNegative: true,
   options: {
     tasks: { type: "string", default: DEFAULT_TASKS_PATH },
     configs: { type: "string", default: DEFAULT_CONFIGS_PATH },
@@ -25,6 +26,7 @@ const { values: args } = parseArgs({
     "timeout-min": { type: "string", default: "60" },
     "judge-model": { type: "string", default: "claude-sonnet-5-5" },
     sync: { type: "boolean", default: false }, // run `gclient sync -D` after each checkout
+    "auto-review": { type: "boolean", default: true }, // chrome-validate: the agent builds and checks its change
     force: { type: "boolean", default: false }, // wipe uncommitted changes in src/ without asking
     interactive: { type: "boolean", short: "i", default: false }, // open the TUI even with selection flags
     runs: { type: "boolean", default: false }, // open the TUI on the Runs tab
@@ -38,12 +40,12 @@ const { values: args } = parseArgs({
  *
  *   bun run start [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
  *                     [--only-task id[,id]] [--only-config id[,id]] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
- *                     [--sync] [--force] [--interactive | --runs | --cli]
+ *                     [--sync] [--auto-review | --no-auto-review] [--force] [--interactive | --runs | --cli]
  *   bun run start --checkout <branch or run id> [--force]
  *
  * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with two tabs;
  * tab and shift-tab switch between them, and esc quits.
- *   Start: check the tasks and configs to run, set repeats, timeout, and sync, then enter starts. It prints
+ *   Start: check the tasks and configs to run, set repeats, timeout, sync, and auto review, then enter starts. It prints
  *     the equivalent --cli command first.
  *   Runs: the runs in the database. Enter opens a menu of every action below, with submenus; esc goes back.
  *     Ctrl-o opens the run transcript in the browser, ctrl-e the judge session.
@@ -53,6 +55,8 @@ const { values: args } = parseArgs({
  *     Ctrl-g checks the branch out in CHROMIUM_SRC and exits. Type to filter.
  * --interactive opens the TUI with the flags as the Start tab's values, --runs opens it on the Runs tab
  * (`bun run start:inspect`), and --cli (or no terminal) skips it and runs exactly what the flags say.
+ * --auto-review (the default) gives the agent the chrome-validate tools, so it builds the change and checks it in
+ * Chromium. --no-auto-review starts the session without those tools. The Start tab has the same checkbox.
  * --only-task and --only-config take comma-separated ids and may be repeated. --checkout skips the TUI
  * and checks that run's branch out. Checking out or building refuses uncommitted tracked changes unless --force.
  *
@@ -101,6 +105,7 @@ async function main() {
     repeats: args.repeats,
     timeoutMin: args["timeout-min"],
     sync: args.sync,
+    autoReview: args["auto-review"],
     force: args.force,
     interactive: args.interactive,
     runs: args.runs,
@@ -165,6 +170,7 @@ async function main() {
         claudeVersion: await claudeVersion(),
         timeoutMs: plan.timeoutMin * 60_000,
         sync: plan.sync,
+        autoReview: plan.autoReview,
         judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
       };
       db = openDb();
