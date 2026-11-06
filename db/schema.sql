@@ -8,12 +8,23 @@ CREATE TABLE IF NOT EXISTS tasks (
     title         TEXT,
     difficulty    TEXT,            -- e.g. simple / medium / complex
     prompt        TEXT NOT NULL,
-    prompt_version     TEXT,            -- first 8 hex chars of sha256(prompt); changes whenever prompt.md changes
+    prompt_version     TEXT,            -- first 8 hex chars of sha256(prompt); the current one, see prompt_versions
     judge_prompt       TEXT,            -- rubric the judge uses to choose a decision
     judge_prompt_version TEXT,          -- same for judge_prompt
     success_threshold  REAL,            -- unused; older tasks stored a decimal cutoff
     chromium_sha       TEXT NOT NULL,
     scoring       TEXT             -- JSON: how success is checked for this task
+);
+
+-- One row per prompt hash the benchmark has seen, for the agent prompt and the judge prompt.
+-- added_at is when that hash was first recorded. Hashes already on runs when this table appeared
+-- use the earliest run that used them. A later sighting does not move added_at.
+CREATE TABLE IF NOT EXISTS prompt_versions (
+    task_id   TEXT NOT NULL,
+    kind      TEXT NOT NULL,     -- prompt / judge
+    version   TEXT NOT NULL,     -- first 8 hex chars of sha256(prompt)
+    added_at  TEXT NOT NULL,     -- ISO-8601 UTC
+    PRIMARY KEY (task_id, kind, version)
 );
 
 CREATE TABLE IF NOT EXISTS configs (

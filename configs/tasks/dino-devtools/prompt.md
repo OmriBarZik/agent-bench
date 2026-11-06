@@ -6,4 +6,4 @@ Before wiring anything, find out how the dinosaur game is built today: where its
 
 Follow how the DevTools frontend registers panels or views and how it bundles and ships its own resources. Keyboard input for jump, duck and restart must reach the game while it is open in DevTools.
 
-Do not run a full Chromium build; make the change so it would build with the existing targets.
+Wire it into the existing build targets. This change crosses Chromium modules: the game and the DevTools frontend live in different trees, and a result that looks finished usually does not compile. Before you stop, validate the build with the chrome-validate tools (`start_build`, then `wait_build`). Do not run gn, ninja, autoninja, or siso yourself. If the build fails, you get the compiler errors. Read them, fix the cause, and build again. Do not stop because the build is broken, and do not finish until a build succeeds.

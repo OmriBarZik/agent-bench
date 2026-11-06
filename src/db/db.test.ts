@@ -620,8 +620,79 @@ test("upsertTask stores a prompt version that changes only with the prompt text"
     expect(unchanged).toEqual(first);
     expect(edited.prompt_version).not.toBe(first.prompt_version);
     expect(edited.judge_prompt_version).toBe(first.judge_prompt_version);
+    const added = db
+      .query(
+        `SELECT version, added_at FROM prompt_versions
+         WHERE task_id = 'dino' AND kind = 'prompt' ORDER BY added_at, version`,
+      )
+      .all() as { version: string; added_at: string }[];
+    const original = added.find((row) => row.version === first.prompt_version);
+
+    expect(added).toHaveLength(2);
+    expect(original?.added_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(added.filter((row) => row.version === first.prompt_version)).toHaveLength(1);
   } finally {
     db.close();
+  }
+});
+
+test("openDb backfills a prompt version timestamp from the earliest run and does not move it", () => {
+  const path = tempDb();
+  const db = openDb(path);
+
+  try {
+    upsertTask({ db, task: { taskId: "dino", prompt: "paint", judgePrompt: "score it", chromiumSha: "abc" } });
+    upsertConfig({ db, config: { configId: "haiku", configHash: "hash" } });
+    db.run("DELETE FROM prompt_versions");
+    seedRun({ db, runId: "dino__haiku__r0", startedAt: "2026-11-05T21:23:00.000Z" });
+    seedRun({ db, runId: "dino__haiku__r1", startedAt: "2026-11-06T14:05:00.000Z" });
+  } finally {
+    db.close();
+  }
+
+  const reopened = openDb(path);
+
+  try {
+    const prompt = reopened
+      .query(
+        `SELECT added_at FROM prompt_versions
+         WHERE task_id = 'dino' AND kind = 'prompt' AND version = $version`,
+      )
+      .get({ version: "p1" }) as { added_at: string };
+    const judge = reopened
+      .query(
+        `SELECT added_at FROM prompt_versions
+         WHERE task_id = 'dino' AND kind = 'judge' AND version = $version`,
+      )
+      .get({ version: "j1" }) as { added_at: string };
+
+    expect(prompt.added_at).toBe("2026-11-05T21:23:00.000Z");
+    expect(judge.added_at).toBe("2026-11-05T21:23:00.000Z");
+  } finally {
+    reopened.close();
+  }
+
+  const dbAgain = openDb(path);
+
+  try {
+    seedRun({ db: dbAgain, runId: "dino__haiku__r2", startedAt: "2026-11-01T00:00:00.000Z" });
+  } finally {
+    dbAgain.close();
+  }
+
+  const settled = openDb(path);
+
+  try {
+    const prompt = settled
+      .query(
+        `SELECT added_at FROM prompt_versions
+         WHERE task_id = 'dino' AND kind = 'prompt' AND version = $version`,
+      )
+      .get({ version: "p1" }) as { added_at: string };
+
+    expect(prompt.added_at).toBe("2026-11-05T21:23:00.000Z");
+  } finally {
+    settled.close();
   }
 });
 

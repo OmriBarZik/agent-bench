@@ -59,6 +59,7 @@ export function openDb(path = DB_PATH): Database {
   ensureRunColumns(db);
   ensureJudgeColumns(db);
   retireRunScoreColumns(db);
+  backfillPromptVersions(db);
 
   return db;
 }
@@ -216,6 +217,9 @@ export function promptVersion(prompt: string): string {
 
 /** Stores the task with its current prompt versions. Runs keep their own copy, since this row is overwritten on every start. */
 export function upsertTask({ db, task }: { db: Database; task: Task }) {
+  const agentPromptVersion = promptVersion(task.prompt);
+  const judgePromptVersion = promptVersion(task.judgePrompt);
+
   db.query(
     `INSERT INTO tasks (task_id, title, difficulty, prompt, prompt_version, judge_prompt, judge_prompt_version,
                         chromium_sha, scoring)
@@ -231,12 +235,56 @@ export function upsertTask({ db, task }: { db: Database; task: Task }) {
     title: task.title ?? null,
     difficulty: task.difficulty ?? null,
     prompt: task.prompt,
-    promptVersion: promptVersion(task.prompt),
+    promptVersion: agentPromptVersion,
     judgePrompt: task.judgePrompt,
-    judgePromptVersion: promptVersion(task.judgePrompt),
+    judgePromptVersion,
     chromiumSha: task.chromiumSha,
     scoring: toJson(task.scoring),
   });
+  rememberPromptVersion({ db, taskId: task.taskId, kind: "prompt", version: agentPromptVersion });
+  rememberPromptVersion({ db, taskId: task.taskId, kind: "judge", version: judgePromptVersion });
+}
+
+/** Records the first time this prompt hash was seen. A later sighting keeps the original added_at. */
+function rememberPromptVersion({
+  db,
+  taskId,
+  kind,
+  version,
+}: {
+  db: Database;
+  taskId: string;
+  kind: string;
+  version: string;
+}) {
+  db.query(
+    `INSERT INTO prompt_versions (task_id, kind, version, added_at)
+     VALUES ($taskId, $kind, $version, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+     ON CONFLICT (task_id, kind, version) DO NOTHING`,
+  ).run({ taskId, kind, version });
+}
+
+/**
+ * Fills added_at for prompt hashes already used by a run.
+ * The earliest start wins, and a row that is already there is left alone.
+ */
+function backfillPromptVersions(db: Database) {
+  db.run(
+    `INSERT INTO prompt_versions (task_id, kind, version, added_at)
+     SELECT task_id, 'prompt', prompt_version, min(started_at)
+     FROM runs
+     WHERE prompt_version IS NOT NULL AND started_at IS NOT NULL
+     GROUP BY task_id, prompt_version
+     ON CONFLICT (task_id, kind, version) DO NOTHING`,
+  );
+  db.run(
+    `INSERT INTO prompt_versions (task_id, kind, version, added_at)
+     SELECT task_id, 'judge', judge_prompt_version, min(started_at)
+     FROM runs
+     WHERE judge_prompt_version IS NOT NULL AND started_at IS NOT NULL
+     GROUP BY task_id, judge_prompt_version
+     ON CONFLICT (task_id, kind, version) DO NOTHING`,
+  );
 }
 
 export function upsertConfig({ db, config }: { db: Database; config: Config }) {
