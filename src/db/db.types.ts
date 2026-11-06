@@ -274,3 +274,15 @@ export type BuildRow = {
   failed_step: string | null;
   error: string | null;
 };
+
+/** One agent build plus the run it belongs to, for the log screen. */
+export type AgentBuildView = {
+  id: number;
+  run_id: string | null;
+  build_number: number;
+  status: BuildStatus;
+  log_path: string | null;
+  task_id: string | null;
+  config_id: string | null;
+  repeat: number | null;
+};

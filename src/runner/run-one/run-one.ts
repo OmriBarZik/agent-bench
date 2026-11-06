@@ -5,9 +5,11 @@ import { cancelRun, promptVersion, startRun } from "../../db/db";
 import type { Task } from "../../db/db.types";
 import { RUNS_DIR } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
+import { watchAgentBuildLog } from "../build-log/screen/watch-build-log";
 import type { RunOneResult, RunOptions, RunPhase } from "./run-one.types";
 import { judgeAndStore, runAndCommitAgent, storeInterruptedRun } from "./run-session";
 import { prepareCheckout } from "./run-tree";
+import type { CommittedWork } from "./run-tree.types";
 
 /** One benchmark run: reset onto the run branch, record it, run claude, commit the tree, store the result, then decide the checkout. */
 export async function runOne({
@@ -57,7 +59,15 @@ export async function runOne({
   let recorded = false;
   try {
     onPhase("agent");
-    const committed = await runAndCommitAgent({ db, task, config, runId, outDir, started, options, signal });
+    const logWatch = options.autoReview ? watchAgentBuildLog({ db, runId, signal }) : null;
+    let committed: CommittedWork;
+
+    try {
+      committed = await runAndCommitAgent({ db, task, config, runId, outDir, started, options, signal });
+    } finally {
+      await logWatch?.stop();
+    }
+
     recorded = true;
 
     if (signal.aborted) {

@@ -6,10 +6,12 @@ import { join } from "node:path";
 import {
   abandonOpenBuilds,
   cancelRun,
+  currentAgentBuild,
   deleteRun,
   finishBuild,
   finishChromiumBuild,
   finishRun,
+  latestRunBuild,
   listBuilds,
   listRunBranches,
   listToolTrouble,
@@ -860,6 +862,9 @@ test("builds rows record every build, close open ones as abandoned, and roll up 
     const ok = startBuild({ db, build: { runId, buildNumber: 2, logPath: "/logs/build-2.log" } });
     finishBuild({ db, buildId: ok, finish: { status: "ok", snapshotSha: "b2", durationMs: 60_000, buildMs: 50_000 } });
     startBuild({ db, build: { runId, buildNumber: 3, logPath: "/logs/build-3.log" } });
+
+    expect(currentAgentBuild(db)).toMatchObject({ build_number: 3, status: "building", task_id: "dino" });
+    expect(latestRunBuild({ db, runId })).toMatchObject({ build_number: 3, log_path: "/logs/build-3.log" });
 
     abandonOpenBuilds({ db, runId });
 

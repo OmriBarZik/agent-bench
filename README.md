@@ -23,7 +23,7 @@ What each config needs installed is in [docs/setup.md](docs/setup.md). Building 
 Put `benchmark-tasks.json` and `benchmark-setup.json` in `configs/` (shapes in [docs/overview.md](docs/overview.md#input-files)), then:
 
 ```sh
-bun run start                                 # on a terminal: a TUI with Start, Runs, and Setups tabs; tab / shift-tab switch
+bun run start                                 # on a terminal: a TUI with Start, Runs, Build, and Setups tabs; tab / shift-tab switch. Build streams an agent's remote build log
 bun run start --cli                           # every task × config, no TUI
 bun run start --only-task t1,t2 --repeats 3   # flags skip the TUI (add -i to open it with these preset)
 bun run start:inspect                         # the same TUI, opened on the Runs tab (= bun run start --runs); enter opens an action menu, ctrl-o the transcript, ctrl-g checks out

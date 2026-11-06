@@ -2,6 +2,7 @@ import { loadChoices } from "../inspect/list/load-choices";
 import { createRunsScreen } from "../inspect/list/runs-screen";
 import { CHROMIUM_SRC } from "../paths";
 import type { Selection } from "../runner/bench-config/bench-config.types";
+import { createBuildLogScreen } from "../runner/build-log/screen/build-log-screen";
 import { openTui } from "../tui/open-tui";
 import type { TuiHost, TuiTab } from "../tui/open-tui.types";
 import type { StartTab, StartTuiPick } from "./open-start-tui.types";
@@ -9,11 +10,12 @@ import { createPickerScreen } from "./picker/picker-screen";
 import type { PickerChoices, PickerDefaults } from "./picker/picker-state.types";
 import { createSetupsScreen } from "./setups/setups-screen";
 
-const TAB_ORDER: StartTab[] = ["start", "runs", "setups"];
+const TAB_ORDER: StartTab[] = ["start", "runs", "build", "setups"];
 
 /**
  * Opens the `bun run start` TUI: a Start tab (pick tasks × configs × repeats), a Runs tab
- * (the runs in the database: transcripts, builds, judge decisions, deletes, checkout), and a Setups tab
+ * (the runs in the database: transcripts, builds, judge decisions, deletes, checkout), a Build tab
+ * (the log of the remote build an agent requested), and a Setups tab
  * (whether each config's setup checks pass, and whether that config has been run).
  * Tab and shift-tab switch between them. Resolves with null when the user quits.
  */
@@ -51,6 +53,10 @@ export async function openStartTui({
           controls: host,
           onDone: (choice) => host.finish(choice ? { kind: "checkout", choice } : null),
         }),
+      },
+      {
+        label: "Build",
+        screen: createBuildLogScreen({ controls: host }),
       },
       {
         label: "Setups",

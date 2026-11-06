@@ -16,7 +16,8 @@ export const DEFAULT_CONFIGS_PATH = join(BENCH_DIR, "configs/benchmark-setup.jso
 /**
  * Decides what `bun run start` does. On a terminal with no --only-task, --only-config, or --repeats
  * (or with --interactive, --runs, or --setups), it opens the TUI: the Start tab runs a matrix and prints the equivalent
- * command, the Runs tab can check a run's branch out, and the Setups tab shows which config setups are missing.
+ * command, the Runs tab can check a run's branch out, the Build tab streams an agent's remote build log,
+ * and the Setups tab shows which config setups are missing.
  * Otherwise the flags decide the matrix.
  */
 export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> {

@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { hostname } from "node:os";
 import { dirname, join } from "node:path";
 import type {
+  AgentBuildView,
   BuildFinish,
   BuildRow,
   BuildStart,
@@ -620,6 +621,25 @@ export function listBuilds({ db, runId }: { db: Database; runId: string }): Buil
        FROM builds WHERE run_id = $runId ORDER BY build_number`,
     )
     .all({ runId }) as BuildRow[];
+}
+
+const AGENT_BUILD_VIEW = `SELECT builds.id, builds.run_id, builds.build_number, builds.status, builds.log_path,
+       runs.task_id, runs.config_id, runs.repeat
+FROM builds
+LEFT JOIN runs ON runs.run_id = builds.run_id`;
+
+/** The agent build a log screen should follow: one that is still running, otherwise the newest. */
+export function currentAgentBuild(db: Database): AgentBuildView | null {
+  return db
+    .query(`${AGENT_BUILD_VIEW} ORDER BY (builds.status = 'building') DESC, builds.id DESC LIMIT 1`)
+    .get() as AgentBuildView | null;
+}
+
+/** The newest build this run requested, including one that has already finished. */
+export function latestRunBuild({ db, runId }: { db: Database; runId: string }): AgentBuildView | null {
+  return db
+    .query(`${AGENT_BUILD_VIEW} WHERE builds.run_id = $runId ORDER BY builds.build_number DESC LIMIT 1`)
+    .get({ runId }) as AgentBuildView | null;
 }
 
 /** Inserts a Chromium build as `building` and returns its id. The Runs tab finishes the row when chrome exits. */

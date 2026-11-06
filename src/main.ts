@@ -45,7 +45,7 @@ const { values: args } = parseArgs({
  *                     [--sync] [--auto-review | --no-auto-review] [--force] [--interactive | --runs | --setups | --cli]
  *   bun run start --checkout <branch or run id> [--force]
  *
- * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with three tabs;
+ * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with four tabs;
  * tab and shift-tab switch between them, and esc quits.
  *   Start: check the tasks and configs to run, set repeats, timeout, sync, and auto review, then enter starts. It prints
  *     the equivalent --cli command first.
@@ -56,7 +56,11 @@ const { values: args } = parseArgs({
  *     asks whether to mark that run failed. Ctrl-f sets the judge
  *     decision (1–4 or enter). Ctrl-x twice removes the run from the database; the branch and artifact files stay.
  *     Ctrl-g checks the branch out in CHROMIUM_SRC and exits. Type to filter.
+ *   Build: the log of the remote build the agent requested. It follows the tail while that build runs.
+ *     Up and down scroll. End follows the tail again.
  *   Setups: every config, the checks in its setup.json, and how many runs it has. r reloads.
+ * While the agent session runs in a terminal, that same log takes the screen once the agent requests a
+ * remote build. Esc hides it until the next build. Ctrl-C still stops the benchmark.
  * --interactive opens the TUI with the flags as the Start tab's values, --runs opens it on the Runs tab
  * (`bun run start:inspect`), --setups opens it on the Setups tab (`bun run start:setups`), and --cli (or no terminal)
  * skips it and runs exactly what the flags say.
