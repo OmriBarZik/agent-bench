@@ -4,7 +4,7 @@ import { renderSshConfig, withSshInclude } from "./ssh";
 
 const file = parseRemoteBuildFile(`host: builder
 hostName: 10.55.0.2
-user: omri
+user: mock-user
 identityFile: ~/.ssh/id_ed25519
 source: /src
 depotTools: /depot_tools
@@ -13,7 +13,7 @@ depotTools: /depot_tools
 test("renderSshConfig is one Host block", () => {
   expect(renderSshConfig({ file })).toBe(`Host builder
   HostName 10.55.0.2
-  User omri
+  User mock-user
   IdentityFile ~/.ssh/id_ed25519
 `);
 });

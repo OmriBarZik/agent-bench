@@ -11,9 +11,9 @@ import { renderSshConfig } from "./ssh";
 const sample = `# build Mac
 host: builder
 hostName: 10.55.0.2
-user: omri
-source: /Users/omri/Projects/chromium/src
-depotTools: /Users/omri/depot_tools
+user: mock-user
+source: /Users/mock-user/Projects/chromium/src
+depotTools: /Users/mock-user/depot_tools
 `;
 
 test("parseRemoteBuildFile rejects the example until the account is filled in", () => {
@@ -29,16 +29,16 @@ test("parseRemoteBuildFile keeps the connection and the checkout path", () => {
   expect(file).toMatchObject({
     host: "builder",
     hostName: "10.55.0.2",
-    user: "omri",
-    source: "/Users/omri/Projects/chromium/src",
-    depotTools: "/Users/omri/depot_tools",
+    user: "mock-user",
+    source: "/Users/mock-user/Projects/chromium/src",
+    depotTools: "/Users/mock-user/depot_tools",
   });
 });
 
 test("depotTools is required and must be an absolute path", () => {
   const withoutTools = `host: builder
 hostName: 10.55.0.2
-user: omri
+user: mock-user
 source: /src
 `;
   const relativeTools = `${withoutTools}depotTools: src/depot_tools
@@ -58,8 +58,8 @@ test("builderConfig reads a local file and is absent when that file is missing",
     expect(builderConfig(missing)).toBeNull();
     expect(builderConfig(present)).toMatchObject({
       host: "builder",
-      source: "/Users/omri/Projects/chromium/src",
-      depotTools: "/Users/omri/depot_tools",
+      source: "/Users/mock-user/Projects/chromium/src",
+      depotTools: "/Users/mock-user/depot_tools",
     });
   } finally {
     rmSync(directory, { recursive: true, force: true });

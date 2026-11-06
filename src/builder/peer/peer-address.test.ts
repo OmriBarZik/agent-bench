@@ -40,7 +40,7 @@ test("deviceForConnection accepts the port name or the device, in any case", () 
 
 test("remote.yaml takes a connection instead of hostName, and not both", () => {
   const base = `host: builder
-user: omri
+user: mock-user
 source: /src
 depotTools: /depot_tools
 `;
@@ -49,7 +49,7 @@ depotTools: /depot_tools
   expect(file.connection).toBe("Thunderbolt Bridge");
   expect(renderSshConfig({ file, proxyCommand: "/bun /peer-proxy.ts bridge0 %p" })).toBe(`Host builder
   ProxyCommand /bun /peer-proxy.ts bridge0 %p
-  User omri
+  User mock-user
 `);
   expect(() => parseRemoteBuildFile(base)).toThrow(/exactly one/);
   expect(() => parseRemoteBuildFile(`${base}hostName: 10.0.0.2\nconnection: bridge0\n`)).toThrow(/exactly one/);
