@@ -1,4 +1,4 @@
-You must use the codebase-memory-mcp tools, named `mcp__codebase-memory-mcp__*`, before Grep, Glob, or Read. They are already allowed. If they are not in your tool list yet, load them with tool search and then call one. A search that skips them does not count.
+You must use the codebase-memory-mcp tools, named `mcp__codebase-memory-mcp__*`, before `grep` through Bash, Glob, or Read. They are already allowed. If they are not in your tool list yet, load them with tool search and then call one. A search that skips them does not count.
 
 The Chromium checkout is already indexed. Do not index it again. Call `list_projects` first and keep the project whose root is this checkout. Pass that project name on later calls.
 
@@ -10,6 +10,6 @@ Use these tools to find code:
 - `get_architecture` once, when you need a map of an unfamiliar area.
 - `search_code` for a literal string, config key, error message, or comment.
 
-Use Grep, Glob, and Read only after a codebase-memory tool has no hit, for a file you created in this session, or when `check_index_coverage` says a path is not indexed. A missing graph hit is not proof the code is absent until you have checked coverage.
+Use `grep` through Bash, Glob, and Read only after a codebase-memory tool has no hit, for a file you created in this session, or when `check_index_coverage` says a path is not indexed. A missing graph hit is not proof the code is absent until you have checked coverage.
 
 Edit and Write remain the way to change a file. The baseline shell rules still apply.

@@ -4,6 +4,7 @@
     "description": "Plain Claude Code, no MCP servers, default tools",
     "model": "claude-sonnet-5-5",
     "strictMcpConfig": true,
+    "allowedTools": ["Bash(grep *)"],
     "permissionMode": "acceptEdits"
   },
   {
@@ -13,7 +14,7 @@
     "mcpConfig": ["configs/setup/codebase-memory/mcp.json"],
     "toolPromptFile": "configs/setup/codebase-memory/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["mcp__codebase-memory-mcp__*"],
+    "allowedTools": ["Bash(grep *)", "mcp__codebase-memory-mcp__*"],
     "permissionMode": "acceptEdits"
   },
   {
@@ -23,7 +24,7 @@
     "mcpConfig": ["configs/setup/serena/mcp.json"],
     "toolPromptFile": "configs/setup/serena/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["mcp__serena__*"],
+    "allowedTools": ["Bash(grep *)", "mcp__serena__*"],
     "permissionMode": "acceptEdits"
   },
   {
@@ -32,7 +33,7 @@
     "model": "claude-sonnet-5-5",
     "toolPromptFile": "configs/setup/codesearch/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(csearch *)", "Bash(cgrep *)"],
+    "allowedTools": ["Bash(grep *)", "Bash(csearch *)", "Bash(cgrep *)"],
     "permissionMode": "acceptEdits"
   },
   {
@@ -41,6 +42,7 @@
     "model": "claude-sonnet-5-5",
     "toolPromptFile": "configs/setup/sift/tools.md",
     "strictMcpConfig": true,
+    "allowedTools": ["Bash(grep *)"],
     "permissionMode": "acceptEdits"
   },
   {
@@ -50,7 +52,7 @@
     "pluginDirs": ["plugins/clangd-lsp"],
     "toolPromptFile": "configs/setup/clangd/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["LSP"],
+    "allowedTools": ["Bash(grep *)", "LSP"],
     "permissionMode": "acceptEdits"
   },
   {
@@ -60,7 +62,7 @@
     "pluginDirs": ["plugins/typescript-lsp"],
     "toolPromptFile": "configs/setup/typescript/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["LSP"],
+    "allowedTools": ["Bash(grep *)", "LSP"],
     "permissionMode": "acceptEdits"
   },
   {
@@ -70,7 +72,7 @@
     "pluginDirs": ["plugins/clangd-lsp", "plugins/typescript-lsp"],
     "toolPromptFile": "configs/setup/clangd-typescript/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["LSP"],
+    "allowedTools": ["Bash(grep *)", "LSP"],
     "permissionMode": "acceptEdits"
   }
 ]

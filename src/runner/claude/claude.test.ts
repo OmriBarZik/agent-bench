@@ -21,6 +21,7 @@ test("every config gets the baseline prompt", () => {
 
   expect(promptIndex).toBeGreaterThan(-1);
   expect(args[promptIndex + 1]).toBe(BASELINE_PROMPT);
+  expect(args[promptIndex + 1]).toContain("`grep` through Bash");
 });
 
 test("a config's tool prompt is appended after the baseline", () => {

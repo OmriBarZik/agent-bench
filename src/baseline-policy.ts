@@ -3,6 +3,7 @@ const BASELINE_RULES = [
   "Do not use cd, pushd, or popd. Use an absolute path, or git -C <absolute-path> for git.",
   "Create and modify file contents only with the Edit and Write tools.",
   "Do not update a file from the shell: no redirection into a file, tee, in-place sed/perl/ruby, patch, or an interpreter one-liner or here-document that writes a file.",
+  "The Grep tool is not available in this session. Where a search would have used it, run `grep` through Bash. That command is already allowed.",
 ];
 
 const LOCAL_BUILD_RULE = "Do not run gn, ninja, autoninja, or siso on this machine.";

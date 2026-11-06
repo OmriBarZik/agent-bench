@@ -77,7 +77,11 @@ test("the shipped configs load their tool prompts", async () => {
   );
   expect(toolPromptByConfig.get("codesearch")).toContain("You must search this checkout with Code Search");
   expect(toolPromptByConfig.get("codesearch")).toContain("Code Search is not an MCP server");
-  expect(allowedToolsByConfig.get("codesearch")).toEqual(["Bash(csearch *)", "Bash(cgrep *)"]);
+  expect(allowedToolsByConfig.get("codesearch")).toEqual(["Bash(grep *)", "Bash(csearch *)", "Bash(cgrep *)"]);
+
+  for (const allowedTools of allowedToolsByConfig.values()) {
+    expect(allowedTools).toContain("Bash(grep *)");
+  }
   expect(toolPromptByConfig.get("sift")).toContain("You must search with `sift`");
   expect(toolPromptByConfig.get("clangd")).toContain("You have clangd, a C and C++ language server");
   expect(toolPromptByConfig.get("typescript")).toContain("You have a TypeScript language server");

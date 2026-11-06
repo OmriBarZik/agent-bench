@@ -11,7 +11,7 @@ Put every flag before the pattern. `csearch -l -f 'chrome/' Trex` is valid. `cse
 - `csearch -i -n pattern` is case-insensitive. Flags stay separate: `csearch -i -n`, never `csearch -in`.
 - The pattern is one RE2 expression. It has no backreferences.
 
-Exit status 1 means the index had no match. Do not pass `-brute`. Do not repeat that search with Grep or `grep`. A file you created in this session is missing until the index is rebuilt, and `out/` is not indexed. Use Grep only for those files.
+Exit status 1 means the index had no match. Do not pass `-brute`. Do not repeat that search with Grep or `grep`. A file you created in this session is missing until the index is rebuilt, and `out/` is not indexed. Use `grep` through Bash only for those files.
 
 Use `cgrep` for a regular expression in files you already name: `cgrep -n pattern path`. It does not walk a directory. Name each file. Do not use `grep` on a file `cgrep` can read.
 
