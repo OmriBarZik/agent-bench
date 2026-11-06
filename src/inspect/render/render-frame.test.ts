@@ -52,6 +52,23 @@ test("renderFrame lists the four judge decisions while that dialog is open", () 
   expect(frame).toContain("esc cancels");
 });
 
+test("renderFrame asks to mark a run failed after its build fails", () => {
+  const frame = renderFrame({
+    choices: [choice()],
+    state: { query: "", selected: 0, scroll: 0, marked: [] },
+    chromiumSrc: "/chromium/src",
+    notice: "build failed (1)",
+    decisionDialog: null,
+    markFailedPrompt: { runIds: ["dino__haiku__r0"], selected: 0 },
+    rows: 24,
+    columns: 100,
+  });
+
+  expect(frame).toContain("Build failed. Mark dino × haiku as failed?");
+  expect(frame).toContain("Yes, mark it failed");
+  expect(frame).not.toContain("most of the hat");
+});
+
 test("renderFrame says when the filter matches nothing", () => {
   const state: SelectState = { query: "nope", selected: 0, scroll: 0, marked: [] };
   const frame = renderFrame({

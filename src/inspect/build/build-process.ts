@@ -2,6 +2,14 @@ import { createInterface } from "node:readline";
 import { RELEASE_PROGRESS } from "../list/restore-list";
 import type { RunStep } from "../remote/remote-build.types";
 
+/** The compile step failed. Checkout, copy, and missing tools stay plain errors. */
+export class CompileFailedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CompileFailedError";
+  }
+}
+
 /**
  * Opens one Chromium.app. `--args` is how `open` forwards flags to the app:
  * no keychain prompt, and no Cast device scan.
@@ -56,8 +64,41 @@ export async function runStep({ command, signal, label, stdin, cwd, env }: RunSt
   }
 
   if (exitCode !== 0) {
-    throw new Error(`${label} failed (${exitCode})`);
+    throw stepFailure({ label, exitCode });
   }
+}
+
+/** A non-zero compile is a build failure. Any other step is a plain error. */
+export function stepFailure({ label, exitCode }: { label: string; exitCode: number }): Error {
+  const message = `${label} failed (${exitCode})`;
+
+  if (label === "build") {
+    return new CompileFailedError(message);
+  }
+
+  return new Error(message);
+}
+
+/** True when this error is the compile step itself, not checkout, copy, or a missing tool. */
+export function isCompileFailure(error: unknown): boolean {
+  return error instanceof CompileFailedError;
+}
+
+/** The run to offer as failed when the compile failed and was not cancelled. */
+export function runIdsForCompileFailure({
+  error,
+  signal,
+  runId,
+}: {
+  error: unknown;
+  signal: AbortSignal;
+  runId: string;
+}): string[] {
+  if (signal.aborted || !isCompileFailure(error)) {
+    return [];
+  }
+
+  return [runId];
 }
 
 /** The line the run list shows when a build throws. */

@@ -2,9 +2,11 @@ import process from "node:process";
 import type { TuiControls, TuiScreen } from "../../tui/open-tui.types";
 import { attachChromiumApps, openBuiltChromium } from "../build/app/chromium-app";
 import { buildSession, remoteBuildSession } from "../build/build-session";
-import type { BuildTarget, BuildWork } from "../build/build-session.types";
+import type { BuildFinish, BuildTarget, BuildWork } from "../build/build-session.types";
 import { applyDecisionKey, openDecisionDialog } from "../decision/decision-dialog";
 import type { DecisionDialog } from "../decision/decision-dialog.types";
+import { applyMarkFailedKey, openMarkFailedPrompt } from "../decision/mark-failed-prompt";
+import type { MarkFailedPrompt } from "../decision/mark-failed-prompt.types";
 import { setListedDecision } from "../decision/set-decision";
 import { deleteIntent, removeListedRun } from "../delete/delete-run";
 import { applyMenuKey, backMenu, openActionMenu } from "../menu/action-menu";
@@ -24,12 +26,13 @@ import type { RunChoice, SelectAction, SelectState } from "./select-state.types"
  * Ctrl-o opens the highlighted run's transcript in the browser and stays here. Ctrl-e opens the judge session the same way.
  * Arrow keys only move the highlight; every action is enter, esc or a ctrl key.
  * Ctrl-b asks where to build: l builds the highlighted run on this Mac, r builds the selection on the build Mac.
+ * A failed compile asks whether to mark that run failed: y marks it, n keeps the decision, and esc dismisses.
  * Ctrl-p opens the highlighted run's Chromium.app when a build left one on disk.
  * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
  * Ctrl-r reloads the runs from the database and the branches from Chromium, so new runs show without a restart.
  * Ctrl-g calls `onDone` with the highlighted run so the caller can check its branch out; ctrl-c calls it with null.
- * Esc closes the build question, the decision dialog, or a menu page; otherwise it is left to the TUI, which quits.
+ * Esc closes the build question, the failed-build question, the decision dialog, or a menu page; otherwise it is left to the TUI, which quits.
  */
 export function createRunsScreen({
   choices,
@@ -48,6 +51,7 @@ export function createRunsScreen({
   let notice = "";
   let armedRunId: string | null = null;
   let decisionDialog: DecisionDialog | null = null;
+  let markFailedPrompt: MarkFailedPrompt | null = null;
   let actionMenu: ActionMenu | null = null;
   let choosingBuild = false;
   let busy = false;
@@ -60,7 +64,7 @@ export function createRunsScreen({
   const selectedRuns = () => actionRuns({ choices, highlighted: highlighted(), marked: state.marked });
 
   /** Gives the terminal to `work` (a browser opener or a build log), then takes it back and repaints. */
-  const handOff = (work: (signal: AbortSignal) => Promise<string>) => {
+  const handOff = (work: (signal: AbortSignal) => Promise<string | BuildFinish>) => {
     busy = true;
     choosingBuild = false;
     const abort = new AbortController();
@@ -75,8 +79,15 @@ export function createRunsScreen({
 
         return work(abort.signal);
       })
-      .then((workNotice) => {
-        notice = workNotice;
+      .then((result) => {
+        const finish = typeof result === "string" ? { notice: result, failedRunIds: [] } : result;
+        notice = finish.notice;
+        markFailedPrompt = openMarkFailedPrompt(finish.failedRunIds);
+        const asking = markFailedPrompt?.runIds[0];
+
+        if (asking) {
+          focusRun(asking);
+        }
 
         try {
           attachChromiumApps({ choices, chromiumSrc });
@@ -238,6 +249,20 @@ export function createRunsScreen({
       });
   };
 
+  const focusRun = (runId: string) => {
+    const index = matches().findIndex((choice) => choice.runId === runId);
+
+    if (index < 0) {
+      return;
+    }
+
+    state = clampSelection({
+      state: { ...state, selected: index },
+      matchCount: matches().length,
+      pageSize: pageSize(),
+    });
+  };
+
   const openDecision = (chosen: RunChoice | undefined) => {
     if (chosen) {
       decisionDialog = openDecisionDialog({ runId: chosen.runId, decision: chosen.decision });
@@ -258,6 +283,35 @@ export function createRunsScreen({
     startBuild(target);
 
     return true;
+  };
+
+  const onMarkFailedKey = ({ prompt, key }: { prompt: MarkFailedPrompt; key: string }) => {
+    const outcome = applyMarkFailedKey({ prompt, key });
+
+    if (outcome.kind === "stay") {
+      markFailedPrompt = outcome.prompt;
+
+      return;
+    }
+
+    markFailedPrompt = outcome.prompt;
+    const nextRunId = outcome.prompt?.runIds[0];
+
+    if (nextRunId) {
+      focusRun(nextRunId);
+    }
+
+    if (!outcome.markFailed) {
+      return;
+    }
+
+    const chosen = choices.find((choice) => choice.runId === outcome.runId);
+
+    if (!chosen) {
+      return;
+    }
+
+    notice = setListedDecision({ chosen, decision: "failed" });
   };
 
   const onDialogKey = ({ dialog, key }: { dialog: DecisionDialog; key: string }) => {
@@ -437,7 +491,17 @@ export function createRunsScreen({
 
   return {
     render: ({ rows, columns }) =>
-      renderFrame({ choices, state, chromiumSrc, notice, decisionDialog, actionMenu, rows, columns }),
+      renderFrame({
+        choices,
+        state,
+        chromiumSrc,
+        notice,
+        decisionDialog,
+        markFailedPrompt,
+        actionMenu,
+        rows,
+        columns,
+      }),
     onKey: (key) => {
       if (key === "\x03") {
         onDone(null);
@@ -447,6 +511,12 @@ export function createRunsScreen({
 
       if (decisionDialog) {
         onDialogKey({ dialog: decisionDialog, key });
+
+        return;
+      }
+
+      if (markFailedPrompt) {
+        onMarkFailedKey({ prompt: markFailedPrompt, key });
 
         return;
       }
@@ -473,6 +543,12 @@ export function createRunsScreen({
       onListAction(result.action);
     },
     onEscape: () => {
+      if (markFailedPrompt) {
+        markFailedPrompt = null;
+
+        return true;
+      }
+
       if (choosingBuild || decisionDialog) {
         choosingBuild = false;
         decisionDialog = null;

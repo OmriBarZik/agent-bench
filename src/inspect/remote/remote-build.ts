@@ -6,7 +6,15 @@ import { BENCH_DIR } from "../../paths";
 import { setTerminalTitle } from "../../terminal/terminal-title";
 import { buildTitle } from "../../terminal/title-text";
 import type { BuildStep } from "../../terminal/title-text.types";
-import { failureNotice, openChromiumCommand, runStep, waitForReturn } from "../build/build-process";
+import {
+  CompileFailedError,
+  failureNotice,
+  openChromiumCommand,
+  runIdsForCompileFailure,
+  runStep,
+  waitForReturn,
+} from "../build/build-process";
+import type { BuildFinish } from "../build/build-session.types";
 import type { BuilderConfig } from "../build/builder-config.types";
 import { openBuildWatch } from "../build/record/record-build";
 import { gitlinkCommitsBetween } from "../gitlink/gitlink-commits";
@@ -41,7 +49,7 @@ export async function presentBuild({
   config: BuilderConfig;
   chromiumSrc: string;
   signal: AbortSignal;
-}): Promise<string> {
+}): Promise<BuildFinish> {
   const watch = openBuildWatch({ choice, target: "remote", host: config.host });
 
   try {
@@ -55,7 +63,7 @@ export async function presentBuild({
       console.error(`\n${problem}`);
       await waitForReturn(signal);
 
-      return problem;
+      return { notice: problem, failedRunIds: [] };
     }
 
     const built = await buildRemoteRun({ choice, config, chromiumSrc, signal, openApp: true });
@@ -64,7 +72,7 @@ export async function presentBuild({
     console.log(`\n${built.notice}`);
     await waitForReturn(signal);
 
-    return built.notice;
+    return { notice: built.notice, failedRunIds: [] };
   } catch (error) {
     const notice = failureNotice({ error, signal });
     watch.failed({ signal, notice });
@@ -75,7 +83,7 @@ export async function presentBuild({
       await waitForReturn(signal);
     }
 
-    return notice;
+    return { notice, failedRunIds: runIdsForCompileFailure({ error, signal, runId: choice.runId }) };
   }
 }
 
@@ -170,7 +178,7 @@ export async function buildRemoteRun({
   const app = join(destination, "Chromium.app");
 
   if (!existsSync(app)) {
-    throw new Error(`the build finished, but ${app} is missing`);
+    throw new CompileFailedError(`the build finished, but ${app} is missing`);
   }
 
   if (openApp) {

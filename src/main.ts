@@ -50,7 +50,8 @@ const { values: args } = parseArgs({
  *   Runs: the runs in the database. Enter opens a menu of every action below, with submenus; esc goes back.
  *     Ctrl-o opens the run transcript in the browser, ctrl-e the judge session.
  *     Ctrl-r reloads the runs from the database. Left and right arrows do nothing.
- *     Ctrl-b then l builds on this Mac, r on the build Mac in configs/builder/remote.yaml. Ctrl-f sets the judge
+ *     Ctrl-b then l builds on this Mac, r on the build Mac in configs/builder/remote.yaml. A failed compile
+ *     asks whether to mark that run failed. Ctrl-f sets the judge
  *     decision (1–4 or enter). Ctrl-x twice removes the run from the database; the branch and artifact files stay.
  *     Ctrl-g checks the branch out in CHROMIUM_SRC and exits. Type to filter.
  * --interactive opens the TUI with the flags as the Start tab's values, --runs opens it on the Runs tab

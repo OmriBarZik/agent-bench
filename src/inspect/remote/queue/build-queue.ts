@@ -1,6 +1,7 @@
 import { setTerminalTitle } from "../../../terminal/terminal-title";
 import { buildTitle } from "../../../terminal/title-text";
-import { failureNotice, waitForReturn } from "../../build/build-process";
+import { failureNotice, isCompileFailure, waitForReturn } from "../../build/build-process";
+import type { BuildFinish } from "../../build/build-session.types";
 import type { BuilderConfig } from "../../build/builder-config.types";
 import { openBuildWatch } from "../../build/record/record-build";
 import type { RunChoice } from "../../list/select-state.types";
@@ -23,10 +24,11 @@ export async function presentBuildQueue({
   config: BuilderConfig;
   chromiumSrc: string;
   signal: AbortSignal;
-}): Promise<string> {
+}): Promise<BuildFinish> {
   const total = choices.length;
   console.log(`Queue: ${total} runs on ${config.host}`);
   console.log("Ctrl-C cancels the rest and returns to the list.");
+  const outcomes: QueueOutcome[] = [];
 
   try {
     console.log(`Checking ${config.host}…`);
@@ -40,10 +42,8 @@ export async function presentBuildQueue({
       console.error(`\n${problem}`);
       await waitForReturn(signal);
 
-      return problem;
+      return { notice: problem, failedRunIds: [] };
     }
-
-    const outcomes: QueueOutcome[] = [];
 
     for (let index = 0; index < choices.length; index++) {
       const choice = choices[index];
@@ -65,14 +65,14 @@ export async function presentBuildQueue({
     if (signal.aborted) {
       console.error("\nbuild cancelled");
 
-      return "build cancelled";
+      return { notice: "build cancelled", failedRunIds: compileFailedRunIds(outcomes) };
     }
 
     const notice = queueNotice(outcomes);
     console.log(`\n${notice}`);
     await waitForReturn(signal);
 
-    return notice;
+    return { notice, failedRunIds: compileFailedRunIds(outcomes) };
   } catch (error) {
     const notice = failureNotice({ error, signal });
     console.error(`\n${notice}`);
@@ -81,8 +81,13 @@ export async function presentBuildQueue({
       await waitForReturn(signal);
     }
 
-    return notice;
+    return { notice, failedRunIds: compileFailedRunIds(outcomes) };
   }
+}
+
+/** Runs in this queue whose compile failed, in queue order. */
+export function compileFailedRunIds(outcomes: QueueOutcome[]): string[] {
+  return outcomes.filter((outcome) => outcome.compileFailed).map((outcome) => outcome.runId);
 }
 
 /** The list notice after a queue: how many ran and how many were copied back. */
@@ -115,7 +120,7 @@ async function oneInQueue({
     watch.failed({ signal, notice });
     console.error(notice);
 
-    return { branch: choice.branch, built: false, notice };
+    return { runId: choice.runId, branch: choice.branch, built: false, notice, compileFailed: false };
   }
 
   try {
@@ -123,13 +128,19 @@ async function oneInQueue({
     watch.passed();
     console.log(built.notice);
 
-    return { branch: choice.branch, built: true, notice: built.notice };
+    return { runId: choice.runId, branch: choice.branch, built: true, notice: built.notice, compileFailed: false };
   } catch (error) {
     const notice = failureNotice({ error, signal });
     watch.failed({ signal, notice });
     console.error(notice);
 
-    return { branch: choice.branch, built: false, notice };
+    return {
+      runId: choice.runId,
+      branch: choice.branch,
+      built: false,
+      notice,
+      compileFailed: isCompileFailure(error) && !signal.aborted,
+    };
   }
 }
 

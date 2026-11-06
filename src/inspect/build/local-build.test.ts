@@ -2,12 +2,26 @@ import { expect, test } from "bun:test";
 import { chmodSync, existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openChromiumCommand } from "./build-process";
+import { CompileFailedError, openChromiumCommand, runIdsForCompileFailure, stepFailure } from "./build-process";
 import { extendPathForCcache, prepareCcacheScript } from "./ccache";
 import { localBuildCommand } from "./local-build";
 
 test("the local build runs chrome in this checkout", () => {
   expect(localBuildCommand()).toEqual(["caffeinate", "-s", "autoninja", "-C", "out/Default", "chrome"]);
+});
+
+test("only a compile failure is offered as a failed run", () => {
+  const compile = stepFailure({ label: "build", exitCode: 1 });
+  const copy = stepFailure({ label: "copy", exitCode: 1 });
+  const signal = new AbortController().signal;
+  const stopped = new AbortController();
+  stopped.abort();
+
+  expect(compile).toBeInstanceOf(CompileFailedError);
+  expect(compile.message).toBe("build failed (1)");
+  expect(runIdsForCompileFailure({ error: compile, signal, runId: "dino__haiku__r0" })).toEqual(["dino__haiku__r0"]);
+  expect(runIdsForCompileFailure({ error: copy, signal, runId: "dino__haiku__r0" })).toEqual([]);
+  expect(runIdsForCompileFailure({ error: compile, signal: stopped.signal, runId: "dino__haiku__r0" })).toEqual([]);
 });
 
 test("opening Chromium skips the keychain prompt and Cast device scan", () => {

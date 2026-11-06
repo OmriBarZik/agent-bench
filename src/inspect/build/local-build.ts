@@ -7,7 +7,15 @@ import { setTerminalTitle } from "../../terminal/terminal-title";
 import { buildTitle } from "../../terminal/title-text";
 import type { BuildStep } from "../../terminal/title-text.types";
 import type { RunChoice } from "../list/select-state.types";
-import { failureNotice, openChromiumCommand, runStep, waitForReturn } from "./build-process";
+import {
+  CompileFailedError,
+  failureNotice,
+  openChromiumCommand,
+  runIdsForCompileFailure,
+  runStep,
+  waitForReturn,
+} from "./build-process";
+import type { BuildFinish } from "./build-session.types";
 import { extendPathForCcache, prepareCcacheScript } from "./ccache";
 import { openBuildWatch } from "./record/record-build";
 
@@ -24,7 +32,7 @@ export async function presentLocalBuild({
   chromiumSrc: string;
   force: boolean;
   signal: AbortSignal;
-}): Promise<string> {
+}): Promise<BuildFinish> {
   const watch = openBuildWatch({ choice, target: "local", host: "local" });
 
   try {
@@ -34,7 +42,7 @@ export async function presentLocalBuild({
     console.log(`\n${built}`);
     await waitForReturn(signal);
 
-    return built;
+    return { notice: built, failedRunIds: [] };
   } catch (error) {
     const notice = failureNotice({ error, signal });
     watch.failed({ signal, notice });
@@ -45,7 +53,7 @@ export async function presentLocalBuild({
       await waitForReturn(signal);
     }
 
-    return notice;
+    return { notice, failedRunIds: runIdsForCompileFailure({ error, signal, runId: choice.runId }) };
   }
 }
 
@@ -94,7 +102,7 @@ async function buildLocally({
   const app = join(chromiumSrc, "out/Default/Chromium.app");
 
   if (!existsSync(app)) {
-    throw new Error(`the build finished, but ${app} is missing`);
+    throw new CompileFailedError(`the build finished, but ${app} is missing`);
   }
 
   await runStep({ command: openChromiumCommand(app), signal, label: "open" });

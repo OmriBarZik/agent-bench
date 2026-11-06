@@ -1,5 +1,7 @@
 import { decisionDialogLines } from "../decision/decision-dialog";
 import type { DecisionDialog } from "../decision/decision-dialog.types";
+import { markFailedPromptLines } from "../decision/mark-failed-prompt";
+import type { MarkFailedPrompt } from "../decision/mark-failed-prompt.types";
 import { matchingChoices, runsInOrder } from "../list/select-state";
 import { actionMenuLines } from "../menu/menu-lines";
 import type { ActionMenu } from "../menu/action-menu.types";
@@ -27,6 +29,7 @@ export function renderFrame({
   chromiumSrc,
   notice,
   decisionDialog,
+  markFailedPrompt,
   actionMenu,
   rows,
   columns,
@@ -36,6 +39,8 @@ export function renderFrame({
   chromiumSrc: string;
   notice: string;
   decisionDialog: DecisionDialog | null;
+  /** Shown after a compile failure, asking whether to mark that run failed. */
+  markFailedPrompt?: MarkFailedPrompt | null;
   /** The Enter menu, drawn in the detail pane when no decision dialog is open. */
   actionMenu?: ActionMenu | null;
   rows: number;
@@ -52,7 +57,17 @@ export function renderFrame({
 
   lines.push(colorLine({ text: "", kind: "plain" }));
 
-  const pane = paneLines({ choices, matches, state, notice, decisionDialog, actionMenu, layout, columns });
+  const pane = paneLines({
+    choices,
+    matches,
+    state,
+    notice,
+    decisionDialog,
+    markFailedPrompt,
+    actionMenu,
+    layout,
+    columns,
+  });
 
   for (const line of pane) {
     lines.push(line);
@@ -73,6 +88,7 @@ function paneLines({
   state,
   notice,
   decisionDialog,
+  markFailedPrompt,
   actionMenu,
   layout,
   columns,
@@ -82,6 +98,7 @@ function paneLines({
   state: SelectState;
   notice: string;
   decisionDialog: DecisionDialog | null;
+  markFailedPrompt?: MarkFailedPrompt | null;
   actionMenu?: ActionMenu | null;
   layout: FrameLayout;
   columns: number;
@@ -90,6 +107,10 @@ function paneLines({
 
   if (decisionDialog) {
     return decisionDialogLines({ dialog: decisionDialog, height, columns });
+  }
+
+  if (markFailedPrompt) {
+    return markFailedPromptLines({ prompt: markFailedPrompt, choices, height, columns });
   }
 
   const menuChoices = actionMenu ? runsInOrder({ choices, runIds: actionMenu.runIds }) : [];
