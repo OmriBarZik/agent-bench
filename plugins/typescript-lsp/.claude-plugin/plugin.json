@@ -1,11 +1,11 @@
 {
   "name": "typescript-lsp",
   "version": "1.0.0",
-  "description": "TypeScript language server. Diagnostics on the JavaScript and TypeScript files the agent edits.",
+  "description": "TypeScript 7 language server. Diagnostics on the JavaScript and TypeScript files the agent edits.",
   "lspServers": {
     "typescript": {
-      "command": "typescript-language-server",
-      "args": ["--stdio"],
+      "command": "tsc",
+      "args": ["--lsp", "--stdio"],
       "extensionToLanguage": {
         ".ts": "typescript",
         ".tsx": "typescriptreact",
@@ -15,18 +15,6 @@
         ".cts": "typescript",
         ".mjs": "javascript",
         ".cjs": "javascript"
-      },
-      "initializationOptions": {
-        "tsserver": {
-          "maxTsServerMemory": 4096
-        }
-      },
-      "settings": {
-        "javascript": {
-          "implicitProjectConfig": {
-            "checkJs": true
-          }
-        }
       },
       "startupTimeout": 120000,
       "requestTimeout": 120000,

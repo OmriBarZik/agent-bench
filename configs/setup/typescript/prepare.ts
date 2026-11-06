@@ -1,27 +1,50 @@
 #!/usr/bin/env bun
 
+const FIX = "bun install -g typescript";
+
 /**
- * Checks that the TypeScript language server is on PATH.
+ * Checks that TypeScript 7's tsc is on PATH.
  *
  *   bun run setup:typescript
  *
- * The binary has to resolve in the shell that launches bun run start.
- * This command does not install it.
+ * The language server is `tsc --lsp --stdio`. TypeScript 6's tsc does not
+ * provide that flag. This command does not install it.
  */
-async function main(): Promise<void> {
-  const languageServer = Bun.which("typescript-language-server");
-  const tsserver = Bun.which("tsserver");
+function main(): void {
+  const compiler = Bun.which("tsc");
 
-  if (!languageServer || !tsserver) {
+  if (compiler == null) {
     throw new Error(
-      "typescript-language-server and tsserver must be on PATH. Install them, open a new shell, then run bun run setup:typescript again.\nbun install -g typescript-language-server typescript@6",
+      `TypeScript 7's tsc is not on PATH. Install it, open a new shell, then run bun run setup:typescript again.\n${FIX}`,
     );
   }
 
-  console.log(`typescript-language-server: ${languageServer}`);
-  console.log(`tsserver: ${tsserver}`);
+  const version = Bun.spawnSync([compiler, "--version"], { stdout: "pipe", stderr: "pipe" });
+  const versionText = version.stdout.toString().trim();
+  const major = typescriptMajor(versionText);
+
+  if (version.exitCode !== 0 || major == null || major < 7) {
+    const found = versionText === "" ? "no version" : versionText;
+
+    throw new Error(
+      `TypeScript 7's tsc is required for tsc --lsp (found ${found} at ${compiler}). TypeScript 6 does not ship that language server.\n${FIX}`,
+    );
+  }
+
+  console.log(`tsc: ${compiler}`);
+  console.log(versionText);
+}
+
+function typescriptMajor(versionText: string): number | null {
+  const match = /Version\s+(\d+)\./.exec(versionText);
+
+  if (match?.[1] == null) {
+    return null;
+  }
+
+  return Number(match[1]);
 }
 
 if (import.meta.main) {
-  await main();
+  main();
 }

@@ -1,16 +1,10 @@
 {
   "checks": [
     {
-      "label": "typescript-language-server",
+      "label": "TypeScript 7 tsc",
       "kind": "command",
-      "target": "typescript-language-server",
-      "fix": "bun install -g typescript-language-server typescript@6"
-    },
-    {
-      "label": "tsserver",
-      "kind": "command",
-      "target": "tsserver",
-      "fix": "bun install -g typescript-language-server typescript@6"
+      "target": "tsc",
+      "fix": "bun install -g typescript"
     }
   ]
 }

@@ -12,4 +12,4 @@ bun run setup:typescript
 bun run start --only-config clangd-typescript
 ```
 
-The clangd step needs the checkout binary and `compile_commands.json`. The typescript step checks that `typescript-language-server` is on `PATH`. The details are in the two readmes linked above.
+The clangd step needs the checkout binary and `compile_commands.json`. The typescript step checks that TypeScript 7's `tsc` is on `PATH`. The details are in the two readmes linked above.
