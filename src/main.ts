@@ -12,8 +12,9 @@ import { judgementText } from "./runner/judge/result/judge-result";
 import { runOne } from "./runner/run-one/run-one";
 import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
 import { DEFAULT_CONFIGS_PATH, DEFAULT_TASKS_PATH, resolveStart } from "./start/resolve-start";
+import { openRunClock } from "./terminal/run-clock";
 import { setTerminalTitle } from "./terminal/terminal-title";
-import { benchEndTitle, runTitle } from "./terminal/title-text";
+import { benchEndTitle } from "./terminal/title-text";
 
 const { values: args } = parseArgs({
   allowNegative: true,
@@ -190,6 +191,13 @@ async function main() {
 
             const index = ++runIndex;
             console.log(`[${index}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
+            const clock = openRunClock({
+              index,
+              total,
+              taskId: task.taskId,
+              configId: config.configId,
+              repeat,
+            });
             const { runId, result, seconds, artifact, judge, cancelled } = await runOne({
               db,
               task,
@@ -198,10 +206,10 @@ async function main() {
               options,
               signal: shutdown.signal,
               onPhase: (phase) => {
-                setTerminalTitle(
-                  runTitle({ index, total, taskId: task.taskId, configId: config.configId, repeat, phase }),
-                );
+                clock.setPhase(phase);
               },
+            }).finally(() => {
+              clock.stop();
             });
             const cost = result.total_cost_usd != null ? `, $${result.total_cost_usd.toFixed(2)}` : "";
             const files =

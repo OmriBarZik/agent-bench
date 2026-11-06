@@ -1,12 +1,33 @@
 import { describe, expect, test } from "bun:test";
 import { titleSequence } from "./terminal-title";
-import { benchEndTitle, buildTitle, runTitle, tabTitle } from "./title-text";
+import { benchEndTitle, buildTitle, formatElapsed, runTitle, tabTitle } from "./title-text";
 
 describe("terminal titles", () => {
   test("a run shows its progress and step before the task and config", () => {
     const title = runTitle({ index: 3, total: 12, taskId: "omnibox", configId: "baseline", repeat: 1, phase: "judge" });
 
     expect(title).toBe("▶ 3/12 judge · omnibox × baseline r1");
+  });
+
+  test("a run that has reached the agent leads with how long the agent has had the task", () => {
+    const title = runTitle({
+      index: 3,
+      total: 12,
+      taskId: "omnibox",
+      configId: "baseline",
+      repeat: 1,
+      phase: "agent",
+      elapsedMs: 65_000,
+    });
+
+    expect(title).toBe("▶ 1:05 · 3/12 agent · omnibox × baseline r1");
+  });
+
+  test("elapsed time stays in minutes until an hour has passed", () => {
+    expect(formatElapsed(0)).toBe("0:00");
+    expect(formatElapsed(7_000)).toBe("0:07");
+    expect(formatElapsed(3_599_000)).toBe("59:59");
+    expect(formatElapsed(3_602_000)).toBe("1:00:02");
   });
 
   test("the benchmark end says whether every run finished", () => {

@@ -8,6 +8,8 @@ export type RunTitle = {
   configId: string;
   repeat: number;
   phase: RunPhase;
+  /** Milliseconds since the agent was given the task. Absent during checkout, before that handoff. */
+  elapsedMs?: number;
 };
 
 /** How far the benchmark loop got when it ended. */

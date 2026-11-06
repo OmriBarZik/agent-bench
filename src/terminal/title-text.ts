@@ -18,9 +18,29 @@ const STEP_LABEL: Record<BuildStep, string> = {
   failed: "❌ build failed",
 };
 
-/** `▶ 3/12 agent · task × config r0`. Progress and step come first, because a narrow tab cuts the end. */
-export function runTitle({ index, total, taskId, configId, repeat, phase }: RunTitle): string {
-  return `▶ ${index}/${total} ${PHASE_LABEL[phase]} · ${taskId} × ${configId} r${repeat}`;
+/** `m:ss`, or `h:mm:ss` once an hour has passed. */
+export function formatElapsed(elapsedMs: number): string {
+  const totalSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+  const seconds = totalSeconds % 60;
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const hours = Math.floor(totalSeconds / 3600);
+  const paddedSeconds = String(seconds).padStart(2, "0");
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, "0")}:${paddedSeconds}`;
+  }
+
+  return `${minutes}:${paddedSeconds}`;
+}
+
+/**
+ * `▶ 0:07 · 3/12 agent · task × config r0`. The clock comes first, because a narrow tab cuts the end.
+ * It is the time since the agent was given the task, and it is omitted while the tree is still being checked out.
+ */
+export function runTitle({ index, total, taskId, configId, repeat, phase, elapsedMs }: RunTitle): string {
+  const clock = elapsedMs == null ? "" : `${formatElapsed(elapsedMs)} · `;
+
+  return `▶ ${clock}${index}/${total} ${PHASE_LABEL[phase]} · ${taskId} × ${configId} r${repeat}`;
 }
 
 /** The title the benchmark leaves when its loop ends: every run done, or stopped after `finished` of them. */
