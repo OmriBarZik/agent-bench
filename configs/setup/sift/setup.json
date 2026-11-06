@@ -1,0 +1,10 @@
+{
+  "checks": [
+    {
+      "label": "sift",
+      "kind": "command",
+      "target": "sift",
+      "fix": "bun run setup:sift"
+    }
+  ]
+}

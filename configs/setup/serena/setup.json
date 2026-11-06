@@ -1,0 +1,10 @@
+{
+  "checks": [
+    {
+      "label": "serena",
+      "kind": "command",
+      "target": "serena",
+      "fix": "uv tool install -p 3.13 serena-agent"
+    }
+  ]
+}

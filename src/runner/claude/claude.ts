@@ -14,6 +14,7 @@ import {
 } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { captureClaude } from "./claude-process";
+import { sessionPath } from "./language-server-path";
 
 /** The allowedTools pattern for the chrome-validate tools. Headless sessions cannot answer a permission prompt. */
 const VALIDATE_TOOLS = "mcp__chrome-validate__*";
@@ -64,7 +65,7 @@ export function claudeArgs({
   return args;
 }
 
-/** This config's MCP servers, plus chrome-validate when auto review is on. */
+/** This config's MCP servers and plugins, plus chrome-validate when auto review is on. */
 function appendSessionTools({
   args,
   task,
@@ -79,12 +80,19 @@ function appendSessionTools({
   autoReview: boolean;
 }) {
   const mcpConfigs = (config.mcpConfig ?? []).map((path) => resolve(BENCH_DIR, path));
+  const pluginDirs = [
+    ...(autoReview ? [VALIDATE_PLUGIN_DIR] : []),
+    ...(config.pluginDirs ?? []).map((path) => resolve(BENCH_DIR, path)),
+  ];
 
   if (autoReview) {
     args.push("--mcp-config", validateMcpConfig({ runId, taskSha: task.chromiumSha }), ...mcpConfigs);
-    args.push("--plugin-dir", VALIDATE_PLUGIN_DIR);
   } else if (mcpConfigs.length > 0) {
     args.push("--mcp-config", ...mcpConfigs);
+  }
+
+  for (const pluginDir of pluginDirs) {
+    args.push("--plugin-dir", pluginDir);
   }
 
   if (config.strictMcpConfig) {
@@ -142,6 +150,7 @@ export async function runClaude({
   timeoutMs,
   signal,
   autoReview,
+  pathEntries,
 }: {
   command: string[];
   runId: string;
@@ -151,8 +160,11 @@ export async function runClaude({
   signal?: AbortSignal;
   /** Passed through to the baseline guard so a denied local build matches this session's tools. */
   autoReview: boolean;
+  /** Prepended to PATH. Empty for a config with no checkout language server. */
+  pathEntries: string[];
 }): Promise<ClaudeResult> {
   writeFileSync(join(outDir, "command.json"), JSON.stringify(command, null, 2));
+  const pathValue = sessionPath({ pathEntries });
   const captured = await captureClaude({
     command,
     cwd: CHROMIUM_SRC,
@@ -161,6 +173,7 @@ export async function runClaude({
       BENCH_RUN_ID: runId,
       BENCH_AUTO_REVIEW: autoReview ? "1" : "0",
       MCP_TOOL_TIMEOUT: MCP_TOOL_TIMEOUT_MS,
+      ...(pathValue !== undefined ? { PATH: pathValue } : {}),
     },
     timeoutMs,
     signal,

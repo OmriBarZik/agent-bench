@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test";
+import { join, resolve } from "node:path";
 import { BASELINE_PROMPT, baselinePrompt } from "../../baseline-policy";
-import { VALIDATE_PLUGIN_DIR } from "../../paths";
+import { BENCH_DIR, CHROMIUM_SRC, CLANGD_PLUGIN_DIR, VALIDATE_PLUGIN_DIR } from "../../paths";
 import { claudeArgs } from "./claude";
+import { languageServerPathEntries } from "./language-server-path";
 
 test("every config gets the baseline prompt", () => {
   const args = claudeArgs({
@@ -77,4 +79,58 @@ test("turning auto review off drops chrome-validate and its instructions", () =>
   expect(args).not.toContain("mcp__chrome-validate__*");
   expect(args[promptIndex + 1]).toBe(`${baselinePrompt({ autoReview: false })}\n\nuse the graph tools first`);
   expect(args[promptIndex + 1]).not.toContain("chrome-validate");
+});
+
+test("a language-server config loads its plugin next to chrome-validate", () => {
+  const args = claudeArgs({
+    task: {
+      taskId: "t1",
+      prompt: "do it",
+      judgePrompt: "score",
+      chromiumSha: "abc",
+    },
+    config: {
+      configId: "clangd-typescript",
+      pluginDirs: ["plugins/clangd-lsp", "plugins/typescript-lsp"],
+      allowedTools: ["LSP"],
+    },
+    sessionId: "session",
+    runId: "run",
+    autoReview: true,
+  });
+
+  expect(args).toContain(VALIDATE_PLUGIN_DIR);
+  expect(args).toContain(CLANGD_PLUGIN_DIR);
+  expect(args).toContain(resolve(BENCH_DIR, "plugins/typescript-lsp"));
+  expect(args).toContain("LSP");
+});
+
+test("a language-server config keeps its plugin when auto review is off", () => {
+  const args = claudeArgs({
+    task: {
+      taskId: "t1",
+      prompt: "do it",
+      judgePrompt: "score",
+      chromiumSha: "abc",
+    },
+    config: { configId: "typescript", pluginDirs: ["plugins/typescript-lsp"] },
+    sessionId: "session",
+    runId: "run",
+    autoReview: false,
+  });
+
+  expect(args).toContain(resolve(BENCH_DIR, "plugins/typescript-lsp"));
+  expect(args).not.toContain(VALIDATE_PLUGIN_DIR);
+  expect(args).not.toContain("mcp__chrome-validate__*");
+});
+
+test("only a clangd config prepends the checkout clangd to PATH", () => {
+  const clangdBin = join(CHROMIUM_SRC, "third_party/llvm-build/Release+Asserts/bin");
+
+  expect(languageServerPathEntries({ pluginDirs: ["plugins/clangd-lsp"] })).toEqual([clangdBin]);
+  expect(languageServerPathEntries({ pluginDirs: ["plugins/clangd-lsp", "plugins/typescript-lsp"] })).toEqual([
+    clangdBin,
+  ]);
+  expect(languageServerPathEntries({ pluginDirs: ["plugins/typescript-lsp"] })).toEqual([]);
+  expect(languageServerPathEntries({})).toEqual([]);
 });

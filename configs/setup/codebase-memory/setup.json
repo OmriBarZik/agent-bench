@@ -1,0 +1,17 @@
+{
+  "checks": [
+    {
+      "label": "codebase-memory-mcp",
+      "kind": "command",
+      "target": "codebase-memory-mcp",
+      "fix": "install codebase-memory-mcp, see configs/setup/codebase-memory/readme.md"
+    },
+    {
+      "label": "codebase-memory index",
+      "kind": "directory",
+      "target": "${CBM_CACHE_DIR}",
+      "nonEmpty": true,
+      "fix": "bun run setup:codebase-memory-mcp && bun run setup:codebase-memory-subrepos"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "clangd-lsp",
+  "version": "1.0.0",
+  "description": "Chromium clangd. Diagnostics on the C and C++ files the agent edits, with no project-wide index.",
+  "lspServers": {
+    "clangd": {
+      "command": "clangd",
+      "args": ["--background-index=false", "--header-insertion=never", "--clang-tidy=false"],
+      "extensionToLanguage": {
+        ".c": "c",
+        ".cc": "cpp",
+        ".cpp": "cpp",
+        ".cxx": "cpp",
+        ".h": "cpp",
+        ".hh": "cpp",
+        ".hpp": "cpp",
+        ".hxx": "cpp",
+        ".m": "objective-c",
+        ".mm": "objective-cpp"
+      },
+      "startupTimeout": 180000,
+      "requestTimeout": 120000,
+      "maxRestarts": 1,
+      "diagnostics": true
+    }
+  }
+}

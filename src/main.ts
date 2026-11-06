@@ -31,6 +31,7 @@ const { values: args } = parseArgs({
     force: { type: "boolean", default: false }, // wipe uncommitted changes in src/ without asking
     interactive: { type: "boolean", short: "i", default: false }, // open the TUI even with selection flags
     runs: { type: "boolean", default: false }, // open the TUI on the Runs tab
+    setups: { type: "boolean", default: false }, // open the TUI on the Setups tab
     checkout: { type: "string" }, // check this run's branch out and exit, no TUI
     cli: { type: "boolean", default: false }, // never open the TUI
   },
@@ -41,10 +42,10 @@ const { values: args } = parseArgs({
  *
  *   bun run start [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
  *                     [--only-task id[,id]] [--only-config id[,id]] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
- *                     [--sync] [--auto-review | --no-auto-review] [--force] [--interactive | --runs | --cli]
+ *                     [--sync] [--auto-review | --no-auto-review] [--force] [--interactive | --runs | --setups | --cli]
  *   bun run start --checkout <branch or run id> [--force]
  *
- * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with two tabs;
+ * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with three tabs;
  * tab and shift-tab switch between them, and esc quits.
  *   Start: check the tasks and configs to run, set repeats, timeout, sync, and auto review, then enter starts. It prints
  *     the equivalent --cli command first.
@@ -55,8 +56,10 @@ const { values: args } = parseArgs({
  *     asks whether to mark that run failed. Ctrl-f sets the judge
  *     decision (1–4 or enter). Ctrl-x twice removes the run from the database; the branch and artifact files stay.
  *     Ctrl-g checks the branch out in CHROMIUM_SRC and exits. Type to filter.
+ *   Setups: every config, the checks in its setup.json, and how many runs it has. r reloads.
  * --interactive opens the TUI with the flags as the Start tab's values, --runs opens it on the Runs tab
- * (`bun run start:inspect`), and --cli (or no terminal) skips it and runs exactly what the flags say.
+ * (`bun run start:inspect`), --setups opens it on the Setups tab (`bun run start:setups`), and --cli (or no terminal)
+ * skips it and runs exactly what the flags say.
  * --auto-review (the default) gives the agent the chrome-validate tools, so it builds the change and checks it in
  * Chromium. --no-auto-review starts the session without those tools. The Start tab has the same checkbox.
  * --only-task and --only-config take comma-separated ids and may be repeated. --checkout skips the TUI
@@ -69,13 +72,14 @@ const { values: args } = parseArgs({
  * configs/benchmark-tasks.json: [{ "taskId", "promptFile", "judgePromptFile",
  *                              "chromiumSha", "title"?, "difficulty"?, "scoring"? }]
  * configs/benchmark-setup.json: [{ "configId", "description"?, "model"?, "mcpConfig"?: [paths],
- *                              "toolPromptFile"?: path, "strictMcpConfig"?, "allowedTools"?: [..],
- *                              "disallowedTools"?: [..], "permissionMode"?,
+ *                              "pluginDirs"?: [paths], "toolPromptFile"?: path, "strictMcpConfig"?,
+ *                              "allowedTools"?: [..], "disallowedTools"?: [..], "permissionMode"?,
  *                              "extraFiles"?: [paths hashed into config_hash] }]
  *
  * toolPromptFile is markdown, relative to the repo root. It names the tools that config adds
  * and tells the agent it must use them. The text is appended after the baseline prompt. Its contents
- * are part of config_hash.
+ * are part of config_hash. pluginDirs are plugin directories, relative to the repo root, passed to
+ * claude --plugin-dir. Each directory's .claude-plugin/plugin.json is part of config_hash.
  *
  * Per run (src/runner/run-one/run-one.ts): reset src/ to the task's SHA, check out a branch named
  * after the run id, startRun, run claude with BENCH_RUN_ID, the tool-log hooks, and the
@@ -111,6 +115,7 @@ async function main() {
     force: args.force,
     interactive: args.interactive,
     runs: args.runs,
+    setups: args.setups,
     cli: args.cli,
   });
 

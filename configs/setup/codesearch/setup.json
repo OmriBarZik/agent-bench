@@ -1,0 +1,28 @@
+{
+  "checks": [
+    {
+      "label": "cindex",
+      "kind": "command",
+      "target": "cindex",
+      "fix": "bun run setup:codesearch"
+    },
+    {
+      "label": "csearch",
+      "kind": "command",
+      "target": "csearch",
+      "fix": "bun run setup:codesearch"
+    },
+    {
+      "label": "cgrep",
+      "kind": "command",
+      "target": "cgrep",
+      "fix": "bun run setup:codesearch"
+    },
+    {
+      "label": "csearch index",
+      "kind": "file",
+      "target": "${CSEARCHINDEX}",
+      "fix": "bun run setup:codesearch-index"
+    }
+  ]
+}

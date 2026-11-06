@@ -13,6 +13,7 @@ import type {
   ClaudeResult,
   ClaudeUsage,
   Config,
+  ConfigRunCount,
   FinishedRunStatus,
   JudgeMetrics,
   PassedChromiumApps,
@@ -636,6 +637,13 @@ export function passedChromiumApps(db: Database): PassedChromiumApps {
   }
 
   return { latestTarget, latestLocalRunId };
+}
+
+/** How many runs each config has. A config that has never been run is absent. */
+export function countRunsByConfig(db: Database): ConfigRunCount[] {
+  return db
+    .query(`SELECT config_id AS configId, COUNT(*) AS runs FROM runs GROUP BY config_id`)
+    .all() as ConfigRunCount[];
 }
 
 /** Removes one run and the judge, tool-call, and both build tables' rows. The task and config rows stay. */

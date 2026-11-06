@@ -14,6 +14,11 @@ export type BenchConfigEntry = {
   description?: string;
   model?: string;
   mcpConfig?: string[];
+  /**
+   * Plugin directories passed to `claude --plugin-dir`, relative to the repo root.
+   * Each directory's `.claude-plugin/plugin.json` is hashed into config_hash.
+   */
+  pluginDirs?: string[];
   strictMcpConfig?: boolean;
   allowedTools?: string[];
   disallowedTools?: string[];

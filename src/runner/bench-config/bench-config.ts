@@ -50,6 +50,14 @@ async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: strin
 
 /** Reads toolPromptFile from the repo root and attaches the trimmed text. */
 async function loadConfig(entry: BenchConfigEntry): Promise<BenchConfig> {
+  for (const pluginDir of entry.pluginDirs ?? []) {
+    const manifest = resolve(BENCH_DIR, pluginDir, ".claude-plugin/plugin.json");
+
+    if (!(await Bun.file(manifest).exists())) {
+      throw new Error(`${entry.configId} plugin not found: ${manifest}`);
+    }
+  }
+
   if (!entry.toolPromptFile) {
     return entry;
   }
@@ -79,11 +87,12 @@ async function readTrimmed({ path, owner, label }: { path: string; owner: string
   return text;
 }
 
-/** The configs row: config_hash covers the shared baseline, MCP configs, the tool prompt, and extraFiles. */
+/** The configs row: config_hash covers the shared baseline, MCP configs, plugins, the tool prompt, and extraFiles. */
 export async function toConfigRow(config: BenchConfig): Promise<Config> {
   const files = [
     ...BASELINE_HASH_FILES,
     ...(config.mcpConfig ?? []),
+    ...(config.pluginDirs ?? []).map((pluginDir) => `${pluginDir}/.claude-plugin/plugin.json`),
     ...(config.toolPromptFile ? [config.toolPromptFile] : []),
     ...(config.extraFiles ?? []),
   ].map((path) => resolve(BENCH_DIR, path));
@@ -95,6 +104,7 @@ export async function toConfigRow(config: BenchConfig): Promise<Config> {
     tools: {
       model: config.model,
       mcpConfig: config.mcpConfig,
+      pluginDirs: config.pluginDirs,
       strictMcpConfig: config.strictMcpConfig,
       toolPromptFile: config.toolPromptFile,
     },

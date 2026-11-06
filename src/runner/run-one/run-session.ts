@@ -5,6 +5,7 @@ import type { ClaudeResult, JudgeMetrics, RunArtifact, Task, ToolTrouble } from 
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { claudeArgs, runClaude } from "../claude/claude";
 import { readClaudeOutput } from "../claude/claude-result";
+import { languageServerPathEntries } from "../claude/language-server-path";
 import { judgeRun } from "../judge/judge";
 import { cancelledJudgeMetrics, failedJudgeMetrics } from "../judge/result/judge-result";
 import type { RunOneResult, RunOptions } from "./run-one.types";
@@ -213,6 +214,7 @@ async function runAgent({
       timeoutMs: options.timeoutMs,
       signal,
       autoReview: options.autoReview,
+      pathEntries: languageServerPathEntries({ pluginDirs: config.pluginDirs }),
     });
   } catch (error) {
     if (!signal.aborted) {

@@ -10,6 +10,8 @@ export const HOOK_SETTINGS = join(BENCH_DIR, "hooks/settings.example.json");
 export const VALIDATE_SERVER = join(BENCH_DIR, "src/validate/main.ts");
 /** Plugin passed with --plugin-dir; it carries the validate-build skill. */
 export const VALIDATE_PLUGIN_DIR = join(BENCH_DIR, "plugins/chrome-validate");
+/** clangd plugin. Sessions that load it get the checkout's clangd first on PATH. */
+export const CLANGD_PLUGIN_DIR = join(BENCH_DIR, "plugins/clangd-lsp");
 /**
  * Files that define the baseline every config shares: the settings, the Bash guard, its prompt, and the
  * chrome-validate tools and skill. Hashed into every config so a change to those rules is a new config version.

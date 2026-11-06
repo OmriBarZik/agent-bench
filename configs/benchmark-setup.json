@@ -48,5 +48,35 @@
     "toolPromptFile": "configs/setup/sift/tools.md",
     "strictMcpConfig": true,
     "permissionMode": "acceptEdits"
+  },
+  {
+    "configId": "clangd",
+    "description": "clangd on C and C++ files the agent edits, so diagnostics say whether that file would compile",
+    "model": "claude-sonnet-5-5",
+    "pluginDirs": ["plugins/clangd-lsp"],
+    "toolPromptFile": "configs/setup/clangd/tools.md",
+    "strictMcpConfig": true,
+    "allowedTools": ["LSP"],
+    "permissionMode": "acceptEdits"
+  },
+  {
+    "configId": "typescript",
+    "description": "TypeScript language server on JavaScript and TypeScript files the agent edits",
+    "model": "claude-sonnet-5-5",
+    "pluginDirs": ["plugins/typescript-lsp"],
+    "toolPromptFile": "configs/setup/typescript/tools.md",
+    "strictMcpConfig": true,
+    "allowedTools": ["LSP"],
+    "permissionMode": "acceptEdits"
+  },
+  {
+    "configId": "clangd-typescript",
+    "description": "clangd and the TypeScript language server, so C, C++, JavaScript, and TypeScript edits get diagnostics",
+    "model": "claude-sonnet-5-5",
+    "pluginDirs": ["plugins/clangd-lsp", "plugins/typescript-lsp"],
+    "toolPromptFile": "configs/setup/clangd-typescript/tools.md",
+    "strictMcpConfig": true,
+    "allowedTools": ["LSP"],
+    "permissionMode": "acceptEdits"
   }
 ]

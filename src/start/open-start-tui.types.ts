@@ -2,7 +2,7 @@ import type { RunChoice } from "../inspect/list/select-state.types";
 import type { PickerResult } from "./picker/picker-state.types";
 
 /** The tab the TUI opens on. */
-export type StartTab = "start" | "runs";
+export type StartTab = "start" | "runs" | "setups";
 
 /** Enter on the Start tab: run this matrix. */
 export type MatrixPicked = {

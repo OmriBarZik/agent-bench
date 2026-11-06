@@ -7,12 +7,14 @@ import type { TuiHost, TuiTab } from "../tui/open-tui.types";
 import type { StartTab, StartTuiPick } from "./open-start-tui.types";
 import { createPickerScreen } from "./picker/picker-screen";
 import type { PickerChoices, PickerDefaults } from "./picker/picker-state.types";
+import { createSetupsScreen } from "./setups/setups-screen";
 
-const TAB_ORDER: StartTab[] = ["start", "runs"];
+const TAB_ORDER: StartTab[] = ["start", "runs", "setups"];
 
 /**
- * Opens the `bun run start` TUI: a Start tab (pick tasks × configs × repeats) and a Runs tab
- * (the runs in the database: transcripts, builds, judge decisions, deletes, checkout).
+ * Opens the `bun run start` TUI: a Start tab (pick tasks × configs × repeats), a Runs tab
+ * (the runs in the database: transcripts, builds, judge decisions, deletes, checkout), and a Setups tab
+ * (whether each config's setup checks pass, and whether that config has been run).
  * Tab and shift-tab switch between them. Resolves with null when the user quits.
  */
 export async function openStartTui({
@@ -48,6 +50,15 @@ export async function openStartTui({
           force,
           controls: host,
           onDone: (choice) => host.finish(choice ? { kind: "checkout", choice } : null),
+        }),
+      },
+      {
+        label: "Setups",
+        screen: createSetupsScreen({
+          configs: selection.configs.map((config) => ({
+            configId: config.configId,
+            description: config.description,
+          })),
         }),
       },
     ],

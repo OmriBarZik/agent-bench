@@ -1,0 +1,22 @@
+{
+  "checks": [
+    {
+      "label": "Chromium clangd",
+      "kind": "file",
+      "target": "${CHROMIUM_SRC}/third_party/llvm-build/Release+Asserts/bin/clangd",
+      "fix": "set checkout_clangd in .gclient, then gclient sync"
+    },
+    {
+      "label": "out/Default",
+      "kind": "file",
+      "target": "${CHROMIUM_SRC}/out/Default/build.ninja",
+      "fix": "gn gen out/Default"
+    },
+    {
+      "label": "compile_commands.json",
+      "kind": "file",
+      "target": "${CHROMIUM_SRC}/compile_commands.json",
+      "fix": "bun run setup:clangd"
+    }
+  ]
+}

@@ -22,6 +22,12 @@ export type Config = {
   permissions?: unknown;
 };
 
+/** How many runs one config has, from `COUNT(*)` grouped by `config_id`. */
+export type ConfigRunCount = {
+  configId: string;
+  runs: number;
+};
+
 /** Status stored when a run is closed. cancelled means the user stopped it before it was fully recorded. */
 export type FinishedRunStatus = "done" | "crashed" | "cancelled";
 

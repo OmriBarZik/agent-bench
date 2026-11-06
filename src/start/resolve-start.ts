@@ -4,6 +4,7 @@ import { BENCH_DIR } from "../paths";
 import { loadSelection } from "../runner/bench-config/bench-config";
 import { narrowSelection } from "../runner/bench-config/narrow-selection";
 import { openStartTui } from "./open-start-tui";
+import type { StartTab } from "./open-start-tui.types";
 import type { PickerResult } from "./picker/picker-state.types";
 import type { RunPlanFlags, StartDecision } from "./resolve-start.types";
 
@@ -14,8 +15,9 @@ export const DEFAULT_CONFIGS_PATH = join(BENCH_DIR, "configs/benchmark-setup.jso
 
 /**
  * Decides what `bun run start` does. On a terminal with no --only-task, --only-config, or --repeats
- * (or with --interactive or --runs), it opens the TUI: the Start tab runs a matrix and prints the equivalent
- * command, and the Runs tab can check a run's branch out. Otherwise the flags decide the matrix.
+ * (or with --interactive, --runs, or --setups), it opens the TUI: the Start tab runs a matrix and prints the equivalent
+ * command, the Runs tab can check a run's branch out, and the Setups tab shows which config setups are missing.
+ * Otherwise the flags decide the matrix.
  */
 export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> {
   const onlyTasks = idList(flags.onlyTask);
@@ -23,14 +25,20 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
   const repeats = positiveNumber({ value: flags.repeats ?? "1", flag: "--repeats" });
   const timeoutMin = positiveNumber({ value: flags.timeoutMin, flag: "--timeout-min" });
   const terminal = process.stdin.isTTY === true && process.stdout.isTTY === true;
-  const wantsTui = flags.interactive || flags.runs;
+  const wantsTui = flags.interactive || flags.runs || flags.setups;
+
+  if (flags.runs && flags.setups) {
+    throw new Error("pass only one of --runs and --setups");
+  }
 
   if (wantsTui && flags.cli) {
-    throw new Error("--cli never opens the TUI; drop --interactive / --runs");
+    throw new Error("--cli never opens the TUI; drop --interactive / --runs / --setups");
   }
 
   if (wantsTui && !terminal) {
-    throw new Error("--interactive and --runs need a terminal; pass --only-task / --only-config / --repeats instead");
+    throw new Error(
+      "--interactive, --runs, and --setups need a terminal; pass --only-task / --only-config / --repeats instead",
+    );
   }
 
   const selectionFlagged = Boolean(onlyTasks || onlyConfigs || flags.repeats !== undefined);
@@ -58,7 +66,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
       sync: flags.sync,
       autoReview: flags.autoReview,
     },
-    initialTab: flags.runs ? "runs" : "start",
+    initialTab: openingTab(flags),
     force: flags.force,
   });
 
@@ -87,6 +95,19 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
       autoReview: picked.picked.autoReview,
     },
   };
+}
+
+/** Which tab opens. --setups and --runs each name one; otherwise the Start tab. */
+function openingTab(flags: RunPlanFlags): StartTab {
+  if (flags.setups) {
+    return "setups";
+  }
+
+  if (flags.runs) {
+    return "runs";
+  }
+
+  return "start";
 }
 
 /** The non-interactive command line that runs the same matrix. */

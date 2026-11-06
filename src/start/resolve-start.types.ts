@@ -22,6 +22,8 @@ export type RunPlanFlags = {
   interactive: boolean;
   /** --runs: open the TUI on the Runs tab. */
   runs: boolean;
+  /** --setups: open the TUI on the Setups tab. */
+  setups: boolean;
   /** --cli: never open the TUI. */
   cli: boolean;
 };

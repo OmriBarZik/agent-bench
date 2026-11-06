@@ -1,0 +1,16 @@
+{
+  "checks": [
+    {
+      "label": "typescript-language-server",
+      "kind": "command",
+      "target": "typescript-language-server",
+      "fix": "npm install -g typescript-language-server typescript"
+    },
+    {
+      "label": "tsserver",
+      "kind": "command",
+      "target": "tsserver",
+      "fix": "npm install -g typescript-language-server typescript"
+    }
+  ]
+}
