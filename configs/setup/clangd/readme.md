@@ -16,7 +16,7 @@ Commands in this page run from the agent-bench repo root.
 
 ## Install clangd from the checkout
 
-A system clangd reports the wrong errors. Use the binary that matches Chromium's compiler. In the `.gclient` next to `src/`, set `custom_vars.checkout_clangd` to `True` on the `src` solution, then sync. Chromium's [clangd.md](https://chromium.googlesource.com/chromium/src/+/main/docs/clangd.md) has the full snippet.
+A system clangd reports the wrong errors. Use the binary that matches Chromium's compiler. In the `.gclient` next to `src/`, set `custom_vars.checkout_clangd` to `True` on the `src` solution, then sync. Chromium's [clangd.md](https://chromium.googlesource.com/chromium/src/+/main/docs/clangd.md) has the full snippet. `bun run setup:clangd` asks before adding that variable and running `gclient sync` when it is missing and the checkout has no clangd binary. Answering no leaves `.gclient` unchanged.
 
 ```sh
 gclient sync

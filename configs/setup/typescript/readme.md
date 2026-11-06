@@ -19,10 +19,10 @@ Commands in this page run from the agent-bench repo root.
 macOS and Linux. Node.js and npm:
 
 ```sh
-npm install -g typescript-language-server typescript
+bun install -g typescript-language-server typescript@6
 ```
 
-That installs `typescript-language-server` and `tsserver`. The bench process inherits the `PATH` of the shell that launches `bun run start`. The plugin runs `typescript-language-server` with no directory prefix, so both commands have to resolve there. Open a new shell after installing, then check:
+That installs `typescript-language-server` and `tsserver`. The pin is `@6` because TypeScript 7's `typescript` package ships `tsc` and does not install `tsserver`, and `typescript-language-server` still runs the TypeScript 6 server. The same install puts TypeScript 6's `tsc` on `PATH`. The bench process inherits the `PATH` of the shell that launches `bun run start`. The plugin runs `typescript-language-server` with no directory prefix, so both commands have to resolve there. Open a new shell after installing, then check:
 
 ```sh
 bun run setup:typescript

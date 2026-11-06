@@ -14,7 +14,7 @@ async function main(): Promise<void> {
 
   if (!languageServer || !tsserver) {
     throw new Error(
-      "typescript-language-server and tsserver must be on PATH. Install them, open a new shell, then run bun run setup:typescript again.\nnpm install -g typescript-language-server typescript",
+      "typescript-language-server and tsserver must be on PATH. Install them, open a new shell, then run bun run setup:typescript again.\nbun install -g typescript-language-server typescript@6",
     );
   }
 

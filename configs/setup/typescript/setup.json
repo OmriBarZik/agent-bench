@@ -4,13 +4,13 @@
       "label": "typescript-language-server",
       "kind": "command",
       "target": "typescript-language-server",
-      "fix": "npm install -g typescript-language-server typescript"
+      "fix": "bun install -g typescript-language-server typescript@6"
     },
     {
       "label": "tsserver",
       "kind": "command",
       "target": "tsserver",
-      "fix": "npm install -g typescript-language-server typescript"
+      "fix": "bun install -g typescript-language-server typescript@6"
     }
   ]
 }
