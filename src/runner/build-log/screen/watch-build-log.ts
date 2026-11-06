@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import process from "node:process";
 import { latestRunBuild } from "../../../db/db";
+import { agentIsPaused } from "../../claude/session/agent-pause";
 import type { AgentBuildView } from "../../../db/db.types";
 import { applyLogKey, buildLogWanted, createLogView, logLineCount, syncLogView } from "../log-view";
 import type { LogView } from "../log-view.types";
@@ -80,6 +81,7 @@ function follow({ db, runId, signal }: { db: Database; runId: string; signal: Ab
         rows,
         columns,
         chrome: "run",
+        agentPaused: agentIsPaused(build.run_id),
       }),
     );
   };

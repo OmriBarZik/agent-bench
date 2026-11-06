@@ -1,9 +1,10 @@
 import type { BuilderConfig } from "../../inspect/build/builder-config.types";
-import { startBuildJob } from "../build/build-job";
+import { buildLogPath, startBuildJob } from "../build/build-job";
 import type { BuildJob, BuildOutcome } from "../build/build-job.types";
 import { runChromeCheck } from "../chrome/chrome-check";
 import type { ToolArguments, ToolResult } from "../mcp/protocol.types";
 import { snapshotTree } from "../snapshot/snapshot";
+import { holdAgent } from "./hold-agent";
 import { chromeInput, waitInput } from "./tool-input";
 import type { ToolSession } from "./tools.types";
 
@@ -70,20 +71,22 @@ async function waitBuild({ session, args }: { session: ToolSession; args: ToolAr
     );
   }
 
-  let timer: Timer | undefined;
-  const timeout = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), input.maxWaitMs);
-  });
-  const outcome = await Promise.race([job.done, timeout]);
-  clearTimeout(timer);
-
-  if (outcome == null) {
-    const minutes = Math.round((Date.now() - job.startedAt) / 60_000);
-
-    return text(`Build ${job.number} is still running after ${minutes} min. Call wait_build again.`);
+  if (job.outcome != null) {
+    return describeOutcome({ job, outcome: job.outcome });
   }
 
-  return describeOutcome({ job, outcome });
+  const release = holdAgent({
+    runId: session.context.runId,
+    logPath: buildLogPath({ logDir: session.context.logDir, buildNumber: job.number }),
+  });
+
+  try {
+    const outcome = await job.done;
+
+    return describeOutcome({ job, outcome });
+  } finally {
+    release();
+  }
 }
 
 function describeOutcome({ job, outcome }: { job: BuildJob; outcome: BuildOutcome }): ToolResult {

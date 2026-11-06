@@ -24,6 +24,7 @@ export async function runAndCommitAgent({
   started,
   options,
   signal,
+  onAgentPaused,
 }: {
   db: Database;
   task: Task;
@@ -33,9 +34,10 @@ export async function runAndCommitAgent({
   started: number;
   options: RunOptions;
   signal: AbortSignal;
+  onAgentPaused: (paused: boolean) => void;
 }): Promise<CommittedWork> {
   const sessionId = randomUUID();
-  const result = await runAgent({ task, config, sessionId, runId, outDir, started, options, signal });
+  const result = await runAgent({ task, config, sessionId, runId, outDir, started, options, signal, onAgentPaused });
   // A killed chrome-validate server cannot close its last build, so the runner does.
   abandonOpenBuilds({ db, runId });
   saveTranscript({ sessionId: result.session_id ?? sessionId, outDir });
@@ -196,6 +198,7 @@ async function runAgent({
   started,
   options,
   signal,
+  onAgentPaused,
 }: {
   task: Task;
   config: BenchConfig;
@@ -205,16 +208,26 @@ async function runAgent({
   started: number;
   options: RunOptions;
   signal: AbortSignal;
+  onAgentPaused: (paused: boolean) => void;
 }): Promise<ClaudeResult> {
   try {
     return await runClaude({
-      command: claudeArgs({ task, config, sessionId, runId, autoReview: options.autoReview }),
+      command: claudeArgs({
+        task,
+        config,
+        sessionId,
+        runId,
+        autoReview: options.autoReview,
+        buildTimeoutMs: options.buildTimeoutMs,
+      }),
       runId,
       outDir,
       timeoutMs: options.timeoutMs,
+      buildTimeoutMs: options.buildTimeoutMs,
       signal,
       autoReview: options.autoReview,
       pathEntries: languageServerPathEntries({ pluginDirs: config.pluginDirs }),
+      onPaused: onAgentPaused,
     });
   } catch (error) {
     if (!signal.aborted) {

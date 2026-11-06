@@ -22,7 +22,7 @@ function press({ state, keys }: { state: PickerState; keys: string[] }): PickerS
 describe("picker state", () => {
   const fresh = initialPickerState({
     choices: CHOICES,
-    defaults: { repeats: 1, timeoutMin: 60, sync: false, autoReview: true },
+    defaults: { repeats: 1, timeoutMin: 60, buildTimeoutMin: 90, sync: false, autoReview: true },
   });
 
   test("checks everything when no ids are given", () => {
@@ -32,7 +32,15 @@ describe("picker state", () => {
   test("checks only the flagged ids", () => {
     const state = initialPickerState({
       choices: CHOICES,
-      defaults: { taskIds: ["t2"], configIds: ["serena"], repeats: 2, timeoutMin: 60, sync: false, autoReview: true },
+      defaults: {
+        taskIds: ["t2"],
+        configIds: ["serena"],
+        repeats: 2,
+        timeoutMin: 60,
+        buildTimeoutMin: 90,
+        sync: false,
+        autoReview: true,
+      },
     });
 
     expect(pickerResult({ state, choices: CHOICES })).toMatchObject({ taskIds: ["t2"], configIds: ["serena"] });
@@ -68,7 +76,7 @@ describe("picker state", () => {
   });
 
   test("space toggles auto review", () => {
-    const onReview = press({ state: fresh, keys: [DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN] });
+    const onReview = press({ state: fresh, keys: [DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN] });
 
     expect(onReview.autoReview).toBe(true);
     expect(press({ state: onReview, keys: [" "] }).autoReview).toBe(false);

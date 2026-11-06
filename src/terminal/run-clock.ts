@@ -14,16 +14,27 @@ export function openRunClock(target: RunClockTarget): RunClock {
 export function createRunClock({ target, now, show, every }: RunClockControls): RunClock {
   let phase: RunPhase = "reset";
   let agentStartedAt: number | null = null;
+  let pausedAt: number | null = null;
+  let pausedMs = 0;
   let cancelTick: (() => void) | null = null;
   let stopped = false;
+
+  const elapsedMs = () => {
+    if (agentStartedAt == null) {
+      return undefined;
+    }
+
+    const end = pausedAt ?? now();
+
+    return end - agentStartedAt - pausedMs;
+  };
 
   const render = () => {
     if (stopped) {
       return;
     }
 
-    const elapsedMs = agentStartedAt == null ? undefined : now() - agentStartedAt;
-    show(runTitle({ ...target, phase, elapsedMs }));
+    show(runTitle({ ...target, phase, elapsedMs: elapsedMs(), paused: pausedAt != null }));
   };
 
   return {
@@ -32,14 +43,34 @@ export function createRunClock({ target, now, show, every }: RunClockControls): 
 
       if (next === "agent") {
         agentStartedAt = now();
+        pausedAt = null;
+        pausedMs = 0;
         cancelTick?.();
         cancelTick = every(render);
       }
 
       if (next === "reset") {
         agentStartedAt = null;
+        pausedAt = null;
+        pausedMs = 0;
         cancelTick?.();
         cancelTick = null;
+      }
+
+      render();
+    },
+    setPaused(paused) {
+      if (agentStartedAt == null) {
+        return;
+      }
+
+      if (paused && pausedAt == null) {
+        pausedAt = now();
+      }
+
+      if (!paused && pausedAt != null) {
+        pausedMs += now() - pausedAt;
+        pausedAt = null;
       }
 
       render();

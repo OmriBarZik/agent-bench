@@ -1,15 +1,11 @@
 import type { ChromeAction } from "../chrome/chrome-check.types";
 import type { ToolArguments } from "../mcp/protocol.types";
-import { MAX_WAIT_MINUTES } from "./tool-definitions";
 import type { ChromeInput, WaitInput } from "./tools.types";
 
-/** wait_build arguments with defaults applied. */
+/** wait_build arguments with defaults applied. The wait lasts until the build finishes. */
 export function waitInput(args: ToolArguments): WaitInput {
-  const minutes = typeof args.max_wait_minutes === "number" ? args.max_wait_minutes : MAX_WAIT_MINUTES;
-
   return {
     build: typeof args.build === "number" ? args.build : null,
-    maxWaitMs: Math.min(Math.max(minutes, 0), MAX_WAIT_MINUTES) * 60_000,
   };
 }
 

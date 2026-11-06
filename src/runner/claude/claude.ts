@@ -15,11 +15,12 @@ import {
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { captureClaude } from "./claude-process";
 import { sessionPath } from "./language-server-path";
+import { DEFAULT_BUILD_TIMEOUT_MIN, agentPausePath } from "./session/agent-pause";
 
 /** The allowedTools pattern for the chrome-validate tools. Headless sessions cannot answer a permission prompt. */
 const VALIDATE_TOOLS = "mcp__chrome-validate__*";
-/** wait_build blocks up to 50 minutes; Claude Code's MCP tool timeout must outlast it. */
-const MCP_TOOL_TIMEOUT_MS = String(60 * 60_000);
+/** Extra time so Claude's tool timer still outlasts a build after the process is continued. */
+const MCP_TOOL_SLACK_MS = 10 * 60_000;
 
 /** Output of `claude --version`, stored on every run. */
 export async function claudeVersion(): Promise<string> {
@@ -33,6 +34,7 @@ export function claudeArgs({
   sessionId,
   runId,
   autoReview = true,
+  buildTimeoutMs = DEFAULT_BUILD_TIMEOUT_MIN * 60_000,
 }: {
   task: Task;
   config: BenchConfig;
@@ -41,6 +43,8 @@ export function claudeArgs({
   runId: string;
   /** Attach chrome-validate so the agent builds its change and checks it in Chromium. */
   autoReview?: boolean;
+  /** How long one remote build may run. Passed to chrome-validate. */
+  buildTimeoutMs?: number;
 }): string[] {
   const args = [
     "claude",
@@ -60,7 +64,7 @@ export function claudeArgs({
     args.push("--model", config.model);
   }
 
-  appendSessionTools({ args, task, config, runId, autoReview });
+  appendSessionTools({ args, task, config, runId, autoReview, buildTimeoutMs });
 
   return args;
 }
@@ -72,12 +76,14 @@ function appendSessionTools({
   config,
   runId,
   autoReview,
+  buildTimeoutMs,
 }: {
   args: string[];
   task: Task;
   config: BenchConfig;
   runId: string;
   autoReview: boolean;
+  buildTimeoutMs: number;
 }) {
   const mcpConfigs = (config.mcpConfig ?? []).map((path) => resolve(BENCH_DIR, path));
   const pluginDirs = [
@@ -86,7 +92,7 @@ function appendSessionTools({
   ];
 
   if (autoReview) {
-    args.push("--mcp-config", validateMcpConfig({ runId, taskSha: task.chromiumSha }), ...mcpConfigs);
+    args.push("--mcp-config", validateMcpConfig({ runId, taskSha: task.chromiumSha, buildTimeoutMs }), ...mcpConfigs);
   } else if (mcpConfigs.length > 0) {
     args.push("--mcp-config", ...mcpConfigs);
   }
@@ -115,13 +121,26 @@ function appendSessionTools({
 }
 
 /** The chrome-validate server as an inline --mcp-config JSON, with the run it records builds on. */
-export function validateMcpConfig({ runId, taskSha }: { runId: string; taskSha: string }): string {
+export function validateMcpConfig({
+  runId,
+  taskSha,
+  buildTimeoutMs,
+}: {
+  runId: string;
+  taskSha: string;
+  buildTimeoutMs: number;
+}): string {
   return JSON.stringify({
     mcpServers: {
       "chrome-validate": {
         command: "bun",
         args: [VALIDATE_SERVER],
-        env: { BENCH_RUN_ID: runId, BENCH_TASK_SHA: taskSha, CHROMIUM_SRC },
+        env: {
+          BENCH_RUN_ID: runId,
+          BENCH_TASK_SHA: taskSha,
+          BENCH_BUILD_TIMEOUT_MS: String(buildTimeoutMs),
+          CHROMIUM_SRC,
+        },
       },
     },
   });
@@ -148,20 +167,27 @@ export async function runClaude({
   runId,
   outDir,
   timeoutMs,
+  buildTimeoutMs,
   signal,
   autoReview,
   pathEntries,
+  onPaused,
 }: {
   command: string[];
   runId: string;
   outDir: string;
+  /** Agent work time. A remote build pauses this clock. */
   timeoutMs: number;
+  /** How long one remote build may run before it fails and the agent resumes. */
+  buildTimeoutMs: number;
   /** Aborted on Ctrl+C. The process is killed and the result is marked cancelled. */
   signal?: AbortSignal;
   /** Passed through to the baseline guard so a denied local build matches this session's tools. */
   autoReview: boolean;
   /** Prepended to PATH. Empty for a config with no checkout language server. */
   pathEntries: string[];
+  /** Told when the agent is stopped for a build, and when it runs again. */
+  onPaused?: (paused: boolean) => void;
 }): Promise<ClaudeResult> {
   writeFileSync(join(outDir, "command.json"), JSON.stringify(command, null, 2));
   const pathValue = sessionPath({ pathEntries });
@@ -172,11 +198,14 @@ export async function runClaude({
       ...process.env,
       BENCH_RUN_ID: runId,
       BENCH_AUTO_REVIEW: autoReview ? "1" : "0",
-      MCP_TOOL_TIMEOUT: MCP_TOOL_TIMEOUT_MS,
+      BENCH_BUILD_TIMEOUT_MS: String(buildTimeoutMs),
+      MCP_TOOL_TIMEOUT: String(buildTimeoutMs + MCP_TOOL_SLACK_MS),
       ...(pathValue !== undefined ? { PATH: pathValue } : {}),
     },
     timeoutMs,
     signal,
+    pausePath: agentPausePath(runId),
+    onPaused,
   });
   writeFileSync(join(outDir, "result.json"), captured.stdout);
   writeFileSync(join(outDir, "stderr.log"), captured.stderr);

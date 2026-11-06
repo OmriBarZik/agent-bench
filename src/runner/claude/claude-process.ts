@@ -1,5 +1,6 @@
 import type { ClaudeCapture } from "./claude-process.types";
 import { readClaudeOutput } from "./claude-result";
+import { watchAgentTimeout } from "./session/session-timeout";
 
 /**
  * Spawns claude and waits for it. Never throws because the session failed or was cancelled:
@@ -12,12 +13,18 @@ export async function captureClaude({
   env,
   timeoutMs,
   signal,
+  pausePath,
+  onPaused,
 }: {
   command: string[];
   cwd: string;
   env: NodeJS.ProcessEnv;
   timeoutMs: number;
   signal?: AbortSignal;
+  /** When this file exists the process is stopped and the timeout does not advance. */
+  pausePath?: string;
+  /** Told when the process is stopped for a build, and when it runs again. */
+  onPaused?: (paused: boolean) => void;
 }): Promise<ClaudeCapture> {
   const startedAt = Date.now();
 
@@ -33,7 +40,6 @@ export async function captureClaude({
       stdin: "ignore",
       stdout: "pipe",
       stderr: "pipe",
-      timeout: timeoutMs,
       signal,
     });
   } catch (error) {
@@ -57,24 +63,43 @@ export async function captureClaude({
     };
   }
 
-  const [stdout, stderr, exitCode] = await Promise.all([
-    new Response(claudeProcess.stdout).text(),
-    new Response(claudeProcess.stderr).text(),
-    claudeProcess.exited,
-  ]);
+  const timeout = watchAgentTimeout({
+    pid: claudeProcess.pid,
+    timeoutMs,
+    pausePath,
+    signal,
+    onPaused,
+    kill: () => {
+      try {
+        claudeProcess.kill();
+      } catch {
+        // The process already exited.
+      }
+    },
+  });
 
-  return {
-    stdout,
-    stderr,
-    result: readClaudeOutput({
+  try {
+    const [stdout, stderr, exitCode] = await Promise.all([
+      new Response(claudeProcess.stdout).text(),
+      new Response(claudeProcess.stderr).text(),
+      claudeProcess.exited,
+    ]);
+
+    return {
       stdout,
       stderr,
-      exitCode,
-      signalCode: claudeProcess.signalCode,
-      startedAt,
-      aborted: signal?.aborted === true,
-    }),
-  };
+      result: readClaudeOutput({
+        stdout,
+        stderr,
+        exitCode,
+        signalCode: claudeProcess.signalCode,
+        startedAt,
+        aborted: signal?.aborted === true,
+      }),
+    };
+  } finally {
+    timeout.stop();
+  }
 }
 
 function cancelledCapture(startedAt: number): ClaudeCapture {

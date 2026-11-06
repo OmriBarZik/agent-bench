@@ -32,16 +32,27 @@ describe("run clock", () => {
     held.tick?.();
     expect(titles.at(-1)).toBe("▶ 1:05 · 2/5 agent · omnibox × baseline r0");
 
+    clock.setPaused(true);
+    expect(titles.at(-1)).toBe("▶ 1:05 · 2/5 paused · omnibox × baseline r0");
+    current += 120_000;
+    held.tick?.();
+    expect(titles.at(-1)).toBe("▶ 1:05 · 2/5 paused · omnibox × baseline r0");
+
+    clock.setPaused(false);
+    current += 5_000;
+    held.tick?.();
+    expect(titles.at(-1)).toBe("▶ 1:10 · 2/5 agent · omnibox × baseline r0");
+
     clock.setPhase("judge");
-    expect(titles.at(-1)).toBe("▶ 1:05 · 2/5 judge · omnibox × baseline r0");
+    expect(titles.at(-1)).toBe("▶ 1:10 · 2/5 judge · omnibox × baseline r0");
 
     current += 3_600_000;
     held.tick?.();
-    expect(titles.at(-1)).toBe("▶ 1:01:05 · 2/5 judge · omnibox × baseline r0");
+    expect(titles.at(-1)).toBe("▶ 1:01:10 · 2/5 judge · omnibox × baseline r0");
 
     clock.stop();
     expect(stopped).toBe(true);
     held.tick?.();
-    expect(titles.at(-1)).toBe("▶ 1:01:05 · 2/5 judge · omnibox × baseline r0");
+    expect(titles.at(-1)).toBe("▶ 1:01:10 · 2/5 judge · omnibox × baseline r0");
   });
 });

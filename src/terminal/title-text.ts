@@ -35,12 +35,23 @@ export function formatElapsed(elapsedMs: number): string {
 
 /**
  * `▶ 0:07 · 3/12 agent · task × config r0`. The clock comes first, because a narrow tab cuts the end.
- * It is the time since the agent was given the task, and it is omitted while the tree is still being checked out.
+ * It is agent and judge time, and it is omitted while the tree is still being checked out.
+ * A remote build stops the clock and shows `paused` until the build finishes.
  */
-export function runTitle({ index, total, taskId, configId, repeat, phase, elapsedMs }: RunTitle): string {
+export function runTitle({
+  index,
+  total,
+  taskId,
+  configId,
+  repeat,
+  phase,
+  elapsedMs,
+  paused = false,
+}: RunTitle): string {
   const clock = elapsedMs == null ? "" : `${formatElapsed(elapsedMs)} · `;
+  const label = paused ? "paused" : PHASE_LABEL[phase];
 
-  return `▶ ${clock}${index}/${total} ${PHASE_LABEL[phase]} · ${taskId} × ${configId} r${repeat}`;
+  return `▶ ${clock}${index}/${total} ${label} · ${taskId} × ${configId} r${repeat}`;
 }
 
 /** The title the benchmark leaves when its loop ends: every run done, or stopped after `finished` of them. */

@@ -10,13 +10,14 @@ import type {
   PickerState,
 } from "./picker-state.types";
 
-/** The rows the cursor moves over: every task, every config, then repeats, timeout, sync, and auto review. */
+/** The rows the cursor moves over: every task, every config, then repeats, the two timeouts, sync, and auto review. */
 export function pickerRows(choices: PickerChoices): PickerRow[] {
   return [
     ...indexRows({ kind: "task", count: choices.tasks.length }),
     ...indexRows({ kind: "config", count: choices.configs.length }),
     { kind: "repeats", index: 0 },
     { kind: "timeoutMin", index: 0 },
+    { kind: "buildTimeoutMin", index: 0 },
     { kind: "sync", index: 0 },
     { kind: "autoReview", index: 0 },
   ];
@@ -37,6 +38,7 @@ export function initialPickerState({
     configs: choices.configs.map((config) => !configIds || configIds.includes(config.id)),
     repeats: defaults.repeats,
     timeoutMin: defaults.timeoutMin,
+    buildTimeoutMin: defaults.buildTimeoutMin,
     sync: defaults.sync,
     autoReview: defaults.autoReview,
     cursor: 0,
@@ -57,6 +59,7 @@ export function pickerResult({ state, choices }: { state: PickerState; choices: 
     configIds: choices.configs.filter((config, index) => state.configs[index]).map((config) => config.id),
     repeats: state.repeats,
     timeoutMin: state.timeoutMin,
+    buildTimeoutMin: state.buildTimeoutMin,
     sync: state.sync,
     autoReview: state.autoReview,
   };
@@ -159,6 +162,10 @@ function selectionProblem(state: PickerState): string | null {
 
   if (state.timeoutMin < 1) {
     return "timeout must be at least 1 minute";
+  }
+
+  if (state.buildTimeoutMin < 1) {
+    return "build timeout must be at least 1 minute";
   }
 
   return null;

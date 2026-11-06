@@ -1,8 +1,5 @@
 import type { ToolDefinition } from "../mcp/protocol.types";
 
-/** The longest a single wait_build call blocks. Kept under the runner's MCP_TOOL_TIMEOUT. */
-export const MAX_WAIT_MINUTES = 50;
-
 /** The chrome-validate tools as tools/list describes them. Part of every config_hash. */
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
@@ -16,16 +13,13 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "wait_build",
     description:
-      "Block until a build finishes, then report it: on success, which build and snapshot the local Chromium now " +
-      "is; on failure, only the compiler errors. You do nothing while it waits. Builds take minutes.",
+      "Pause until a build finishes, then report it. You are stopped while it waits: that time is not part of " +
+      "your session, and you are resumed when the build finishes. The build has its own time limit. On success, " +
+      "the result says which build and snapshot the local Chromium is. On failure, you get only the compiler errors.",
     inputSchema: {
       type: "object",
       properties: {
         build: { type: "integer", description: "Build number from start_build. Defaults to the newest build." },
-        max_wait_minutes: {
-          type: "number",
-          description: `Give up waiting after this long (default and max ${MAX_WAIT_MINUTES}). The build keeps running.`,
-        },
       },
       additionalProperties: false,
     },

@@ -13,6 +13,8 @@ export type RunPlanFlags = {
   /** Absent when --repeats was not passed, so the TUI can open by default. */
   repeats?: string;
   timeoutMin: string;
+  /** --build-timeout-min. Minutes one remote build may run. */
+  buildTimeoutMin: string;
   sync: boolean;
   /** --auto-review: the agent builds its change and checks it in Chromium. Default on. */
   autoReview: boolean;
@@ -34,6 +36,8 @@ export type RunPlan = {
   configs: BenchConfig[];
   repeats: number;
   timeoutMin: number;
+  /** Minutes one remote build may run before it fails and the agent resumes. */
+  buildTimeoutMin: number;
   sync: boolean;
   /** Attach chrome-validate for every run in this plan. */
   autoReview: boolean;

@@ -110,7 +110,11 @@ function rowText({
   }
 
   if (row.kind === "timeoutMin") {
-    return `${"Timeout".padEnd(14)}‹ ${state.timeoutMin} ›  minutes per claude session`;
+    return `${"Timeout".padEnd(14)}‹ ${state.timeoutMin} ›  minutes of agent work, not counting remote builds`;
+  }
+
+  if (row.kind === "buildTimeoutMin") {
+    return `${"Build timeout".padEnd(14)}‹ ${state.buildTimeoutMin} ›  minutes a remote build may run`;
   }
 
   if (row.kind === "sync") {

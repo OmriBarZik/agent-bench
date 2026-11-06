@@ -8,8 +8,10 @@ export type RunTitle = {
   configId: string;
   repeat: number;
   phase: RunPhase;
-  /** Milliseconds since the agent was given the task. Absent during checkout, before that handoff. */
+  /** Milliseconds of agent and judge time, not counting a remote build that has the agent stopped. */
   elapsedMs?: number;
+  /** True while a remote build has the agent stopped. The clock does not advance. */
+  paused?: boolean;
 };
 
 /** How far the benchmark loop got when it ended. */

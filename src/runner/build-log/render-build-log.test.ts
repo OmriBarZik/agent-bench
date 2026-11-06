@@ -39,4 +39,17 @@ test("the frame shows the build, the tail, and the waiting state", () => {
   expect(frame).toContain("ctrl-c stops the run");
   expect(waiting).toContain("Waiting for an agent to request a remote build.");
   expect(waiting).toContain("esc quits");
+
+  const paused = renderBuildLog({
+    build: building,
+    cursor,
+    above: 0,
+    rows: 6,
+    columns: 80,
+    chrome: "run",
+    agentPaused: true,
+  });
+
+  expect(paused).toContain("agent paused");
+  expect(paused).toContain("Agent paused until this build finishes.");
 });

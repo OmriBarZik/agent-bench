@@ -7,11 +7,10 @@ export type ToolSession = {
   state: BuildState;
 };
 
-/** wait_build arguments with defaults applied. */
+/** wait_build arguments with defaults applied. The wait lasts until the build finishes. */
 export type WaitInput = {
   /** Null means the newest build. */
   build: number | null;
-  maxWaitMs: number;
 };
 
 /** run_chrome arguments with defaults applied. */

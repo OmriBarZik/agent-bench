@@ -5,6 +5,7 @@ import { checkOutNamedRun, checkOutRun } from "./inspect/checkout/checkout-run";
 import { CHROMIUM_SRC } from "./paths";
 import { toConfigRow } from "./runner/bench-config/bench-config";
 import { claudeVersion } from "./runner/claude/claude";
+import { DEFAULT_AGENT_TIMEOUT_MIN, DEFAULT_BUILD_TIMEOUT_MIN } from "./runner/claude/session/agent-pause";
 import { confirmDiscardUncommittedChanges } from "./runner/chromium/confirm-discard";
 import { uncommittedStatus } from "./runner/chromium/chromium";
 import { blockerAlert } from "./runner/judge/result/judge-blockers";
@@ -24,7 +25,8 @@ const { values: args } = parseArgs({
     repeats: { type: "string" }, // no default, so the picker knows whether it was passed
     "only-task": { type: "string", multiple: true },
     "only-config": { type: "string", multiple: true },
-    "timeout-min": { type: "string", default: "60" },
+    "timeout-min": { type: "string", default: String(DEFAULT_AGENT_TIMEOUT_MIN) },
+    "build-timeout-min": { type: "string", default: String(DEFAULT_BUILD_TIMEOUT_MIN) },
     "judge-model": { type: "string", default: "claude-sonnet-5-5" },
     sync: { type: "boolean", default: false }, // run `gclient sync -D` after each checkout
     "auto-review": { type: "boolean", default: true }, // chrome-validate: the agent builds and checks its change
@@ -41,13 +43,14 @@ const { values: args } = parseArgs({
  * Benchmark runner: tasks × configs × repeats, one `claude -p` session per run.
  *
  *   bun run start [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
- *                     [--only-task id[,id]] [--only-config id[,id]] [--timeout-min 60] [--judge-model claude-sonnet-5-5]
+ *                     [--only-task id[,id]] [--only-config id[,id]] [--timeout-min 60] [--build-timeout-min 90]
+ *                     [--judge-model claude-sonnet-5-5]
  *                     [--sync] [--auto-review | --no-auto-review] [--force] [--interactive | --runs | --setups | --cli]
  *   bun run start --checkout <branch or run id> [--force]
  *
  * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with four tabs;
  * tab and shift-tab switch between them, and esc quits.
- *   Start: check the tasks and configs to run, set repeats, timeout, sync, and auto review, then enter starts. It prints
+ *   Start: check the tasks and configs to run, set repeats, agent timeout, build timeout, sync, and auto review, then enter starts. It prints
  *     the equivalent --cli command first.
  *   Runs: the runs in the database. Enter opens a menu of every action below, with submenus; esc goes back.
  *     Ctrl-o opens the run transcript in the browser, ctrl-e the judge session.
@@ -114,6 +117,7 @@ async function main() {
     onlyConfig: args["only-config"],
     repeats: args.repeats,
     timeoutMin: args["timeout-min"],
+    buildTimeoutMin: args["build-timeout-min"],
     sync: args.sync,
     autoReview: args["auto-review"],
     force: args.force,
@@ -180,6 +184,7 @@ async function main() {
       const options = {
         claudeVersion: await claudeVersion(),
         timeoutMs: plan.timeoutMin * 60_000,
+        buildTimeoutMs: plan.buildTimeoutMin * 60_000,
         sync: plan.sync,
         autoReview: plan.autoReview,
         judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
@@ -216,6 +221,9 @@ async function main() {
               signal: shutdown.signal,
               onPhase: (phase) => {
                 clock.setPhase(phase);
+              },
+              onAgentPaused: (paused) => {
+                clock.setPaused(paused);
               },
             }).finally(() => {
               clock.stop();

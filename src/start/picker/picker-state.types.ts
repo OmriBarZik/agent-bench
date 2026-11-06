@@ -12,7 +12,7 @@ export type PickerChoices = {
 };
 
 /** What a picker row edits. `task` and `config` rows are checkboxes; the rest are settings. */
-export type PickerRowKind = "task" | "config" | "repeats" | "timeoutMin" | "sync" | "autoReview";
+export type PickerRowKind = "task" | "config" | "repeats" | "timeoutMin" | "buildTimeoutMin" | "sync" | "autoReview";
 
 /** One row the cursor can stop on. `index` is the task or config position, and 0 for settings. */
 export type PickerRow = {
@@ -26,6 +26,7 @@ export type PickerDefaults = {
   configIds?: string[];
   repeats: number;
   timeoutMin: number;
+  buildTimeoutMin: number;
   sync: boolean;
   /** Attach chrome-validate so the agent builds its change and checks it in Chromium. */
   autoReview: boolean;
@@ -39,6 +40,7 @@ export type PickerState = {
   configs: boolean[];
   repeats: number;
   timeoutMin: number;
+  buildTimeoutMin: number;
   sync: boolean;
   autoReview: boolean;
   /** Index into `pickerRows(choices)`. */
@@ -63,6 +65,7 @@ export type PickerResult = {
   configIds: string[];
   repeats: number;
   timeoutMin: number;
+  buildTimeoutMin: number;
   sync: boolean;
   autoReview: boolean;
 };

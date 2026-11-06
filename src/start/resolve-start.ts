@@ -25,6 +25,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
   const onlyConfigs = idList(flags.onlyConfig);
   const repeats = positiveNumber({ value: flags.repeats ?? "1", flag: "--repeats" });
   const timeoutMin = positiveNumber({ value: flags.timeoutMin, flag: "--timeout-min" });
+  const buildTimeoutMin = positiveNumber({ value: flags.buildTimeoutMin, flag: "--build-timeout-min" });
   const terminal = process.stdin.isTTY === true && process.stdout.isTTY === true;
   const wantsTui = flags.interactive || flags.runs || flags.setups;
 
@@ -50,7 +51,14 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
 
     return {
       kind: "run",
-      plan: { ...selection, repeats, timeoutMin, sync: flags.sync, autoReview: flags.autoReview },
+      plan: {
+        ...selection,
+        repeats,
+        timeoutMin,
+        buildTimeoutMin,
+        sync: flags.sync,
+        autoReview: flags.autoReview,
+      },
     };
   }
 
@@ -64,6 +72,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
       configIds: onlyConfigs,
       repeats,
       timeoutMin,
+      buildTimeoutMin,
       sync: flags.sync,
       autoReview: flags.autoReview,
     },
@@ -92,6 +101,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
       ...selection,
       repeats: picked.picked.repeats,
       timeoutMin: picked.picked.timeoutMin,
+      buildTimeoutMin: picked.picked.buildTimeoutMin,
       sync: picked.picked.sync,
       autoReview: picked.picked.autoReview,
     },
@@ -125,6 +135,7 @@ function equivalentCommand({ picked, flags }: { picked: PickerResult; flags: Run
 
   parts.push("--only-task", picked.taskIds.join(","), "--only-config", picked.configIds.join(","));
   parts.push("--repeats", String(picked.repeats), "--timeout-min", String(picked.timeoutMin));
+  parts.push("--build-timeout-min", String(picked.buildTimeoutMin));
 
   if (picked.sync) {
     parts.push("--sync");

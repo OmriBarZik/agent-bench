@@ -26,5 +26,7 @@ export type RunClockControls = {
 /** A live title for one run. `stop` ends the tick so a later title stays put. */
 export type RunClock = {
   setPhase: (phase: RunPhase) => void;
+  /** Freezes the clock while a remote build has the agent stopped. */
+  setPaused: (paused: boolean) => void;
   stop: () => void;
 };

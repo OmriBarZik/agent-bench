@@ -14,7 +14,13 @@ import type {
   ValidateContext,
 } from "./build-job.types";
 import { recordBuildFinish, recordBuildStart } from "./build-record";
+import { armBuildLimit, readBuildTimeoutMs } from "./limit/build-limit";
 import { BuildStepError, buildOnBuilder, copyBack, sendSnapshot } from "./remote-steps";
+
+/** The log file for one build of this session. */
+export function buildLogPath({ logDir, buildNumber }: { logDir: string; buildNumber: number }): string {
+  return join(logDir, `build-${buildNumber}.log`);
+}
 
 /** The folder on this Mac that receives the session's Chromium.app. The same folder for every build of a run. */
 export function appDirectory({ context, builder }: { context: ValidateContext; builder: BuilderConfig }): string {
@@ -53,6 +59,7 @@ export async function startBuildJob({
     snapshotSha,
     startedAt: Date.now(),
     controller: new AbortController(),
+    timedOut: false,
     done: finished.promise,
     outcome: null,
   };
@@ -85,12 +92,13 @@ async function runJob({
   builder: BuilderConfig;
 }): Promise<BuildOutcome> {
   mkdirSync(context.logDir, { recursive: true });
-  const logPath = join(context.logDir, `build-${job.number}.log`);
+  const logPath = buildLogPath({ logDir: context.logDir, buildNumber: job.number });
   writeFileSync(logPath, `build ${job.number} of ${job.snapshotSha}\n`);
   const buildId = recordBuildStart(
     context.runId == null ? null : { runId: context.runId, buildNumber: job.number, logPath },
   );
   const times: StepTimes = { sendMs: null, buildMs: null, copyMs: null };
+  const stopLimit = armBuildLimit({ job, logPath, timeoutMs: readBuildTimeoutMs() });
   let outcome: BuildOutcome;
 
   try {
@@ -98,6 +106,8 @@ async function runJob({
     outcome = { status: "ok", appPath, durationMs: elapsed(job), failedStep: null, error: null, logPath };
   } catch (error) {
     outcome = failedOutcome({ error, job, logPath });
+  } finally {
+    stopLimit();
   }
 
   recordBuildFinish({
@@ -180,6 +190,19 @@ async function runSteps({
 
 function failedOutcome({ error, job, logPath }: { error: unknown; job: BuildJob; logPath: string }): BuildOutcome {
   const durationMs = elapsed(job);
+
+  if (job.timedOut) {
+    const minutes = Math.max(1, Math.round(durationMs / 60_000));
+
+    return {
+      status: "failed",
+      appPath: null,
+      durationMs,
+      failedStep: null,
+      error: `Timed out after ${minutes} min.`,
+      logPath,
+    };
+  }
 
   if (job.controller.signal.aborted) {
     return { status: "cancelled", appPath: null, durationMs, failedStep: null, error: null, logPath };

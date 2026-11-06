@@ -16,9 +16,10 @@ Do not finish while the change is unbuilt.
    after every small edit.
 2. `start_build`: snapshots the working tree as it is now (new files and submodule edits included) and starts
    building `chrome`. It returns right away with a build number.
-3. `wait_build`: blocks until that build ends. You use no time or tokens while it waits.
-   - **Failed**: you get only the compiler errors. Fix them, then go back to step 2.
-   - **Still running** after the wait limit: call `wait_build` again.
+3. `wait_build`: pauses you until that build ends. You use no time or tokens while it waits, and the wait
+   does not count toward your session. You are resumed when the build finishes. The build has its own time limit.
+   - **Failed**: you get only the compiler errors, including when the build ran out of time. Fix them, then go
+     back to step 2.
    - **ok**: the local Chromium is now that build. The result names the build number and snapshot.
 4. `run_chrome`: starts that build headless with a fresh profile, opens a URL and runs your actions:
    - `{"key": "Space"}`, `{"key": "ArrowDown", "hold_ms": 400}` press keys like a user would.

@@ -54,6 +54,10 @@ export function adjust({
     return { ...state, timeoutMin: clampNumber(state.timeoutMin + delta), editing: false };
   }
 
+  if (kind === "buildTimeoutMin") {
+    return { ...state, buildTimeoutMin: clampNumber(state.buildTimeoutMin + delta), editing: false };
+  }
+
   if (kind === "sync") {
     return { ...state, sync: !state.sync };
   }
@@ -75,7 +79,7 @@ export function typeDigit({
   kind: PickerRowKind;
   digit: string;
 }): PickerState {
-  if (kind !== "repeats" && kind !== "timeoutMin") {
+  if (!isNumberRow(kind)) {
     return state;
   }
 
@@ -87,11 +91,15 @@ export function typeDigit({
 
 /** Drops the last digit of a number row. It may reach 0, which the picker refuses to start with. */
 export function eraseDigit({ state, kind }: { state: PickerState; kind: PickerRowKind }): PickerState {
-  if (kind !== "repeats" && kind !== "timeoutMin") {
+  if (!isNumberRow(kind)) {
     return state;
   }
 
   return { ...state, [kind]: Math.floor(state[kind] / 10), editing: true };
+}
+
+function isNumberRow(kind: PickerRowKind): kind is "repeats" | "timeoutMin" | "buildTimeoutMin" {
+  return kind === "repeats" || kind === "timeoutMin" || kind === "buildTimeoutMin";
 }
 
 function flipAt({ checked, index }: { checked: boolean[]; index: number }): boolean[] {

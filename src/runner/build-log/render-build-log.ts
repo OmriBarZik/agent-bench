@@ -1,4 +1,5 @@
 import type { AgentBuildView } from "../../db/db.types";
+import { AGENT_PAUSED_LINE } from "../claude/session/agent-pause";
 import { linesOfLog } from "./log-cursor";
 import type { LogCursor } from "./log-cursor.types";
 
@@ -10,6 +11,7 @@ export function renderBuildLog({
   rows,
   columns,
   chrome,
+  agentPaused = false,
 }: {
   build: AgentBuildView | null;
   cursor: LogCursor;
@@ -17,6 +19,8 @@ export function renderBuildLog({
   rows: number;
   columns: number;
   chrome: "tab" | "run";
+  /** True while wait_build has stopped the agent. The notice stays on screen as the log scrolls. */
+  agentPaused?: boolean;
 }): string {
   const width = Math.max(columns, 1);
   const logRows = Math.max(0, rows - 3);
@@ -25,7 +29,11 @@ export function renderBuildLog({
   const hidden = Math.min(above, Math.max(0, lines.length - 1));
   const end = Math.max(0, lines.length - hidden);
   const window = lines.slice(Math.max(0, end - logRows), end);
-  const painted = [headerLine({ build, width }), detailLine({ build, width }), ...pad(window, logRows, width)];
+  const painted = [
+    headerLine({ build, width, agentPaused }),
+    detailLine({ build, width, agentPaused }),
+    ...pad(window, logRows, width),
+  ];
 
   if (rows > 2) {
     painted.push(footerLine({ chrome, following: hidden === 0, width, status: build?.status ?? null }));
@@ -34,18 +42,39 @@ export function renderBuildLog({
   return painted.slice(0, rows).join("\r\n");
 }
 
-function headerLine({ build, width }: { build: AgentBuildView | null; width: number }): string {
+function headerLine({
+  build,
+  width,
+  agentPaused,
+}: {
+  build: AgentBuildView | null;
+  width: number;
+  agentPaused: boolean;
+}): string {
   if (build == null) {
     return paint({ text: fit({ text: "Agent build", width }), kind: "title" });
   }
 
   const status = build.status === "ok" ? "passed" : build.status;
-  const text = `Build ${build.build_number} · ${status} · ${runLabel(build)}`;
+  const paused = agentPaused ? " · agent paused" : "";
+  const text = `Build ${build.build_number} · ${status}${paused} · ${runLabel(build)}`;
 
   return paint({ text: fit({ text, width }), kind: "title" });
 }
 
-function detailLine({ build, width }: { build: AgentBuildView | null; width: number }): string {
+function detailLine({
+  build,
+  width,
+  agentPaused,
+}: {
+  build: AgentBuildView | null;
+  width: number;
+  agentPaused: boolean;
+}): string {
+  if (agentPaused && build != null) {
+    return paint({ text: fit({ text: AGENT_PAUSED_LINE, width }), kind: "title" });
+  }
+
   if (build == null) {
     return paint({ text: fit({ text: "Waiting for an agent to request a remote build.", width }), kind: "dim" });
   }

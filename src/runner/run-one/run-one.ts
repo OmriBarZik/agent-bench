@@ -20,6 +20,7 @@ export async function runOne({
   options,
   signal,
   onPhase = () => {},
+  onAgentPaused = () => {},
 }: {
   db: Database;
   task: Task;
@@ -30,6 +31,8 @@ export async function runOne({
   signal: AbortSignal;
   /** Called as each step starts, so the caller can show it (the terminal title). */
   onPhase?: (phase: RunPhase) => void;
+  /** Called when the agent is stopped for a remote build, and when it runs again. */
+  onAgentPaused?: (paused: boolean) => void;
 }): Promise<RunOneResult> {
   const runId = `${task.taskId}__${config.configId}__r${repeat}__${Date.now().toString(36)}`;
   onPhase("reset");
@@ -63,7 +66,17 @@ export async function runOne({
     let committed: CommittedWork;
 
     try {
-      committed = await runAndCommitAgent({ db, task, config, runId, outDir, started, options, signal });
+      committed = await runAndCommitAgent({
+        db,
+        task,
+        config,
+        runId,
+        outDir,
+        started,
+        options,
+        signal,
+        onAgentPaused,
+      });
     } finally {
       await logWatch?.stop();
     }

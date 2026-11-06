@@ -36,17 +36,18 @@ bun run start:dashboard                       # view results in Grafana at http:
 >
 > Each run also checks out a branch named after its run id at the task SHA, then commits the agent's edits onto that branch when the session ends, including files inside submodules. The Runs tab of `bun run start` (or `bun run start:inspect`, which opens on it) lists those runs from the database. Enter opens a menu of everything you can do to the highlighted run, with submenus for building and removing, so you can do it all with ↑↓ and enter; esc goes back. Left and right arrows do nothing. The shortcuts below do the same things directly. Ctrl-o opens the run's transcript in the browser, and ctrl-e the judge's. Ctrl-b asks where to build: `l` builds chrome in `chromium/src`, and `r` checks the build Mac, builds that branch, and copies the app back. Ctrl-p starts that run's Chromium.app when a build left one on disk (a queued build does not open it). Ctrl-f opens the four judge decisions (`failed`, `partially-failed`, `partially-pass`, `pass`); 1–4 or enter sets the highlighted one. Ctrl-x twice removes the run from the database. Ctrl-g checks the branch out in `chromium/src` without building and exits. Ctrl-r reloads the runs from the database, so new runs show without restarting the TUI. Ignored build output is left in place. `--force` discards uncommitted tracked changes that block the switch.
 
-| Flag                  | Default                        | Description                                               |
-| --------------------- | ------------------------------ | --------------------------------------------------------- |
-| `--tasks <path>`      | `configs/benchmark-tasks.json` | Tasks file                                                |
-| `--configs <path>`    | `configs/benchmark-setup.json` | Configs file                                              |
-| `--repeats <n>`       | `1`                            | Runs per task × config                                    |
-| `--only-task <id>`    | all                            | Run only these tasks (comma-separated or repeated)        |
-| `--only-config <id>`  | all                            | Run only these configs (comma-separated or repeated)      |
-| `--timeout-min <n>`   | `60`                           | Kill a `claude` session after this many minutes           |
-| `--sync`              | off                            | Run `gclient sync -D` after each checkout                 |
-| `--force`             | off                            | Wipe uncommitted changes in `chromium/src` without asking |
-| `-i`, `--interactive` | off                            | Open the picker even when selection flags are passed      |
-| `--cli`               | off                            | Never open the picker                                     |
+| Flag                      | Default                        | Description                                               |
+| ------------------------- | ------------------------------ | --------------------------------------------------------- |
+| `--tasks <path>`          | `configs/benchmark-tasks.json` | Tasks file                                                |
+| `--configs <path>`        | `configs/benchmark-setup.json` | Configs file                                              |
+| `--repeats <n>`           | `1`                            | Runs per task × config                                    |
+| `--only-task <id>`        | all                            | Run only these tasks (comma-separated or repeated)        |
+| `--only-config <id>`      | all                            | Run only these configs (comma-separated or repeated)      |
+| `--timeout-min <n>`       | `60`                           | Minutes of agent work. A remote build does not count      |
+| `--build-timeout-min <n>` | `90`                           | Minutes one remote build may run before the agent resumes |
+| `--sync`                  | off                            | Run `gclient sync -D` after each checkout                 |
+| `--force`                 | off                            | Wipe uncommitted changes in `chromium/src` without asking |
+| `-i`, `--interactive`     | off                            | Open the picker even when selection flags are passed      |
+| `--cli`                   | off                            | Never open the picker                                     |
 
 See [docs/overview.md](docs/overview.md) for how a run works, the data model, and the dashboard.

@@ -3,7 +3,10 @@ import type { ClaudeResult, JudgeMetrics, RunArtifact } from "../../db/db.types"
 /** Options shared by every run in a benchmark. */
 export type RunOptions = {
   claudeVersion: string;
+  /** Agent work time. A remote build pauses this clock. */
   timeoutMs: number;
+  /** How long one remote build may run before it fails and the agent resumes. */
+  buildTimeoutMs: number;
   sync: boolean;
   /** Model for the read-only judge session. The same model scores every config. */
   judgeModel: string;

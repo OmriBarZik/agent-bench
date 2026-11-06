@@ -1,4 +1,5 @@
 import { currentAgentBuild, openDb } from "../../../db/db";
+import { agentIsPaused } from "../../claude/session/agent-pause";
 import type { AgentBuildView } from "../../../db/db.types";
 import type { TuiControls, TuiScreen } from "../../../tui/open-tui.types";
 import { applyLogKey, createLogView, logLineCount, syncLogView } from "../log-view";
@@ -68,6 +69,7 @@ export function createBuildLogScreen({ controls }: { controls: TuiControls }): T
         rows: size.rows,
         columns: size.columns,
         chrome: "tab",
+        agentPaused: agentIsPaused(build?.run_id ?? null),
       });
     },
     onKey: (key) => {
@@ -82,5 +84,7 @@ export function createBuildLogScreen({ controls }: { controls: TuiControls }): T
 }
 
 function fingerprint({ view, build }: { view: LogView; build: AgentBuildView | null }): string {
-  return `${build?.id ?? ""}:${build?.status ?? ""}:${view.cursor.offset}:${view.cursor.pending}:${view.cursor.lines.length}:${view.above}`;
+  const paused = agentIsPaused(build?.run_id ?? null);
+
+  return `${build?.id ?? ""}:${build?.status ?? ""}:${paused}:${view.cursor.offset}:${view.cursor.pending}:${view.cursor.lines.length}:${view.above}`;
 }

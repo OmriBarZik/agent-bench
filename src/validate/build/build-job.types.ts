@@ -34,6 +34,8 @@ export type BuildJob = {
   snapshotSha: string;
   startedAt: number;
   controller: AbortController;
+  /** Set when the build limit aborts the job, so the outcome is a timeout rather than a cancel. */
+  timedOut: boolean;
   /** Resolves when the build finishes, fails, or is cancelled. Never rejects. */
   done: Promise<BuildOutcome>;
   /** Set once `done` has resolved. */
