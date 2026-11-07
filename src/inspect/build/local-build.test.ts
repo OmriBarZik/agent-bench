@@ -24,12 +24,14 @@ test("only a compile failure is offered as a failed run", () => {
   expect(runIdsForCompileFailure({ error: compile, signal: stopped.signal, runId: "dino__haiku__r0" })).toEqual([]);
 });
 
-test("opening Chromium skips the keychain prompt and Cast device scan", () => {
+test("opening Chromium skips the keychain prompt, the Cast device scan, and the first-run dialogs", () => {
   expect(openChromiumCommand("/builds/run/Chromium.app")).toEqual([
     "open",
     "/builds/run/Chromium.app",
     "--args",
     "--use-mock-keychain",
+    "--no-first-run",
+    "--no-default-browser-check",
     "--disable-features=DialMediaRouteProvider",
   ]);
 });

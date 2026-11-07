@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { withQuietSwitches } from "../../chromium-flags";
 import type { ChromeCheck, DevToolsTarget, LaunchedChrome } from "./chrome-check.types";
 
 const START_TIMEOUT_MS = 30_000;
@@ -39,10 +40,8 @@ export async function startChrome({
       "--headless=new",
       "--remote-debugging-port=0",
       `--user-data-dir=${profile}`,
-      "--no-first-run",
-      "--no-default-browser-check",
       "--disable-background-networking",
-      ...switches,
+      ...withQuietSwitches(switches),
       "about:blank",
     ],
     { stdin: "ignore", stdout: "ignore", stderr: "pipe" },

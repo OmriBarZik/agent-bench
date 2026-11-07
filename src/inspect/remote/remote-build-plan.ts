@@ -217,7 +217,7 @@ function safeRelativePath(path: string): string {
 }
 
 function safeNinjaTarget(target: string): string {
-  if (!/^[A-Za-z0-9._+/-:]+$/.test(target) || target.includes("..")) {
+  if (!/^[A-Za-z0-9._+/:-]+$/.test(target) || target.includes("..")) {
     throw new Error(`ninja target is not safe to build: ${target}`);
   }
 

@@ -8,6 +8,8 @@ import { launchChrome } from "./launch";
 const MAX_SCREENSHOTS = 8;
 const MAX_CONSOLE_LINES = 60;
 const LOAD_TIMEOUT_MS = 30_000;
+const STATE_EXPRESSION =
+  "typeof globalThis.benchGameState === 'function' ? globalThis.benchGameState() : 'this page reports no game state'";
 
 /**
  * Opens `url` in a fresh headless Chromium from the build, runs the actions in order, and returns what happened:
@@ -78,6 +80,12 @@ async function runAction({ page, action, parts }: { page: CdpSession; action: Ch
 
   if ("eval" in action) {
     parts.push({ type: "text", text: `eval → ${await evaluate({ page, code: action.eval })}` });
+
+    return;
+  }
+
+  if ("state" in action) {
+    parts.push({ type: "text", text: `state → ${await evaluate({ page, code: STATE_EXPRESSION })}` });
 
     return;
   }

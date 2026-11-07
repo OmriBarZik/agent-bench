@@ -21,8 +21,11 @@ export type EvalAction = { eval: string };
 /** Capture the viewport as a PNG. */
 export type ScreenshotAction = { screenshot: true };
 
+/** Read the game state the page reports through `benchGameState` (the dino harness does). */
+export type StateAction = { state: true };
+
 /** One step of a check, run in order after the page loads. */
-export type ChromeAction = KeyAction | WaitAction | EvalAction | ScreenshotAction;
+export type ChromeAction = KeyAction | WaitAction | EvalAction | StateAction | ScreenshotAction;
 
 /** The run_chrome request. */
 export type ChromeCheck = {

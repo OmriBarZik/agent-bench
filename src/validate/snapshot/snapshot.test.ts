@@ -43,14 +43,16 @@ test("the snapshot holds edits, new files and submodule edits, and leaves HEAD, 
   expect(await Bun.file(join(repo, "top.cc")).text()).toBe("top2\n");
 });
 
-test("snapshotting twice without edits gives the same commit tree", async () => {
+test("snapshotting twice without edits gives the same commit, even a second apart", async () => {
   const repo = await submoduleRepo();
   await Bun.write(join(repo, "top.cc"), "top2\n");
+  await Bun.write(join(repo, "vendor/lib/file.cc"), "changed\n");
 
   const first = await snapshotTree(repo);
+  await Bun.sleep(1_100);
   const second = await snapshotTree(repo);
 
-  expect(await revision({ repo, spec: `${first}^{tree}` })).toBe(await revision({ repo, spec: `${second}^{tree}` }));
+  expect(second).toBe(first);
 });
 
 async function submoduleRepo(): Promise<string> {

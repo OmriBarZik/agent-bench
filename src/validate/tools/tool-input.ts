@@ -42,9 +42,13 @@ function chromeAction(raw: unknown): ChromeAction {
     return { eval: action.eval };
   }
 
+  if (action.state === true) {
+    return { state: true };
+  }
+
   if (action.screenshot === true) {
     return { screenshot: true };
   }
 
-  throw new Error(`unknown action ${JSON.stringify(raw)}; use key, wait_ms, eval, or screenshot`);
+  throw new Error(`unknown action ${JSON.stringify(raw)}; use key, wait_ms, eval, state, or screenshot`);
 }

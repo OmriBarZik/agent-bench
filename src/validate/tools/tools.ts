@@ -6,6 +6,7 @@ import type { BuildJob, BuildOutcome } from "../build/build-job.types";
 import { runChromeCheck } from "../chrome/chrome-check";
 import type { ToolArguments, ToolResult } from "../mcp/protocol.types";
 import { startDinoHarness } from "../mode/dino-harness";
+import { dinoRefusal } from "../mode/dino-policy";
 import { validateBuildPlan } from "../mode/validate-mode";
 import { snapshotTree } from "../snapshot/snapshot";
 import { holdAgent } from "./hold-agent";
@@ -123,8 +124,9 @@ function successHint({ session, outcome }: { session: ToolSession; outcome: Buil
 
   if (mode === "dino") {
     return (
-      `Dino TypeScript is at ${outcome.artifactPath}. Check it with run_chrome using url "dino" ` +
-      `(or chrome://dino): that opens a harness with your rebuilt game, sprites, and sounds.`
+      `Dino TypeScript is at ${outcome.artifactPath}. Check it with run_chrome using url "dino": that opens a ` +
+      `harness that boots your rebuilt game with Chromium's sprites and sounds. Play it with key presses, ` +
+      `wait_ms, screenshots, and {"state":true}; eval is off for dino tasks.`
     );
   }
 
@@ -145,6 +147,12 @@ async function runChrome({ session, args }: { session: ToolSession; args: ToolAr
 
   if (built?.outcome?.appPath == null) {
     return failure("No successful build yet. Call start_build, then wait_build.");
+  }
+
+  const refusal = session.context.mode === "dino" ? dinoRefusal(input) : null;
+
+  if (refusal != null) {
+    return failure(refusal);
   }
 
   const current = await snapshotTree(session.context.chromiumSrc);
@@ -192,10 +200,8 @@ async function prepareChromeRun({
       litMinified: existsSync(litMinified) ? litMinified : null,
       chromiumSrc: session.context.chromiumSrc,
     });
-    const wantsHarness = input.url === "dino" || input.url === "chrome://dino" || input.url === "";
-
     return {
-      url: wantsHarness ? harness.url : input.url,
+      url: harness.url,
       flags: input.flags,
       stop: harness.stop,
     };

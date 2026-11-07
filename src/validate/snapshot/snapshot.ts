@@ -6,6 +6,7 @@ import { dirtySubmodulePaths } from "../../runner/chromium/submodules/submodules
 import type { SubmoduleCommit } from "../../inspect/gitlink/gitlink-diff.types";
 
 const IDENTITY = { GIT_AUTHOR_NAME: "agent-bench", GIT_AUTHOR_EMAIL: "agent-bench@localhost" };
+const SNAPSHOT_DATE = "2000-01-01T00:00:00Z";
 
 /**
  * Commits the whole working tree, untracked files included, without touching HEAD, the index, or any branch.
@@ -76,11 +77,14 @@ async function snapshotRepo({ repo, overrides }: { repo: string; overrides: Subm
       return head;
     }
 
+    // Fixed dates make the same tree on the same HEAD the same commit, so an unchanged tree matches its last build.
     const commitEnv = {
       ...process.env,
       ...IDENTITY,
+      GIT_AUTHOR_DATE: SNAPSHOT_DATE,
       GIT_COMMITTER_NAME: "agent-bench",
       GIT_COMMITTER_EMAIL: "agent-bench@localhost",
+      GIT_COMMITTER_DATE: SNAPSHOT_DATE,
     };
 
     return (

@@ -1,5 +1,6 @@
 import { appendFileSync } from "node:fs";
 import { createInterface } from "node:readline";
+import { QUIET_CHROMIUM_SWITCHES } from "../../chromium-flags";
 import { RELEASE_PROGRESS } from "../list/restore-list";
 import type { RunStep } from "../remote/remote-build.types";
 import type { BuildPresentation } from "./build-session.types";
@@ -47,12 +48,9 @@ export class CompileFailedError extends Error {
   }
 }
 
-/**
- * Opens one Chromium.app. `--args` is how `open` forwards flags to the app:
- * no keychain prompt, and no Cast device scan.
- */
+/** Opens one Chromium.app with the quiet switches. `--args` is how `open` forwards flags to the app. */
 export function openChromiumCommand(app: string): string[] {
-  return ["open", app, "--args", "--use-mock-keychain", "--disable-features=DialMediaRouteProvider"];
+  return ["open", app, "--args", ...QUIET_CHROMIUM_SWITCHES];
 }
 
 /** Runs one local command. Ctrl-C rejects with `build cancelled`. */

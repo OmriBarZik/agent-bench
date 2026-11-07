@@ -32,8 +32,9 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     description:
       "Start Chromium headless with a fresh profile, open a URL, run actions in order, and return eval results, " +
       "console output, page exceptions and screenshots. Uses the newest successful build. For a full chrome " +
-      'task that is the rebuilt Chromium.app. For a dino task, url "dino" (or chrome://dino) opens a harness ' +
-      "that loads your rebuilt game with the real sprites and sounds. For a DevTools task, stock Chromium is " +
+      'task that is the rebuilt Chromium.app. For a dino task, url "dino" opens a harness that boots your ' +
+      "rebuilt game with Chromium's own sprites and sounds; play it with keys, waits, screenshots, and state " +
+      "(eval and other urls are refused for dino tasks). For a DevTools task, stock Chromium is " +
       "launched with --custom-devtools-frontend pointed at the rebuilt front_end. Warns when the working tree " +
       "has changed since that build.",
     inputSchema: {
@@ -55,7 +56,9 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           description:
             'Steps after the page loads, in order: {"key":"Space","hold_ms":50} presses a key (letters, digits, Space, ' +
             'Arrow*, Enter, Escape, Tab, Backspace); {"wait_ms":500}; {"eval":"js"} runs an expression, or ' +
-            'statements that return a value, awaiting promises; {"screenshot":true} (max 8).',
+            'statements that return a value, awaiting promises (not for dino tasks); {"state":true} returns the ' +
+            "dino harness game state (playing, crashed, speed, T-Rex status, position, jumping, ducking); " +
+            '{"screenshot":true} (max 8).',
           items: { type: "object" },
         },
         width: { type: "integer", description: "Viewport width (default 800)" },

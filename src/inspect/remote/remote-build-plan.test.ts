@@ -31,6 +31,15 @@ test("the remote script can build a light ninja target", () => {
   expect(script).not.toMatch(/autoninja --fast_local -C out\/Default chrome$/m);
 });
 
+test("a ninja target with a dash in its path is accepted, and a shell character is not", () => {
+  const devtools = "third_party/devtools-frontend/src:devtools_frontend_resources";
+
+  expect(remoteBuildScript({ argsGn: "", commits: [], ninjaTarget: devtools })).toContain(
+    `autoninja --fast_local -C out/Default ${devtools}`,
+  );
+  expect(() => remoteBuildScript({ argsGn: "", commits: [], ninjaTarget: "chrome;rm" })).toThrow("not safe");
+});
+
 test("copying the build leaves object files on the builder", () => {
   const command = copyBackCommand({
     host: "builder",

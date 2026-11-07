@@ -28,6 +28,9 @@ frontend only. `wait_build` tells you which output is ready and how to open it.
    - `{"key": "Space"}`, `{"key": "ArrowDown", "hold_ms": 400}` press keys like a user would.
    - `{"wait_ms": 300}` pauses.
    - `{"eval": "document.title"}` or `{"eval": "const r = await foo(); return r;"}` runs JavaScript in the page.
+     Not for dino tasks.
+   - `{"state": true}` returns the dino harness game state: playing, crashed, speed, and the T-Rex status,
+     position, jumping, and ducking.
    - `{"screenshot": true}` returns an image (at most 8 per call). Look at it.
    - `flags` adds Chromium switches, such as `["--enable-features=MyFeature"]` for code behind a feature flag.
    - Console messages and page exceptions come back too.
@@ -42,8 +45,11 @@ then you are testing old code, so build again first.
 - **Full chrome** (cross-module / built-in AI work): `start_build` builds `chrome`. `run_chrome` launches that
   Chromium.app. Useful pages include `chrome://dino`.
 - **Dino** (offline game TypeScript only): `start_build` builds the neterror/dino TypeScript. `run_chrome` with
-  url `"dino"` (or `chrome://dino`) opens a harness that loads your rebuilt game with the real sprites and sounds
-  so you can press keys, eval, and screenshot it. Do not expect a full Chromium rebuild.
+  url `"dino"` opens a harness that boots your rebuilt game with Chromium's own sprites and sounds. Check it the
+  way a player sees it: key presses, waits, screenshots, and `{"state": true}`. `eval` and other URLs are refused,
+  so don't load or patch the game yourself; if it does not start, the console and exceptions say why, so fix the
+  source and build again. For the 2x sprites, pass `flags: ["--force-device-scale-factor=2"]`. Do not expect a
+  full Chromium rebuild.
 - **DevTools**: `start_build` builds `devtools_frontend_resources`. `run_chrome` launches a stock Chromium with
   `--custom-devtools-frontend` pointed at that front_end. Open
   `devtools://devtools/bundled/devtools_app.html` (or your new panel URL) and interact with it there.
@@ -53,6 +59,6 @@ then you are testing old code, so build again first.
 - Edits keep going into the working tree while a build runs. That build compiles the snapshot taken at
   `start_build`, and only one build runs at a time.
 - `start_build` on an unchanged tree returns the previous build instead of rebuilding.
-- Prefer an `eval` that returns the exact state you need over many screenshots. A screenshot costs far more tokens
-  than a short JSON value.
+- Prefer an `eval` (or `state` on a dino task) that returns the exact state you need over many screenshots. A
+  screenshot costs far more tokens than a short JSON value.
 - A failed build means your change does not compile. Do not finish with a build that fails.
