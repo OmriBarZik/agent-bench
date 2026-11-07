@@ -21,12 +21,21 @@ test("choiceLabel marks a run the judge did not decide", () => {
   expect(choiceLabel(choice({ decision: null, score: null, success: null }))).toContain("n/a");
 });
 
+test("choiceLabel marks a running run as pending until the judge finishes", () => {
+  expect(choiceLabel(choice({ status: "running", decision: null, score: null, success: null }))).toContain("pending");
+});
+
 test("choiceLabel shows an older decimal when the run has no decision", () => {
   expect(choiceLabel(choice({ decision: null, score: 0.743, success: true }))).toContain("0.743");
 });
 
 test("choiceLabel marks a branch the checkout does not have", () => {
   expect(choiceLabel(choice({ present: false }))).toContain("missing");
+});
+
+test("choiceLabel marks when a Chromium.app is on disk for Open Chromium", () => {
+  expect(choiceLabel(choice({ chromiumAppPath: "/builds/dino__haiku__r0/Chromium.app" }))).toContain("chrome");
+  expect(choiceLabel(choice({ chromiumAppPath: null }))).toMatch(/—\s+dino × haiku/);
 });
 
 test("changedFileLine keeps both paths of a rename", () => {
@@ -61,6 +70,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     transcriptPath: null,
     judgeTranscriptPath: null,
     chromiumAppPath: null,
+    hasAppCopy: false,
     ...overrides,
   };
 }

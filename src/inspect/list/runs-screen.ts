@@ -1,6 +1,6 @@
 import type { TuiControls, TuiScreen } from "../../tui/open-tui.types";
 import type { ChromiumJobController } from "../../start/jobs/chromium-job.types";
-import { attachChromiumApps, openBuiltChromium } from "../build/app/chromium-app";
+import { attachChromiumApps, chromiumBuildDirectory, openBuiltChromium } from "../build/app/chromium-app";
 import { buildSession, remoteBuildSession } from "../build/build-session";
 import type { BuildFinish, BuildTarget, BuildWork } from "../build/build-session.types";
 import { applyDecisionKey, openDecisionDialog } from "../decision/decision-dialog";
@@ -28,9 +28,13 @@ import type { RunChoice, SelectAction, SelectState } from "./select-state.types"
  * Builds and checkout run as background Chromium jobs so other tabs stay usable. A failed compile asks whether to
  * mark that run failed: y marks it, n keeps the decision, and esc dismisses.
  * Ctrl-p opens the highlighted run's Chromium.app when a build left one on disk.
+ * The Enter menu can delete that run's Chromium.app copy (or every per-run copy under the build directory)
+ * as the shared Chromium job (shown like build/checkout; progress on the job line; list stays usable).
+ * out/Default is never removed.
  * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
- * Ctrl-r reloads the runs from the database and the branches from Chromium, so new runs show without a restart.
+ * Ctrl-r reloads the runs from the database and the branches from Chromium. The list also refreshes on its own
+ * while a matrix job is running, and while this tab is on screen, so a `running` row appears once startRun writes it.
  * Ctrl-g checks the highlighted run's branch out without leaving the TUI.
  * Esc closes the build question, the failed-build question, the decision dialog, or a menu page; otherwise it is left to the TUI, which quits.
  */
@@ -60,6 +64,8 @@ export function createRunsScreen({
   let actionMenu: ActionMenu | null = null;
   let choosingBuild = false;
   let refreshing = false;
+  /** Last time the Runs tab was painted; quiet polls only while this is recent or a matrix is running. */
+  let shownAt = 0;
 
   const pageSize = () => frameLayout(controls.size().rows).listHeight;
   const matches = () => matchingChoices({ choices, query: state.query });
@@ -207,14 +213,21 @@ export function createRunsScreen({
     });
   };
 
-  /** Swaps in freshly loaded runs, keeping the filter and the highlighted run. Ignores a second ctrl-r mid-load. */
-  const refresh = () => {
+  /**
+   * Swaps in freshly loaded runs, keeping the filter and the highlighted run. Ignores a second load mid-flight.
+   * `quiet` skips the refreshing/refreshed notices so a poll does not hide the job status line.
+   */
+  const refresh = ({ quiet = false }: { quiet?: boolean } = {}) => {
     if (refreshing) {
       return;
     }
 
     refreshing = true;
-    notice = "refreshing…";
+
+    if (!quiet) {
+      notice = "refreshing…";
+    }
+
     const highlightedRunId = highlighted()?.runId ?? null;
     const before = choices.length;
     void loadChoices()
@@ -223,10 +236,15 @@ export function createRunsScreen({
         choices.splice(0, choices.length, ...fresh);
         state = reselect({ state, choices, highlightedRunId, pageSize: pageSize() });
         armedRunId = null;
-        notice = refreshNotice({ before, after: fresh.length });
+
+        if (!quiet) {
+          notice = refreshNotice({ before, after: fresh.length });
+        }
       })
       .catch((error: unknown) => {
-        notice = error instanceof Error ? error.message : "could not reload the runs";
+        if (!quiet) {
+          notice = error instanceof Error ? error.message : "could not reload the runs";
+        }
       })
       .finally(() => {
         refreshing = false;
@@ -236,6 +254,26 @@ export function createRunsScreen({
         }
       });
   };
+
+  const POLL_MS = 2000;
+  const SHOWN_MS = 4000;
+  const timer = setInterval(() => {
+    if (controls.isClosed()) {
+      clearInterval(timer);
+
+      return;
+    }
+
+    const matrixRunning = jobs.status().kind === "matrix";
+    const tabShown = Date.now() - shownAt <= SHOWN_MS;
+
+    if (!matrixRunning && !tabShown) {
+      return;
+    }
+
+    refresh({ quiet: true });
+  }, POLL_MS);
+  timer.unref();
 
   const focusRun = (runId: string) => {
     const index = matches().findIndex((choice) => choice.runId === runId);
@@ -366,8 +404,51 @@ export function createRunsScreen({
       return;
     }
 
-    removeChoice(first);
+    if (command === "clear-app") {
+      beginClearApps({
+        runIds: chosen.filter((choice) => choice.hasAppCopy).map((choice) => choice.runId),
+        mode: "listed",
+      });
+
+      return;
+    }
+
+    if (command === "clear-all-apps") {
+      beginClearApps({ runIds: [], mode: "all" });
+
+      return;
+    }
+
+    if (command === "remove") {
+      removeChoice(first);
+
+      return;
+    }
   };
+
+  /**
+   * Starts a Chromium.app delete as the shared Chromium job so every tab shows it as running.
+   * `mode: "all"` ignores `runIds` and clears every removable folder under the build directory.
+   */
+  function beginClearApps({ runIds, mode }: { runIds: string[]; mode: "listed" | "all" }) {
+    actionMenu = null;
+    const refused = jobs.startClearApps({
+      buildDirectory: chromiumBuildDirectory(),
+      mode,
+      runIds,
+      onFinish: () => {
+        try {
+          attachChromiumApps({ choices, chromiumSrc });
+        } catch {
+          // Paths may stay stale until the next refresh.
+        }
+      },
+    });
+
+    notice =
+      refused ??
+      (mode === "all" ? "deleting every Chromium.app copy…" : `deleting ${runIds.length} Chromium.app copies…`);
+  }
 
   const onMenuKey = ({ menu, key }: { menu: ActionMenu; key: string }) => {
     const menuChoices = runsInOrder({ choices, runIds: menu.runIds });
@@ -479,8 +560,9 @@ export function createRunsScreen({
 
   return {
     render: ({ rows, columns }) => {
+      shownAt = Date.now();
       const job = jobs.status();
-      const line = job.kind !== "idle" ? job.label : notice || job.label;
+      const line = job.kind !== "idle" ? `${job.kind}: ${job.label}` : notice || job.label;
 
       return renderFrame({
         choices,

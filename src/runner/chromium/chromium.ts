@@ -3,6 +3,7 @@ import type { ChangedFile, RunArtifact } from "../../db/db.types";
 import { CHROMIUM_SRC } from "../../paths";
 import { changedFilesSince } from "./diff/changed-files";
 import { commitStaged } from "./git-commit";
+import { labeledShell } from "./shell-error";
 import { commitDirtySubmodules, discardSubmoduleChanges, syncSubmodulesToHead } from "./submodules/submodules";
 
 /**
@@ -38,19 +39,34 @@ export async function resetChromium({
   repo?: string;
 }) {
   await discardSubmoduleChanges(repo);
-  await $`git reset --hard --quiet`.cwd(repo).quiet();
-  await $`git clean -fdq`.cwd(repo).quiet();
-  await $`git checkout --quiet --force --detach ${sha}`.cwd(repo).quiet();
+  await labeledShell({
+    label: "git reset --hard",
+    run: () => $`git reset --hard --quiet`.cwd(repo).quiet(),
+  });
+  await labeledShell({
+    label: "git clean -fdq",
+    run: () => $`git clean -fdq`.cwd(repo).quiet(),
+  });
+  await labeledShell({
+    label: `git checkout --detach ${sha}`,
+    run: () => $`git checkout --quiet --force --detach ${sha}`.cwd(repo).quiet(),
+  });
   await syncSubmodulesToHead({ repo, force: true });
 
   if (sync) {
-    await $`gclient sync -D --force`.cwd(repo).quiet();
+    await labeledShell({
+      label: "gclient sync -D --force",
+      run: () => $`gclient sync -D --force`.cwd(repo).quiet(),
+    });
   }
 }
 
 /** Points `branch` at the current HEAD (the task SHA) and checks it out. Call after resetChromium. */
 export async function createRunBranch(branch: string) {
-  await $`git switch --quiet -C ${branch}`.cwd(CHROMIUM_SRC).quiet();
+  await labeledShell({
+    label: `git switch -C ${branch}`,
+    run: () => $`git switch --quiet -C ${branch}`.cwd(CHROMIUM_SRC).quiet(),
+  });
 }
 
 /** Short names of local branches in the Chromium checkout. */

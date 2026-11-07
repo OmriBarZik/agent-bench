@@ -18,6 +18,14 @@ export function menuTitle({ screen, choices }: { screen: MenuScreen; choices: Ru
     return `Remove ${run} from the database? The branch and run files stay.`;
   }
 
+  if (screen === "clear-app") {
+    return `Delete Chromium.app ${choices.length > 1 ? "copies" : "copy"} for ${run}? Frees disk; the run row stays.`;
+  }
+
+  if (screen === "clear-all-apps") {
+    return "Delete every per-run Chromium.app copy under the build directory? out/Default is kept.";
+  }
+
   return `Actions for ${run}`;
 }
 
@@ -28,6 +36,14 @@ function itemsForScreen({ screen, choices }: { screen: MenuScreen; choices: RunC
 
   if (screen === "remove") {
     return removeItems(choices);
+  }
+
+  if (screen === "clear-app") {
+    return clearAppItems(choices);
+  }
+
+  if (screen === "clear-all-apps") {
+    return clearAllAppsItems();
   }
 
   return actionItems(choices);
@@ -79,6 +95,13 @@ function actionItems(choices: RunChoice[]): MenuItem[] {
       target: { kind: "command", command: "open-chromium" },
     },
     {
+      label: "Delete Chromium.app copy…",
+      shortcut: "",
+      unavailable: choice.hasAppCopy ? null : "no copy on disk",
+      scope: "one",
+      target: { kind: "screen", screen: "clear-app" },
+    },
+    {
       label: "Queue on the build Mac",
       shortcut: "^B r",
       unavailable: queueUnavailable(choices),
@@ -86,7 +109,21 @@ function actionItems(choices: RunChoice[]): MenuItem[] {
       target: { kind: "command", command: "build-remote" },
     },
     {
-      label: "Check out branch and quit",
+      label: "Delete Chromium.app copies…",
+      shortcut: "",
+      unavailable: choices.some((item) => item.hasAppCopy) ? null : "no copies on disk",
+      scope: "many",
+      target: { kind: "screen", screen: "clear-app" },
+    },
+    {
+      label: "Clear all Chromium.app copies…",
+      shortcut: "",
+      unavailable: null,
+      scope: "any",
+      target: { kind: "screen", screen: "clear-all-apps" },
+    },
+    {
+      label: "Check out branch",
       shortcut: "^G",
       unavailable: missingBranch,
       scope: "one",
@@ -135,6 +172,35 @@ function removeItems(choices: RunChoice[]): MenuItem[] {
       unavailable: null,
       scope: "one",
       target: { kind: "command", command: "remove" },
+    },
+  ];
+}
+
+function clearAppItems(choices: RunChoice[]): MenuItem[] {
+  const count = choices.filter((choice) => choice.hasAppCopy).length;
+  const label = count > 1 ? `Yes, delete ${count} Chromium.app copies` : "Yes, delete the Chromium.app copy";
+
+  return [
+    { label: "No, keep them", shortcut: "", unavailable: null, scope: "any", target: { kind: "back" } },
+    {
+      label,
+      shortcut: "",
+      unavailable: count > 0 ? null : "no copies on disk",
+      scope: "any",
+      target: { kind: "command", command: "clear-app" },
+    },
+  ];
+}
+
+function clearAllAppsItems(): MenuItem[] {
+  return [
+    { label: "No, keep them", shortcut: "", unavailable: null, scope: "any", target: { kind: "back" } },
+    {
+      label: "Yes, delete every per-run Chromium.app copy",
+      shortcut: "",
+      unavailable: null,
+      scope: "any",
+      target: { kind: "command", command: "clear-all-apps" },
     },
   ];
 }

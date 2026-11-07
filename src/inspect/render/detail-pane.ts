@@ -44,10 +44,6 @@ export function detailLines({
   plain.push(choice.commitSha ? choice.commitSha.slice(0, 12) : "no changes committed");
   plain.push(transcriptStatus(choice));
 
-  if (choice.chromiumAppPath) {
-    plain.push("Chromium.app built");
-  }
-
   if (choice.current) {
     plain.push("currently checked out");
   }
@@ -127,8 +123,9 @@ function titleLine(choice: RunChoice): string {
 
 function metaLine(choice: RunChoice): string {
   const model = choice.model === "" ? "default model" : choice.model;
+  const chrome = choice.chromiumAppPath ? "chrome · ^P opens" : "no chrome · ^B builds";
 
-  return `${model} · ${choice.status} · repeat ${choice.repeat} · ${decisionText(choice)}`;
+  return `${model} · ${choice.status} · repeat ${choice.repeat} · ${decisionText(choice)} · ${chrome}`;
 }
 
 function decisionText(choice: RunChoice): string {

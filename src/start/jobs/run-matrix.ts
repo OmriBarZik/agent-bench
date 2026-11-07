@@ -7,6 +7,7 @@ import { uncommittedStatus } from "../../runner/chromium/chromium";
 import { blockerAlert } from "../../runner/judge/result/judge-blockers";
 import { judgementText } from "../../runner/judge/result/judge-result";
 import { runOne } from "../../runner/run-one/run-one";
+import type { RunPhase } from "../../runner/run-one/run-one.types";
 import { BenchmarkShutdown } from "../../runner/shutdown/shutdown";
 import { openRunClock } from "../../terminal/run-clock";
 import { setTerminalTitle } from "../../terminal/terminal-title";
@@ -103,9 +104,25 @@ export async function runMatrix({
 
           const index = ++runIndex;
           const startLine = `[${index}/${total}] ${task.taskId} × ${config.configId} #${repeat}`;
+          const progressText = ({ phase, agentPaused = false }: { phase: RunPhase; agentPaused?: boolean }) => {
+            if (agentPaused) {
+              return `${startLine} · agent paused · waiting on remote build`;
+            }
+
+            if (phase === "reset") {
+              return `${startLine} · reset · checking out Chromium (Runs list stays empty until this finishes)`;
+            }
+
+            if (phase === "agent") {
+              return `${startLine} · agent · Claude is working`;
+            }
+
+            return `${startLine} · judge · scoring the checkout`;
+          };
+
           emit({
             kind: "run-start",
-            text: startLine,
+            text: progressText({ phase: "reset" }),
             index,
             total,
             phase: "reset",
@@ -138,7 +155,7 @@ export async function runMatrix({
               clock?.setPhase(phase);
               emit({
                 kind: "run-start",
-                text: `${startLine} · ${phase}`,
+                text: progressText({ phase }),
                 index,
                 total,
                 phase,
@@ -151,7 +168,7 @@ export async function runMatrix({
               clock?.setPaused(paused);
               emit({
                 kind: "run-start",
-                text: paused ? `${startLine} · waiting on build` : startLine,
+                text: progressText({ phase: "agent", agentPaused: paused }),
                 index,
                 total,
                 phase: "agent",

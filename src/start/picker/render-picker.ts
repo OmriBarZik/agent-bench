@@ -1,28 +1,36 @@
 import { colorLine, fit } from "../../inspect/render/terminal-text";
 import { pickerRows, runCount } from "./picker-state";
 import type { PickerChoices, PickerItem, PickerRow, PickerState } from "./picker-state.types";
-import type { PickerFrame, PickerLine } from "./render-picker.types";
+import type { PickerFrame, PickerLine, PickerStatusPanel } from "./render-picker.types";
 
 const HEADER_HEIGHT = 2;
-const FOOTER_HEIGHT = 4;
-const HINT = "↑↓ move  ←→ or digits change  space toggle  a all/none  r reset  enter starts job  esc quit";
+const BASE_FOOTER_HEIGHT = 4;
+const HINT =
+  "↑↓ move  ←→ or digits change  space toggle  a all/none  r reset  enter starts job  ctrl-l matrix log  esc quit";
 
-/** Draws the whole picker. The body scrolls so the cursor row stays on screen. */
+/**
+ * Draws the whole picker. The body scrolls so the cursor row stays on screen.
+ * `statusPanel` takes footer rows for the live matrix log when a start job is running or just finished.
+ */
 export function renderPicker({
   choices,
   state,
   scroll,
   rows,
   columns,
+  statusPanel = null,
 }: {
   choices: PickerChoices;
   state: PickerState;
   scroll: number;
   rows: number;
   columns: number;
+  statusPanel?: PickerStatusPanel | null;
 }): PickerFrame {
+  const panelHeight = statusPanelHeight(statusPanel);
+  const footerHeight = BASE_FOOTER_HEIGHT + panelHeight;
   const body = bodyLines({ choices, state, columns });
-  const height = Math.max(rows - HEADER_HEIGHT - FOOTER_HEIGHT, 1);
+  const height = Math.max(rows - HEADER_HEIGHT - footerHeight, 1);
   const nextScroll = scrollFor({ body, cursor: state.cursor, scroll, height });
   const lines = [
     colorLine({
@@ -43,10 +51,28 @@ export function renderPicker({
 
   lines.push(colorLine({ text: "", kind: "plain" }));
   lines.push(colorLine({ text: fit({ text: summary(state), width: columns }), kind: "title" }));
+
+  if (statusPanel) {
+    lines.push(colorLine({ text: fit({ text: statusPanel.title, width: columns }), kind: "hint" }));
+
+    for (const line of statusPanel.lines) {
+      lines.push(colorLine({ text: fit({ text: `  ${line}`, width: columns }), kind: "notice" }));
+    }
+  }
+
   lines.push(colorLine({ text: fit({ text: state.notice, width: columns }), kind: "notice" }));
   lines.push(colorLine({ text: fit({ text: HINT, width: columns }), kind: "hint" }));
 
   return { body: lines.join("\r\n"), scroll: nextScroll };
+}
+
+function statusPanelHeight(panel: PickerStatusPanel | null | undefined): number {
+  if (!panel || panel.lines.length === 0) {
+    return 0;
+  }
+
+  // Title + each status line.
+  return 1 + panel.lines.length;
 }
 
 function bodyLines({

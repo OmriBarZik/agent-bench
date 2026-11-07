@@ -12,12 +12,13 @@ import type {
   PickerState,
 } from "./picker-state.types";
 import { renderPicker } from "./render-picker";
+import type { PickerStatusPanel } from "./render-picker.types";
 import { defaultsFromSaved, readSavedPicker, savedFromState, writeSavedPicker } from "./saved/saved-picker";
 
 /**
  * The Start tab: a checklist of tasks and configs plus repeats, the two timeouts, sync, and auto review.
- * Enter starts the matrix as a background job (does not close the TUI). q quits. Esc is left to the TUI.
- * When `savedPath` is set, each key writes the selection there so the next open continues from it.
+ * Enter starts the matrix as a background job (does not close the TUI). Ctrl-l opens the matrix status log.
+ * q quits. Esc is left to the TUI. When `savedPath` is set, each key writes the selection there so the next open continues from it.
  */
 export function createPickerScreen({
   choices,
@@ -118,13 +119,15 @@ export function createPickerScreen({
   return {
     render: ({ rows, columns }) => {
       const job = jobs.status();
-      const jobLine = job.kind === "idle" ? job.label : `${job.kind}: ${job.label}`;
+      // While a job runs, always show its live status; otherwise keep the last picker notice.
+      const notice = job.kind !== "idle" ? `${job.kind}: ${job.label}` : state.notice || job.label;
       const painted = renderPicker({
         choices,
-        state: { ...state, notice: state.notice || jobLine },
+        state: { ...state, notice },
         scroll,
         rows,
         columns,
+        statusPanel: matrixStatusPanel(job),
       });
       scroll = painted.scroll;
 
@@ -146,6 +149,26 @@ export function createPickerScreen({
 
           return;
         }
+
+        return;
+      }
+
+      if (key === "\x0c") {
+        // Ctrl-l: reveal the matrix log path (and open it on macOS when possible).
+        const path = jobs.status().logPath ?? jobs.lastMatrixLogPath();
+
+        if (!path) {
+          state = { ...state, notice: "no matrix log yet — start a job first" };
+
+          return;
+        }
+
+        void openMatrixLogFile(path).then((opened) => {
+          state = {
+            ...state,
+            notice: opened ? `opened matrix log · ${path}` : `matrix log · ${path}`,
+          };
+        });
 
         return;
       }
@@ -175,4 +198,36 @@ export function createPickerScreen({
     onResize: () => {},
     isBusy: () => false,
   };
+}
+
+/** Recent matrix lines for the Start footer, or null when there is nothing to show. */
+function matrixStatusPanel(job: ReturnType<ChromiumJobController["status"]>): PickerStatusPanel | null {
+  const lines = job.recentLines ?? [];
+
+  if (lines.length === 0) {
+    return null;
+  }
+
+  const where = job.logPath ? ` · ${job.logPath}` : "";
+
+  return {
+    title: `Matrix status${where}`,
+    lines,
+  };
+}
+
+/** Opens the matrix log in the default app on macOS; returns false when open is unavailable. */
+async function openMatrixLogFile(path: string): Promise<boolean> {
+  if (process.platform !== "darwin") {
+    return false;
+  }
+
+  try {
+    const subprocess = Bun.spawn(["open", path], { stdin: "ignore", stdout: "ignore", stderr: "ignore" });
+    const exitCode = await subprocess.exited;
+
+    return exitCode === 0;
+  } catch {
+    return false;
+  }
 }

@@ -4,14 +4,24 @@ import type { RunPlan } from "../resolve-start.types";
 import type { MatrixProgress, RunMatrixResult } from "./run-matrix.types";
 
 /** Which Chromium-touching job owns the single slot. */
-export type ChromiumJobKind = "matrix" | "build" | "checkout";
+export type ChromiumJobKind = "matrix" | "build" | "checkout" | "clear-apps";
+
+/** What startClearApps needs to delete per-run Chromium.app folders. */
+export type ClearAppsRequest = {
+  buildDirectory: string;
+  /** `all` deletes every removable folder; `listed` only `runIds`. */
+  mode: "listed" | "all";
+  runIds: string[];
+  /** Called after the clear settles so the Runs tab can refresh app paths. */
+  onFinish?: (notice: string) => void;
+};
 
 /** Live status the Start / Build tabs read. */
 export type ChromiumJobStatus = {
   kind: ChromiumJobKind | "idle";
   /** One-line summary for the UI. */
   label: string;
-  /** Inspect-build log the Build tab should follow, when this job pipes one. */
+  /** Inspect-build or matrix log the UI can open, when this job writes one. */
   logPath: string | null;
   /** True after cancel until the job settles. */
   stopping: boolean;
@@ -19,6 +29,8 @@ export type ChromiumJobStatus = {
   logId: number | null;
   /** Matrix progress fields when kind is matrix. */
   matrix?: MatrixProgress;
+  /** Recent matrix status lines (newest last) for the Start-tab panel. */
+  recentLines?: string[];
 };
 
 /** What startMatrix needs beyond the plan. */
@@ -48,8 +60,12 @@ export type ChromiumJobController = {
   startBuild: (work: BuildWork) => string | null;
   /** Checks a run's branch out, or returns a refuse notice. */
   startCheckout: (choice: RunChoice) => string | null;
+  /** Deletes per-run Chromium.app copies, or returns a refuse notice. */
+  startClearApps: (request: ClearAppsRequest) => string | null;
   /** Aborts the active job. True when there was one. */
   cancel: () => boolean;
   /** Last matrix result, if any. */
   lastMatrix: () => RunMatrixResult | null;
+  /** Path of the newest matrix log, when one has been written this session. */
+  lastMatrixLogPath: () => string | null;
 };

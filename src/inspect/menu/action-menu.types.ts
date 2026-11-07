@@ -1,5 +1,5 @@
 /** Which page of the Enter menu is showing: the actions, or one of their submenus. */
-export type MenuScreen = "actions" | "build" | "remove";
+export type MenuScreen = "actions" | "build" | "remove" | "clear-app" | "clear-all-apps";
 
 /**
  * Which selections show a menu row.
@@ -10,7 +10,16 @@ export type MenuScope = "one" | "many" | "any";
 
 /** What choosing a menu item asks the run list to do for the highlighted run. */
 export type MenuCommand =
-  "transcript" | "judge" | "checkout" | "decide" | "build-local" | "build-remote" | "open-chromium" | "remove";
+  | "transcript"
+  | "judge"
+  | "checkout"
+  | "decide"
+  | "build-local"
+  | "build-remote"
+  | "open-chromium"
+  | "remove"
+  | "clear-app"
+  | "clear-all-apps";
 
 /** One row of a menu page. It either opens a submenu or runs a command. */
 export type MenuItem = {

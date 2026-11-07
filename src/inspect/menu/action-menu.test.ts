@@ -64,12 +64,20 @@ test("open chromium runs when an app is on disk and stays put when the run was n
 
 test("remove asks first, and no goes back to the actions", () => {
   const run = choice();
-  const confirm = stayed(applyMenuKey({ menu: openActionMenu([run.runId]), key: "7", choices: [run] }));
+  const confirm = stayed(applyMenuKey({ menu: openActionMenu([run.runId]), key: "9", choices: [run] }));
   const keep = stayed(applyMenuKey({ menu: confirm, key: "\r", choices: [run] }));
 
   expect(currentPage(confirm)).toEqual({ screen: "remove", selected: 0 });
   expect(currentPage(keep).screen).toBe("actions");
   expect(applyMenuKey({ menu: confirm, key: "2", choices: [run] })).toEqual({ kind: "run", command: "remove" });
+});
+
+test("delete Chromium.app copy asks first when a copy is on disk", () => {
+  const run = choice({ hasAppCopy: true });
+  const confirm = stayed(applyMenuKey({ menu: openActionMenu([run.runId]), key: "6", choices: [run] }));
+
+  expect(currentPage(confirm)).toEqual({ screen: "clear-app", selected: 0 });
+  expect(applyMenuKey({ menu: confirm, key: "2", choices: [run] })).toEqual({ kind: "run", command: "clear-app" });
 });
 
 test("a missing branch greys out build and checkout with the reason", () => {
@@ -85,9 +93,9 @@ test("a missing branch greys out build and checkout with the reason", () => {
   expect(lines[1]).toContain("\x1b[7m");
 });
 
-test("several checked runs narrow the menu to the queue", () => {
-  const first = choice();
-  const second = choice({ runId: "dino__haiku__r1", branch: "dino__haiku__r1" });
+test("several checked runs narrow the menu to queue and clear-apps actions", () => {
+  const first = choice({ hasAppCopy: true });
+  const second = choice({ runId: "dino__haiku__r1", branch: "dino__haiku__r1", hasAppCopy: true });
   const menu = openActionMenu([first.runId, second.runId]);
   const text = actionMenuLines({ menu, choices: [first, second], height: 8, columns: 80 }).join("\n");
   const missing = [
@@ -97,6 +105,8 @@ test("several checked runs narrow the menu to the queue", () => {
 
   expect(text).toContain("Actions for 2 runs");
   expect(text).toContain("1  Queue on the build Mac");
+  expect(text).toContain("Delete Chromium.app copies…");
+  expect(text).toContain("Clear all Chromium.app copies…");
   expect(text).not.toContain("Open run transcript");
   expect(applyMenuKey({ menu, key: "1", choices: [first, second] })).toEqual({ kind: "run", command: "build-remote" });
   expect(applyMenuKey({ menu, key: "\r", choices: missing })).toEqual({ kind: "stay", menu });
@@ -104,10 +114,10 @@ test("several checked runs narrow the menu to the queue", () => {
 
 test("a short pane scrolls to keep the highlight visible", () => {
   const run = choice();
-  const menu: ActionMenu = { runIds: [run.runId], pages: [{ screen: "actions", selected: 6 }] };
+  const menu: ActionMenu = { runIds: [run.runId], pages: [{ screen: "actions", selected: 8 }] };
   const text = actionMenuLines({ menu, choices: [run], height: 4, columns: 80 }).join("\n");
 
-  expect(text).toContain("7  Remove from database…");
+  expect(text).toContain("9  Remove from database…");
   expect(text).not.toContain("1  Open run transcript");
 });
 
@@ -147,6 +157,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     transcriptPath: null,
     judgeTranscriptPath: null,
     chromiumAppPath: null,
+    hasAppCopy: false,
     ...overrides,
   };
 }

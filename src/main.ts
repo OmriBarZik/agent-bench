@@ -50,6 +50,7 @@ const { values: args } = parseArgs({
  *     Ctrl-b then l builds on this Mac, r on the build Mac in configs/builder/remote.yaml. Builds stream on the Build tab.
  *     A failed compile asks whether to mark that run failed. Ctrl-f sets the judge
  *     decision (1–4 or enter). Ctrl-x twice removes the run from the database; the branch and artifact files stay.
+ *     The Enter menu can delete per-run Chromium.app copies under the build directory to free disk (never out/Default).
  *     Ctrl-g checks the branch out in CHROMIUM_SRC without leaving the TUI. Type to filter.
  *   Build: a list of past and present agent builds (plus a live inspect-build log when one is running). Enter opens a log;
  *     esc returns to the list; ←→ steps between builds. Up and down scroll the log; end follows the tail. Tab still switches tabs.

@@ -144,6 +144,7 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     transcriptPath: null,
     judgeTranscriptPath: null,
     chromiumAppPath: null,
+    hasAppCopy: false,
     ...overrides,
   };
 }

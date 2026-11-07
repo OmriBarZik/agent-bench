@@ -45,6 +45,7 @@ function toChoice({
     transcriptPath: artifactFile({ row, fileName: TRANSCRIPT_FILE }),
     judgeTranscriptPath: artifactFile({ row, fileName: JUDGE_TRANSCRIPT_FILE }),
     chromiumAppPath: null,
+    hasAppCopy: false,
   };
 }
 

@@ -5,9 +5,10 @@ import { openDb, passedChromiumApps } from "../../../db/db";
 import type { RunChoice } from "../../list/select-state.types";
 import { openChromiumCommand } from "../build-process";
 import { builderConfig } from "../builder-config";
+import { hasChromiumAppCopy } from "./clear-app";
 import type { ChromiumAppPathInput } from "./chromium-app.types";
 
-/** Writes `chromiumAppPath` on each choice from the newest passed build that still has an app on disk. */
+/** Writes `chromiumAppPath` and `hasAppCopy` on each choice from builds that still exist on disk. */
 export function attachChromiumApps({ choices, chromiumSrc }: { choices: RunChoice[]; chromiumSrc: string }): void {
   const buildDirectory = chromiumBuildDirectory();
   const localAppExists = existsSync(join(chromiumSrc, "out/Default/Chromium.app"));
@@ -17,13 +18,15 @@ export function attachChromiumApps({ choices, chromiumSrc }: { choices: RunChoic
     const passed = passedChromiumApps(db);
 
     for (const choice of choices) {
+      const remoteAppExists = existsSync(join(buildDirectory, choice.runId, "Chromium.app"));
+      choice.hasAppCopy = hasChromiumAppCopy({ buildDirectory, runId: choice.runId });
       choice.chromiumAppPath = chromiumAppPath({
         runId: choice.runId,
         chromiumSrc,
         buildDirectory,
         latestTarget: passed.latestTarget.get(choice.runId) ?? null,
         latestLocalRunId: passed.latestLocalRunId,
-        remoteAppExists: existsSync(join(buildDirectory, choice.runId, "Chromium.app")),
+        remoteAppExists,
         localAppExists,
       });
     }
@@ -97,7 +100,8 @@ export async function openBuiltChromium(app: string): Promise<void> {
   }
 }
 
-function chromiumBuildDirectory(): string {
+/** Where per-run Chromium.app copies live (`buildDirectory` in remote.yaml, or ~/chrome-builds). */
+export function chromiumBuildDirectory(): string {
   try {
     return builderConfig()?.buildDirectory ?? defaultBuildDirectory();
   } catch {

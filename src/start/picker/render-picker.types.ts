@@ -1,5 +1,13 @@
 import type { LineKind } from "../../inspect/render/terminal-text.types";
 
+/** Extra footer lines under the summary (matrix status panel). */
+export type PickerStatusPanel = {
+  /** Short title over the panel. */
+  title: string;
+  /** Recent status lines, newest last. */
+  lines: string[];
+};
+
 /** One line of the picker body. `row` is the `pickerRows` index it shows, or null for headers and gaps. */
 export type PickerLine = {
   text: string;
