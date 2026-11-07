@@ -62,7 +62,8 @@ export async function runOne({
   let recorded = false;
   try {
     onPhase("agent");
-    const logWatch = options.autoReview ? watchAgentBuildLog({ db, runId, signal }) : null;
+    const logWatch =
+      options.autoReview && options.watchBuildLog !== false ? watchAgentBuildLog({ db, runId, signal }) : null;
     let committed: CommittedWork;
 
     try {

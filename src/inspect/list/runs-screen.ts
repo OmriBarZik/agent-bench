@@ -1,5 +1,5 @@
-import process from "node:process";
 import type { TuiControls, TuiScreen } from "../../tui/open-tui.types";
+import type { ChromiumJobController } from "../../start/jobs/chromium-job.types";
 import { attachChromiumApps, openBuiltChromium } from "../build/app/chromium-app";
 import { buildSession, remoteBuildSession } from "../build/build-session";
 import type { BuildFinish, BuildTarget, BuildWork } from "../build/build-session.types";
@@ -15,7 +15,6 @@ import { frameLayout, renderFrame } from "../render/render-frame";
 import { openTranscript } from "../transcript/open-transcript";
 import { loadChoices } from "./load-choices";
 import { refreshNotice, reselect } from "./refresh-list";
-import { presentLogScreen, resumeList } from "./restore-list";
 import { actionRuns, applyKey, buildTarget, clampSelection, matchingChoices, runsInOrder } from "./select-state";
 import type { RunChoice, SelectAction, SelectState } from "./select-state.types";
 
@@ -26,12 +25,13 @@ import type { RunChoice, SelectAction, SelectState } from "./select-state.types"
  * Ctrl-o opens the highlighted run's transcript in the browser and stays here. Ctrl-e opens the judge session the same way.
  * Arrow keys only move the highlight; every action is enter, esc or a ctrl key.
  * Ctrl-b asks where to build: l builds the highlighted run on this Mac, r builds the selection on the build Mac.
- * A failed compile asks whether to mark that run failed: y marks it, n keeps the decision, and esc dismisses.
+ * Builds and checkout run as background Chromium jobs so other tabs stay usable. A failed compile asks whether to
+ * mark that run failed: y marks it, n keeps the decision, and esc dismisses.
  * Ctrl-p opens the highlighted run's Chromium.app when a build left one on disk.
  * Ctrl-f opens the four judge decisions. 1–4 or enter sets the highlighted one.
  * Ctrl-x twice removes the highlighted run from the database. The branch and artifact files stay.
  * Ctrl-r reloads the runs from the database and the branches from Chromium, so new runs show without a restart.
- * Ctrl-g calls `onDone` with the highlighted run so the caller can check its branch out; ctrl-c calls it with null.
+ * Ctrl-g checks the highlighted run's branch out without leaving the TUI.
  * Esc closes the build question, the failed-build question, the decision dialog, or a menu page; otherwise it is left to the TUI, which quits.
  */
 export function createRunsScreen({
@@ -39,13 +39,18 @@ export function createRunsScreen({
   chromiumSrc,
   force,
   controls,
-  onDone,
+  jobs,
+  onQuit,
+  buildFinishSlot,
 }: {
   choices: RunChoice[];
   chromiumSrc: string;
   force: boolean;
   controls: TuiControls;
-  onDone: (choice: RunChoice | null) => void;
+  jobs: ChromiumJobController;
+  onQuit: () => void;
+  /** The host sets `handle` so the job controller can deliver build finishes here. */
+  buildFinishSlot: { handle: (finish: BuildFinish) => void };
 }): TuiScreen {
   let state: SelectState = { query: "", selected: 0, scroll: 0, marked: [] };
   let notice = "";
@@ -54,60 +59,34 @@ export function createRunsScreen({
   let markFailedPrompt: MarkFailedPrompt | null = null;
   let actionMenu: ActionMenu | null = null;
   let choosingBuild = false;
-  let busy = false;
   let refreshing = false;
-  let cancelBuild: (() => void) | null = null;
 
   const pageSize = () => frameLayout(controls.size().rows).listHeight;
   const matches = () => matchingChoices({ choices, query: state.query });
   const highlighted = (): RunChoice | undefined => matches()[state.selected];
   const selectedRuns = () => actionRuns({ choices, highlighted: highlighted(), marked: state.marked });
 
-  /** Gives the terminal to `work` (a browser opener or a build log), then takes it back and repaints. */
-  const handOff = (work: (signal: AbortSignal) => Promise<string | BuildFinish>) => {
-    busy = true;
-    choosingBuild = false;
-    const abort = new AbortController();
-    cancelBuild = () => abort.abort();
-    void presentLogScreen()
-      .then(() => {
-        if (abort.signal.aborted || controls.isClosed()) {
-          return "";
-        }
+  const applyBuildFinish = (finish: BuildFinish) => {
+    notice = finish.notice;
+    markFailedPrompt = openMarkFailedPrompt(finish.failedRunIds);
+    const asking = markFailedPrompt?.runIds[0];
 
-        process.stdin.setRawMode(false);
+    if (asking) {
+      focusRun(asking);
+    }
 
-        return work(abort.signal);
-      })
-      .then((result) => {
-        const finish = typeof result === "string" ? { notice: result, failedRunIds: [] } : result;
-        notice = finish.notice;
-        markFailedPrompt = openMarkFailedPrompt(finish.failedRunIds);
-        const asking = markFailedPrompt?.runIds[0];
+    try {
+      attachChromiumApps({ choices, chromiumSrc });
+    } catch {
+      // The build already finished. A miss here only hides Open Chromium until the next refresh.
+    }
 
-        if (asking) {
-          focusRun(asking);
-        }
-
-        try {
-          attachChromiumApps({ choices, chromiumSrc });
-        } catch (error) {
-          // The build already finished. A miss here only hides Open Chromium until the next refresh.
-          console.error(error instanceof Error ? error.message : "could not find Chromium.app");
-        }
-      })
-      .finally(() => {
-        cancelBuild = null;
-        busy = false;
-
-        if (controls.isClosed()) {
-          return;
-        }
-
-        resumeList();
-        controls.repaint();
-      });
+    if (!controls.isClosed()) {
+      controls.repaint();
+    }
   };
+
+  buildFinishSlot.handle = applyBuildFinish;
 
   const openTranscriptChoice = ({ choice, judge }: { choice: RunChoice | undefined; judge: boolean }) => {
     const transcriptPath = judge ? choice?.judgeTranscriptPath : choice?.transcriptPath;
@@ -119,25 +98,31 @@ export function createRunsScreen({
       return;
     }
 
-    handOff(async () => {
-      process.stdout.write(`Opening ${label}…\n`);
-
-      try {
-        await openTranscript(transcriptPath);
-
-        return `opened the ${label} in the browser`;
-      } catch (error) {
-        return error instanceof Error ? error.message : `could not open the ${label}`;
-      }
-    });
+    notice = `opening ${label}…`;
+    void openTranscript(transcriptPath)
+      .then(() => {
+        notice = `opened the ${label} in the browser`;
+      })
+      .catch((error: unknown) => {
+        notice = error instanceof Error ? error.message : `could not open the ${label}`;
+      })
+      .finally(() => {
+        if (!controls.isClosed()) {
+          controls.repaint();
+        }
+      });
   };
 
   const beginSession = (session: BuildWork | string) => {
     if (typeof session === "string") {
       notice = session;
-    } else {
-      handOff(session);
+
+      return;
     }
+
+    choosingBuild = false;
+    const refused = jobs.startBuild(session);
+    notice = refused ?? "build started · see the Build tab";
   };
 
   const highlightedOnly = (): RunChoice[] => {
@@ -191,18 +176,21 @@ export function createRunsScreen({
         notice = error instanceof Error ? error.message : "could not open Chromium";
       })
       .finally(() => {
-        if (!controls.isClosed() && !busy) {
+        if (!controls.isClosed()) {
           controls.repaint();
         }
       });
   };
 
   const checkoutChoice = (chosen: RunChoice | undefined) => {
-    if (chosen?.present) {
-      onDone(chosen);
-    } else {
+    if (!chosen?.present) {
       notice = chosen ? `branch ${chosen.branch} is not in ${chromiumSrc}` : "";
+
+      return;
     }
+
+    const refused = jobs.startCheckout(chosen);
+    notice = refused ?? `checking out ${chosen.branch}…`;
   };
 
   const removeChoice = (chosen: RunChoice | undefined) => {
@@ -243,7 +231,7 @@ export function createRunsScreen({
       .finally(() => {
         refreshing = false;
 
-        if (!controls.isClosed() && !busy) {
+        if (!controls.isClosed()) {
           controls.repaint();
         }
       });
@@ -403,7 +391,7 @@ export function createRunsScreen({
 
   const onListAction = (action: SelectAction) => {
     if (action === "quit") {
-      onDone(null);
+      onQuit();
 
       return;
     }
@@ -490,21 +478,31 @@ export function createRunsScreen({
   };
 
   return {
-    render: ({ rows, columns }) =>
-      renderFrame({
+    render: ({ rows, columns }) => {
+      const job = jobs.status();
+      const line = job.kind !== "idle" ? job.label : notice || job.label;
+
+      return renderFrame({
         choices,
         state,
         chromiumSrc,
-        notice,
+        notice: line,
         decisionDialog,
         markFailedPrompt,
         actionMenu,
         rows,
         columns,
-      }),
+      });
+    },
     onKey: (key) => {
       if (key === "\x03") {
-        onDone(null);
+        if (jobs.cancel()) {
+          notice = "cancelling…";
+
+          return;
+        }
+
+        onQuit();
 
         return;
       }
@@ -566,17 +564,17 @@ export function createRunsScreen({
       return false;
     },
     onInterrupt: () => {
-      if (cancelBuild) {
-        cancelBuild();
+      if (jobs.cancel()) {
+        notice = "cancelling…";
 
         return true;
       }
 
-      return busy;
+      return false;
     },
     onResize: () => {
       state = clampSelection({ state, matchCount: matches().length, pageSize: pageSize() });
     },
-    isBusy: () => busy,
+    isBusy: () => false,
   };
 }

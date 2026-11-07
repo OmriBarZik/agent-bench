@@ -1,21 +1,10 @@
 #!/usr/bin/env bun
 import { parseArgs } from "node:util";
-import { openDb, upsertConfig, upsertTask } from "./db/db";
-import { checkOutNamedRun, checkOutRun } from "./inspect/checkout/checkout-run";
-import { CHROMIUM_SRC } from "./paths";
-import { toConfigRow } from "./runner/bench-config/bench-config";
-import { claudeVersion } from "./runner/claude/claude";
+import { checkOutNamedRun } from "./inspect/checkout/checkout-run";
 import { DEFAULT_AGENT_TIMEOUT_MIN, DEFAULT_BUILD_TIMEOUT_MIN } from "./runner/claude/session/agent-pause";
-import { confirmDiscardUncommittedChanges } from "./runner/chromium/confirm-discard";
-import { uncommittedStatus } from "./runner/chromium/chromium";
-import { blockerAlert } from "./runner/judge/result/judge-blockers";
-import { judgementText } from "./runner/judge/result/judge-result";
-import { runOne } from "./runner/run-one/run-one";
-import { BenchmarkShutdown, watchForShutdown } from "./runner/shutdown/shutdown";
+import { watchForShutdown } from "./runner/shutdown/shutdown";
+import { runMatrix } from "./start/jobs/run-matrix";
 import { DEFAULT_CONFIGS_PATH, DEFAULT_TASKS_PATH, resolveStart } from "./start/resolve-start";
-import { openRunClock } from "./terminal/run-clock";
-import { setTerminalTitle } from "./terminal/terminal-title";
-import { benchEndTitle } from "./terminal/title-text";
 
 const { values: args } = parseArgs({
   allowNegative: true,
@@ -48,24 +37,24 @@ const { values: args } = parseArgs({
  *                     [--sync] [--auto-review | --no-auto-review] [--force] [--interactive | --runs | --setups | --cli]
  *   bun run start --checkout <branch or run id> [--force]
  *
- * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with four tabs;
- * tab and shift-tab switch between them, and esc quits.
- *   Start: check the tasks and configs to run, set repeats, agent timeout, build timeout, sync, and auto review, then enter starts. It prints
- *     the equivalent --cli command first. Left and right change a number or a checkbox, digits type a number, and r resets
- *     to the defaults. The selection is saved in data/start-picker.json, so the next open continues from it.
+ * On a terminal with none of --only-task, --only-config, or --repeats, it opens a long-lived TUI with four tabs;
+ * tab and shift-tab switch between them, and esc quits. Starting a matrix, a Runs-tab build, or a checkout
+ * keeps the TUI open so you can navigate other tabs. Only one Chromium-touching job runs at a time.
+ *   Start: check the tasks and configs to run, set repeats, agent timeout, build timeout, sync, and auto review, then enter starts
+ *     the matrix as a background job. It shows the equivalent --cli command. Left and right change a number or a checkbox,
+ *     digits type a number, and r resets to the defaults. The selection is saved in data/start-picker.json.
  *     --only-task, --only-config, and --repeats skip that file.
  *   Runs: the runs in the database. Enter opens a menu of every action below, with submenus; esc goes back.
  *     Ctrl-o opens the run transcript in the browser, ctrl-e the judge session.
  *     Ctrl-r reloads the runs from the database. Left and right arrows do nothing.
- *     Ctrl-b then l builds on this Mac, r on the build Mac in configs/builder/remote.yaml. A failed compile
- *     asks whether to mark that run failed. Ctrl-f sets the judge
+ *     Ctrl-b then l builds on this Mac, r on the build Mac in configs/builder/remote.yaml. Builds stream on the Build tab.
+ *     A failed compile asks whether to mark that run failed. Ctrl-f sets the judge
  *     decision (1–4 or enter). Ctrl-x twice removes the run from the database; the branch and artifact files stay.
- *     Ctrl-g checks the branch out in CHROMIUM_SRC and exits. Type to filter.
- *   Build: the log of the remote build the agent requested. It follows the tail while that build runs.
+ *     Ctrl-g checks the branch out in CHROMIUM_SRC without leaving the TUI. Type to filter.
+ *   Build: the log of the active inspect build or the remote build the agent requested. It follows the tail while that build runs.
  *     Up and down scroll. End follows the tail again.
  *   Setups: every config, the checks in its setup.json, and how many runs it has. r reloads.
- * While the agent session runs in a terminal, that same log takes the screen once the agent requests a
- * remote build. Esc hides it until the next build. Ctrl-C still stops the benchmark.
+ * Ctrl-C cancels the active job; when idle, it quits the TUI. A second Ctrl-C force-exits.
  * --interactive opens the TUI with the flags as the Start tab's values, --runs opens it on the Runs tab
  * (`bun run start:inspect`), --setups opens it on the Setups tab (`bun run start:setups`), and --cli (or no terminal)
  * skips it and runs exactly what the flags say.
@@ -100,7 +89,7 @@ const { values: args } = parseArgs({
  * failed tool calls and reports whether a missing, denied, or failing tool stopped the agent; the runner
  * prints a BLOCKED alert for those runs, and they fill the dashboard's Blockers section.
  *
- * Ctrl+C stops the benchmark. The run in progress is stored as cancelled (finished time, duration,
+ * On --cli, Ctrl+C stops the benchmark. The run in progress is stored as cancelled (finished time, duration,
  * and any cost, turns, and tokens already reported) and later runs are not started. Exit code 130.
  * A second Ctrl+C exits immediately.
  */
@@ -111,7 +100,6 @@ async function main() {
     return;
   }
 
-  // The TUI opens before the Ctrl+C watcher, so Ctrl+C during a build in the Runs tab cancels only that build.
   const decision = await resolveStart({
     tasksPath: args.tasks,
     configsPath: args.configs,
@@ -127,168 +115,38 @@ async function main() {
     runs: args.runs,
     setups: args.setups,
     cli: args.cli,
+    judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
   });
 
   if (decision.kind === "quit") {
-    console.log("Nothing started.");
-
     return;
   }
 
-  if (decision.kind === "checkout") {
-    await checkOutRun({ choice: decision.choice, force: args.force });
-
-    return;
-  }
-
-  const plan = decision.plan;
-  let db: ReturnType<typeof openDb> | undefined;
   const shutdown = watchForShutdown({
     onFirst: () => {
       console.error("\nStopping the benchmark. Press Ctrl+C again to force exit.");
     },
     onForce: () => {
       console.error("\nForced exit.");
-      try {
-        db?.close();
-      } catch {
-        // The process is exiting. A close failure must not replace the cancel.
-      }
       process.exit(130);
     },
   });
-  let stopped = false;
-  let total = 0;
-  let finished = 0;
 
   try {
-    const { tasks, configs, repeats } = plan;
+    const result = await runMatrix({
+      plan: decision.plan,
+      force: args.force,
+      judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
+      signal: shutdown.signal,
+      presentation: "console",
+      watchBuildLog: true,
+    });
 
-    if (shutdown.signal.aborted) {
-      stopped = true;
-    } else if (!args.force) {
-      const status = await uncommittedStatus();
-
-      if (status !== "") {
-        const discard = await confirmDiscardUncommittedChanges({ signal: shutdown.signal, status });
-
-        if (shutdown.signal.aborted) {
-          stopped = true;
-        } else if (!discard) {
-          throw new Error(`${CHROMIUM_SRC} has uncommitted changes; commit/stash them or pass --force`);
-        } else {
-          console.log(`Deleting uncommitted changes in ${CHROMIUM_SRC}.`);
-        }
-      }
+    if (result.stopped) {
+      process.exit(130);
     }
-
-    if (!stopped) {
-      const options = {
-        claudeVersion: await claudeVersion(),
-        timeoutMs: plan.timeoutMin * 60_000,
-        buildTimeoutMs: plan.buildTimeoutMin * 60_000,
-        sync: plan.sync,
-        autoReview: plan.autoReview,
-        judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
-      };
-      db = openDb();
-      for (const task of tasks) upsertTask({ db, task });
-      for (const benchConfig of configs) upsertConfig({ db, config: await toConfigRow(benchConfig) });
-
-      total = tasks.length * configs.length * repeats;
-      let runIndex = 0;
-      for (const task of tasks) {
-        for (const config of configs) {
-          for (let repeat = 0; repeat < repeats; repeat++) {
-            if (shutdown.signal.aborted) {
-              stopped = true;
-              break;
-            }
-
-            const index = ++runIndex;
-            console.log(`[${index}/${total}] ${task.taskId} × ${config.configId} #${repeat}`);
-            const clock = openRunClock({
-              index,
-              total,
-              taskId: task.taskId,
-              configId: config.configId,
-              repeat,
-            });
-            const { runId, result, seconds, artifact, judge, cancelled } = await runOne({
-              db,
-              task,
-              config,
-              repeat,
-              options,
-              signal: shutdown.signal,
-              onPhase: (phase) => {
-                clock.setPhase(phase);
-              },
-              onAgentPaused: (paused) => {
-                clock.setPaused(paused);
-              },
-            }).finally(() => {
-              clock.stop();
-            });
-            const cost = result.total_cost_usd != null ? `, $${result.total_cost_usd.toFixed(2)}` : "";
-            const files =
-              artifact.changedFiles.length === 0 ? "no file changes" : `${artifact.changedFiles.length} files`;
-
-            if (cancelled || !judge) {
-              const judgeNote = judge ? ", judge cancelled" : "";
-              console.log(`  ${runId} cancelled in ${seconds}s${cost}, ${files}${judgeNote}`);
-              stopped = true;
-              break;
-            }
-
-            finished++;
-            const judged = judgementText({ judge });
-            console.log(
-              `  ${runId} ${result.is_error ? "crashed" : "done"} in ${seconds}s${cost}, ${files}, ${judged}`,
-            );
-
-            for (const line of blockerAlert({ runId, judge })) {
-              console.warn(line);
-            }
-
-            if (shutdown.signal.aborted) {
-              stopped = true;
-              break;
-            }
-          }
-
-          if (stopped) {
-            break;
-          }
-        }
-
-        if (stopped) {
-          break;
-        }
-      }
-    }
-  } catch (error) {
-    if (!shutdown.signal.aborted) {
-      throw error;
-    }
-
-    if (!(error instanceof BenchmarkShutdown)) {
-      console.error(error instanceof Error ? error.message : error);
-    }
-
-    stopped = true;
   } finally {
-    db?.close();
     shutdown.stop();
-
-    // Left in place after exit, so a finished or stopped benchmark still shows in its tab.
-    if (total > 0) {
-      setTerminalTitle(benchEndTitle({ finished, total, stopped: finished < total }));
-    }
-  }
-
-  if (stopped) {
-    process.exit(130);
   }
 }
 

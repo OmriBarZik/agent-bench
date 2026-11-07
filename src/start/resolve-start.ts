@@ -15,10 +15,8 @@ export const DEFAULT_CONFIGS_PATH = join(BENCH_DIR, "configs/benchmark-setup.jso
 
 /**
  * Decides what `bun run start` does. On a terminal with no --only-task, --only-config, or --repeats
- * (or with --interactive, --runs, or --setups), it opens the TUI: the Start tab runs a matrix and prints the equivalent
- * command, the Runs tab can check a run's branch out, the Build tab streams an agent's remote build log,
- * and the Setups tab shows which config setups are missing.
- * Otherwise the flags decide the matrix.
+ * (or with --interactive, --runs, or --setups), it opens the long-lived TUI: Start / Builds / checkout
+ * run as background jobs and tabs stay usable. Otherwise the flags decide the matrix for `--cli`.
  */
 export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> {
   const onlyTasks = idList(flags.onlyTask);
@@ -65,7 +63,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
   const everything = await loadSelection({ tasksPath: flags.tasksPath, configsPath: flags.configsPath });
   // Check the flagged ids against the files before the TUI opens, so a typo fails early.
   narrowSelection({ selection: everything, taskIds: onlyTasks, configIds: onlyConfigs });
-  const picked = await openStartTui({
+  await openStartTui({
     selection: everything,
     defaults: {
       taskIds: onlyTasks,
@@ -78,35 +76,12 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
     },
     initialTab: openingTab(flags),
     force: flags.force,
+    judgeModel: flags.judgeModel,
     savedPath: selectionFlagged ? undefined : START_PICKER_FILE,
+    equivalentCommand: (picked) => equivalentCommand({ picked, flags }),
   });
 
-  if (!picked) {
-    return { kind: "quit" };
-  }
-
-  if (picked.kind === "checkout") {
-    return { kind: "checkout", choice: picked.choice };
-  }
-
-  console.log(`Equivalent command: ${equivalentCommand({ picked: picked.picked, flags })}`);
-  const selection = narrowSelection({
-    selection: everything,
-    taskIds: picked.picked.taskIds,
-    configIds: picked.picked.configIds,
-  });
-
-  return {
-    kind: "run",
-    plan: {
-      ...selection,
-      repeats: picked.picked.repeats,
-      timeoutMin: picked.picked.timeoutMin,
-      buildTimeoutMin: picked.picked.buildTimeoutMin,
-      sync: picked.picked.sync,
-      autoReview: picked.picked.autoReview,
-    },
-  };
+  return { kind: "quit" };
 }
 
 /** Which tab opens. --setups and --runs each name one; otherwise the Start tab. */

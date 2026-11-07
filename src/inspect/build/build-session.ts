@@ -31,7 +31,7 @@ export function buildSession({
       return `branch ${choice.branch} is not in ${chromiumSrc}`;
     }
 
-    return (signal) => presentLocalBuild({ choice, chromiumSrc, force, signal });
+    return ({ signal, presentation }) => presentLocalBuild({ choice, chromiumSrc, force, signal, presentation });
   }
 
   return remoteBuildSession({ choices: [choice], chromiumSrc });
@@ -73,10 +73,10 @@ export function remoteBuildSession({
       return "";
     }
 
-    return (signal) => presentBuild({ choice, config, chromiumSrc, signal });
+    return ({ signal, presentation }) => presentBuild({ choice, config, chromiumSrc, signal, presentation });
   }
 
-  return (signal) => presentBuildQueue({ choices, config, chromiumSrc, signal });
+  return ({ signal, presentation }) => presentBuildQueue({ choices, config, chromiumSrc, signal, presentation });
 }
 
 function readBuilderConfig(): BuilderConfig | string {

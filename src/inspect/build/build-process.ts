@@ -1,6 +1,43 @@
+import { appendFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 import { RELEASE_PROGRESS } from "../list/restore-list";
 import type { RunStep } from "../remote/remote-build.types";
+import type { BuildPresentation } from "./build-session.types";
+
+/** True unless the caller asked not to pause after the build. */
+export function shouldWaitForReturn(presentation: BuildPresentation | undefined): boolean {
+  return presentation?.waitForReturn !== false;
+}
+
+/** Writes a line to the terminal, or appends it to the presentation log when one is set. */
+export function buildSay({
+  presentation,
+  line,
+  stream = "stdout",
+}: {
+  presentation: BuildPresentation | undefined;
+  line: string;
+  stream?: "stdout" | "stderr";
+}): void {
+  if (presentation?.logPath) {
+    appendFileSync(presentation.logPath, `${line}\n`);
+
+    return;
+  }
+
+  if (stream === "stderr") {
+    console.error(line);
+
+    return;
+  }
+
+  console.log(line);
+}
+
+/** Merges the presentation log path onto every runStep call. */
+export function stepLog(presentation: BuildPresentation | undefined): { logPath?: string } {
+  return presentation?.logPath ? { logPath: presentation.logPath } : {};
+}
 
 /** The compile step failed. Checkout, copy, and missing tools stay plain errors. */
 export class CompileFailedError extends Error {
@@ -19,9 +56,13 @@ export function openChromiumCommand(app: string): string[] {
 }
 
 /** Runs one local command. Ctrl-C rejects with `build cancelled`. */
-export async function runStep({ command, signal, label, stdin, cwd, env }: RunStep): Promise<void> {
+export async function runStep({ command, signal, label, stdin, cwd, env, logPath }: RunStep): Promise<void> {
   if (signal.aborted) {
     throw new Error("build cancelled");
+  }
+
+  if (logPath) {
+    appendFileSync(logPath, `\n$ ${command.join(" ")}\n`);
   }
 
   let subprocess: ReturnType<typeof Bun.spawn>;
@@ -29,8 +70,8 @@ export async function runStep({ command, signal, label, stdin, cwd, env }: RunSt
   try {
     subprocess = Bun.spawn(command, {
       stdin: stdin == null ? "ignore" : "pipe",
-      stdout: "inherit",
-      stderr: "inherit",
+      stdout: logPath ? "pipe" : "inherit",
+      stderr: logPath ? "pipe" : "inherit",
       signal,
       cwd,
       // A password prompt cannot be answered here, so SSH must fail instead of waiting.
@@ -57,6 +98,13 @@ export async function runStep({ command, signal, label, stdin, cwd, env }: RunSt
     await sink.end();
   }
 
+  if (logPath) {
+    await Promise.all([
+      appendStream({ stream: subprocess.stdout ?? null, logPath }),
+      appendStream({ stream: subprocess.stderr ?? null, logPath }),
+    ]);
+  }
+
   const exitCode = await subprocess.exited;
 
   if (signal.aborted) {
@@ -65,6 +113,24 @@ export async function runStep({ command, signal, label, stdin, cwd, env }: RunSt
 
   if (exitCode !== 0) {
     throw stepFailure({ label, exitCode });
+  }
+}
+
+async function appendStream({
+  stream,
+  logPath,
+}: {
+  stream: ReadableStream<Uint8Array> | number | null | undefined;
+  logPath: string;
+}): Promise<void> {
+  if (stream == null || typeof stream === "number") {
+    return;
+  }
+
+  const decoder = new TextDecoder();
+
+  for await (const chunk of stream) {
+    appendFileSync(logPath, decoder.decode(chunk, { stream: true }));
   }
 }
 

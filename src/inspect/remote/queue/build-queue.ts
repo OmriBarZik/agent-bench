@@ -1,7 +1,13 @@
 import { setTerminalTitle } from "../../../terminal/terminal-title";
 import { buildTitle } from "../../../terminal/title-text";
-import { failureNotice, isCompileFailure, waitForReturn } from "../../build/build-process";
-import type { BuildFinish } from "../../build/build-session.types";
+import {
+  buildSay,
+  failureNotice,
+  isCompileFailure,
+  shouldWaitForReturn,
+  waitForReturn,
+} from "../../build/build-process";
+import type { BuildFinish, BuildPresentation } from "../../build/build-session.types";
 import type { BuilderConfig } from "../../build/builder-config.types";
 import { openBuildWatch } from "../../build/record/record-build";
 import type { RunChoice } from "../../list/select-state.types";
@@ -19,19 +25,21 @@ export async function presentBuildQueue({
   config,
   chromiumSrc,
   signal,
+  presentation,
 }: {
   choices: RunChoice[];
   config: BuilderConfig;
   chromiumSrc: string;
   signal: AbortSignal;
+  presentation?: BuildPresentation;
 }): Promise<BuildFinish> {
   const total = choices.length;
-  console.log(`Queue: ${total} runs on ${config.host}`);
-  console.log("Ctrl-C cancels the rest and returns to the list.");
+  buildSay({ presentation, line: `Queue: ${total} runs on ${config.host}` });
+  buildSay({ presentation, line: "Ctrl-C cancels the rest." });
   const outcomes: QueueOutcome[] = [];
 
   try {
-    console.log(`Checking ${config.host}…`);
+    buildSay({ presentation, line: `Checking ${config.host}…` });
     const problem = await validateRemote({ config, signal });
 
     if (problem) {
@@ -39,8 +47,11 @@ export async function presentBuildQueue({
         noteFailure({ choice, host: config.host, signal, notice: problem });
       }
 
-      console.error(`\n${problem}`);
-      await waitForReturn(signal);
+      buildSay({ presentation, line: `\n${problem}`, stream: "stderr" });
+
+      if (shouldWaitForReturn(presentation)) {
+        await waitForReturn(signal);
+      }
 
       return { notice: problem, failedRunIds: [] };
     }
@@ -56,28 +67,31 @@ export async function presentBuildQueue({
         break;
       }
 
-      console.log(`\nQueue ${index + 1}/${total}  ${choice.taskId} × ${choice.configId}`);
-      const outcome = await oneInQueue({ choice, config, chromiumSrc, signal });
+      buildSay({ presentation, line: `\nQueue ${index + 1}/${total}  ${choice.taskId} × ${choice.configId}` });
+      const outcome = await oneInQueue({ choice, config, chromiumSrc, signal, presentation });
       outcomes.push(outcome);
       showOutcome({ choice, config, outcome });
     }
 
     if (signal.aborted) {
-      console.error("\nbuild cancelled");
+      buildSay({ presentation, line: "\nbuild cancelled", stream: "stderr" });
 
       return { notice: "build cancelled", failedRunIds: compileFailedRunIds(outcomes) };
     }
 
     const notice = queueNotice(outcomes);
-    console.log(`\n${notice}`);
-    await waitForReturn(signal);
+    buildSay({ presentation, line: `\n${notice}` });
+
+    if (shouldWaitForReturn(presentation)) {
+      await waitForReturn(signal);
+    }
 
     return { notice, failedRunIds: compileFailedRunIds(outcomes) };
   } catch (error) {
     const notice = failureNotice({ error, signal });
-    console.error(`\n${notice}`);
+    buildSay({ presentation, line: `\n${notice}`, stream: "stderr" });
 
-    if (!signal.aborted) {
+    if (!signal.aborted && shouldWaitForReturn(presentation)) {
       await waitForReturn(signal);
     }
 
@@ -107,32 +121,34 @@ async function oneInQueue({
   config,
   chromiumSrc,
   signal,
+  presentation,
 }: {
   choice: RunChoice;
   config: BuilderConfig;
   chromiumSrc: string;
   signal: AbortSignal;
+  presentation?: BuildPresentation;
 }): Promise<QueueOutcome> {
   const watch = openBuildWatch({ choice, target: "remote", host: config.host });
 
   if (!choice.present) {
     const notice = `branch ${choice.branch} is not in ${chromiumSrc}`;
     watch.failed({ signal, notice });
-    console.error(notice);
+    buildSay({ presentation, line: notice, stream: "stderr" });
 
     return { runId: choice.runId, branch: choice.branch, built: false, notice, compileFailed: false };
   }
 
   try {
-    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal, openApp: false });
+    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal, openApp: false, presentation });
     watch.passed();
-    console.log(built.notice);
+    buildSay({ presentation, line: built.notice });
 
     return { runId: choice.runId, branch: choice.branch, built: true, notice: built.notice, compileFailed: false };
   } catch (error) {
     const notice = failureNotice({ error, signal });
     watch.failed({ signal, notice });
-    console.error(notice);
+    buildSay({ presentation, line: notice, stream: "stderr" });
 
     return {
       runId: choice.runId,

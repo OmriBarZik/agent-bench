@@ -8,10 +8,11 @@ export async function openTranscript(transcriptPath: string): Promise<void> {
   let proc: ReturnType<typeof Bun.spawn>;
 
   try {
+    // Ignore stdio so a host TUI keeps its alt screen while the browser opens.
     proc = Bun.spawn(transcriptCommand(transcriptPath), {
       stdin: "ignore",
-      stdout: "inherit",
-      stderr: "inherit",
+      stdout: "ignore",
+      stderr: "ignore",
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "failed to start uvx";

@@ -1,81 +1,148 @@
+import process from "node:process";
+import type { BuildFinish } from "../inspect/build/build-session.types";
 import { loadChoices } from "../inspect/list/load-choices";
 import { createRunsScreen } from "../inspect/list/runs-screen";
 import { CHROMIUM_SRC } from "../paths";
-import type { Selection } from "../runner/bench-config/bench-config.types";
+import { narrowSelection } from "../runner/bench-config/narrow-selection";
 import { createBuildLogScreen } from "../runner/build-log/screen/build-log-screen";
 import { openTui } from "../tui/open-tui";
-import type { TuiHost, TuiTab } from "../tui/open-tui.types";
-import type { StartTab, StartTuiPick } from "./open-start-tui.types";
+import type { TuiHost, TuiScreen, TuiTab } from "../tui/open-tui.types";
+import { createChromiumJobController } from "./jobs/chromium-job";
+import type { OpenStartTuiOptions, StartTab } from "./open-start-tui.types";
 import { createPickerScreen } from "./picker/picker-screen";
-import type { PickerChoices, PickerDefaults } from "./picker/picker-state.types";
+import type { PickerChoices, PickerStartRequest } from "./picker/picker-state.types";
 import { createSetupsScreen } from "./setups/setups-screen";
 
 const TAB_ORDER: StartTab[] = ["start", "runs", "build", "setups"];
 
 /**
- * Opens the `bun run start` TUI: a Start tab (pick tasks × configs × repeats), a Runs tab
- * (the runs in the database: transcripts, builds, judge decisions, deletes, checkout), a Build tab
- * (the log of the remote build an agent requested), and a Setups tab
- * (whether each config's setup checks pass, and whether that config has been run).
- * Tab and shift-tab switch between them. Resolves with null when the user quits.
+ * Opens the long-lived `bun run start` TUI. Start, builds, and checkout run as one-at-a-time
+ * Chromium jobs while tabs stay navigable. Resolves only when the user quits.
  */
-export async function openStartTui({
-  selection,
-  defaults,
-  initialTab,
-  force,
-  savedPath,
-}: {
-  selection: Selection;
-  defaults: PickerDefaults;
-  initialTab: StartTab;
-  force: boolean;
-  /** Last Start-tab selection. Omitted when flags already name the matrix, so that file is left alone. */
-  savedPath?: string;
-}): Promise<StartTuiPick | null> {
+export async function openStartTui(options: OpenStartTuiOptions): Promise<null> {
   const runChoices = await loadChoices();
-  const pickerChoices = toPickerChoices(selection);
+  const pickerChoices = toPickerChoices(options.selection);
+  let cancelActiveJob = () => {};
 
-  return openTui<StartTuiPick>({
-    initialTab: TAB_ORDER.indexOf(initialTab),
-    tabs: (host: TuiHost<StartTuiPick>): TuiTab[] => [
-      {
-        label: "Start",
-        screen: createPickerScreen({
-          choices: pickerChoices,
-          defaults,
-          savedPath,
-          onDone: (picked) => host.finish(picked ? { kind: "start", picked } : null),
-        }),
-      },
-      {
-        label: "Runs",
-        screen: createRunsScreen({
-          choices: runChoices,
-          chromiumSrc: CHROMIUM_SRC,
-          force,
-          controls: host,
-          onDone: (choice) => host.finish(choice ? { kind: "checkout", choice } : null),
-        }),
-      },
-      {
-        label: "Build",
-        screen: createBuildLogScreen({ controls: host }),
-      },
-      {
-        label: "Setups",
-        screen: createSetupsScreen({
-          configs: selection.configs.map((config) => ({
-            configId: config.configId,
-            description: config.description,
-          })),
-        }),
-      },
-    ],
+  await openTui<null>({
+    initialTab: TAB_ORDER.indexOf(options.initialTab),
+    tabs: (host: TuiHost<null>): TuiTab[] => {
+      const buildFinishSlot: { handle: (finish: BuildFinish) => void } = {
+        handle: () => {},
+      };
+      const jobs = createChromiumJobController({
+        force: options.force,
+        onChange: () => {
+          if (!host.isClosed()) {
+            host.repaint();
+          }
+        },
+        onBuildLog: () => {
+          host.setActiveTab(TAB_ORDER.indexOf("build"));
+        },
+        onBuildFinish: (finish) => {
+          buildFinishSlot.handle(finish);
+        },
+      });
+      cancelActiveJob = () => {
+        jobs.cancel();
+      };
+
+      const withJobInterrupt = (screen: TuiScreen): TuiScreen => ({
+        ...screen,
+        onInterrupt: () => {
+          if (jobs.status().stopping) {
+            process.exit(130);
+          }
+
+          if (jobs.cancel()) {
+            return true;
+          }
+
+          return screen.onInterrupt();
+        },
+      });
+
+      const startMatrix = ({ picked, force: startForce }: PickerStartRequest) => {
+        const selection = narrowSelection({
+          selection: options.selection,
+          taskIds: picked.taskIds,
+          configIds: picked.configIds,
+        });
+        const refused = jobs.startMatrix({
+          plan: {
+            ...selection,
+            repeats: picked.repeats,
+            timeoutMin: picked.timeoutMin,
+            buildTimeoutMin: picked.buildTimeoutMin,
+            sync: picked.sync,
+            autoReview: picked.autoReview,
+          },
+          force: startForce ?? options.force,
+          judgeModel: options.judgeModel,
+        });
+
+        if (refused) {
+          return { ok: false, notice: refused };
+        }
+
+        return { ok: true, notice: `started · ${options.equivalentCommand(picked)}` };
+      };
+
+      return [
+        {
+          label: "Start",
+          screen: withJobInterrupt(
+            createPickerScreen({
+              choices: pickerChoices,
+              defaults: options.defaults,
+              savedPath: options.savedPath,
+              force: options.force,
+              jobs,
+              onQuit: () => host.finish(null),
+              onStart: startMatrix,
+            }),
+          ),
+        },
+        {
+          label: "Runs",
+          screen: withJobInterrupt(
+            createRunsScreen({
+              choices: runChoices,
+              chromiumSrc: CHROMIUM_SRC,
+              force: options.force,
+              controls: host,
+              jobs,
+              onQuit: () => host.finish(null),
+              buildFinishSlot,
+            }),
+          ),
+        },
+        {
+          label: "Build",
+          screen: withJobInterrupt(createBuildLogScreen({ controls: host, jobs })),
+        },
+        {
+          label: "Setups",
+          screen: withJobInterrupt(
+            createSetupsScreen({
+              configs: options.selection.configs.map((config) => ({
+                configId: config.configId,
+                description: config.description,
+              })),
+            }),
+          ),
+        },
+      ];
+    },
   });
+
+  cancelActiveJob();
+
+  return null;
 }
 
-function toPickerChoices(selection: Selection): PickerChoices {
+function toPickerChoices(selection: OpenStartTuiOptions["selection"]): PickerChoices {
   return {
     tasks: selection.tasks.map((task) => ({
       id: task.taskId,

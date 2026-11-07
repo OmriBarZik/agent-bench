@@ -8,14 +8,17 @@ import { buildTitle } from "../../terminal/title-text";
 import type { BuildStep } from "../../terminal/title-text.types";
 import type { RunChoice } from "../list/select-state.types";
 import {
+  buildSay,
   CompileFailedError,
   failureNotice,
   openChromiumCommand,
   runIdsForCompileFailure,
   runStep,
+  shouldWaitForReturn,
+  stepLog,
   waitForReturn,
 } from "./build-process";
-import type { BuildFinish } from "./build-session.types";
+import type { BuildFinish, BuildPresentation } from "./build-session.types";
 import { extendPathForCcache, prepareCcacheScript } from "./ccache";
 import { openBuildWatch } from "./record/record-build";
 
@@ -27,29 +30,34 @@ export async function presentLocalBuild({
   chromiumSrc,
   force,
   signal,
+  presentation,
 }: {
   choice: RunChoice;
   chromiumSrc: string;
   force: boolean;
   signal: AbortSignal;
+  presentation?: BuildPresentation;
 }): Promise<BuildFinish> {
   const watch = openBuildWatch({ choice, target: "local", host: "local" });
 
   try {
-    const built = await buildLocally({ choice, chromiumSrc, force, signal });
+    const built = await buildLocally({ choice, chromiumSrc, force, signal, presentation });
     watch.passed();
     showStep({ choice, step: "built" });
-    console.log(`\n${built}`);
-    await waitForReturn(signal);
+    buildSay({ presentation, line: `\n${built}` });
+
+    if (shouldWaitForReturn(presentation)) {
+      await waitForReturn(signal);
+    }
 
     return { notice: built, failedRunIds: [] };
   } catch (error) {
     const notice = failureNotice({ error, signal });
     watch.failed({ signal, notice });
     showStep({ choice, step: "failed" });
-    console.error(`\n${notice}`);
+    buildSay({ presentation, line: `\n${notice}`, stream: "stderr" });
 
-    if (!signal.aborted) {
+    if (!signal.aborted && shouldWaitForReturn(presentation)) {
       await waitForReturn(signal);
     }
 
@@ -67,14 +75,17 @@ async function buildLocally({
   chromiumSrc,
   force,
   signal,
+  presentation,
 }: {
   choice: RunChoice;
   chromiumSrc: string;
   force: boolean;
   signal: AbortSignal;
+  presentation?: BuildPresentation;
 }): Promise<string> {
-  console.log(`Building ${choice.branch} in ${chromiumSrc}`);
-  console.log("Ctrl-C cancels and returns to the list.");
+  const log = stepLog(presentation);
+  buildSay({ presentation, line: `Building ${choice.branch} in ${chromiumSrc}` });
+  buildSay({ presentation, line: "Ctrl-C cancels the build." });
   showStep({ choice, step: "checkout" });
   await checkOutRun({ choice, chromiumSrc, force });
   const commandPath = extendPathForCcache(process.env.PATH ?? "");
@@ -90,14 +101,16 @@ async function buildLocally({
     label: "ccache",
     cwd: chromiumSrc,
     env: { PATH: commandPath },
+    ...log,
   });
-  await ensureBuildArgs({ chromiumSrc, signal, commandPath });
+  await ensureBuildArgs({ chromiumSrc, signal, commandPath, presentation });
   await runStep({
     command: localBuildCommand(),
     signal,
     label: "build",
     cwd: chromiumSrc,
     env: { PATH: commandPath },
+    ...log,
   });
   const app = join(chromiumSrc, "out/Default/Chromium.app");
 
@@ -105,7 +118,7 @@ async function buildLocally({
     throw new CompileFailedError(`the build finished, but ${app} is missing`);
   }
 
-  await runStep({ command: openChromiumCommand(app), signal, label: "open" });
+  await runStep({ command: openChromiumCommand(app), signal, label: "open", ...log });
 
   return `built ${choice.branch} at ${app}`;
 }
@@ -128,10 +141,12 @@ async function ensureBuildArgs({
   chromiumSrc,
   signal,
   commandPath,
+  presentation,
 }: {
   chromiumSrc: string;
   signal: AbortSignal;
   commandPath: string;
+  presentation?: BuildPresentation;
 }) {
   const argsGn = await Bun.file(BUILDER_ARGS).text();
 
@@ -161,6 +176,7 @@ async function ensureBuildArgs({
       label: "gn gen",
       cwd: chromiumSrc,
       env: { PATH: commandPath },
+      ...stepLog(presentation),
     });
   } catch (error) {
     if (current === "") {

@@ -1,7 +1,8 @@
 import { currentAgentBuild, openDb } from "../../../db/db";
-import { agentIsPaused } from "../../claude/session/agent-pause";
 import type { AgentBuildView } from "../../../db/db.types";
+import type { ChromiumJobController } from "../../../start/jobs/chromium-job.types";
 import type { TuiControls, TuiScreen } from "../../../tui/open-tui.types";
+import { agentIsPaused } from "../../claude/session/agent-pause";
 import { applyLogKey, createLogView, logLineCount, syncLogView } from "../log-view";
 import type { LogView } from "../log-view.types";
 import { renderBuildLog } from "../render-build-log";
@@ -11,19 +12,33 @@ const POLL_MS = 200;
 const SHOWN_MS = 1000;
 
 /**
- * The Build tab. It follows the newest agent build, a running one ahead of a finished one,
- * and streams that build's log. Esc is left to the TUI, which quits.
+ * The Build tab. Prefers an inspect build's log while that job owns the Chromium slot;
+ * otherwise follows the newest agent build. Esc is left to the TUI, which quits.
  */
-export function createBuildLogScreen({ controls }: { controls: TuiControls }): TuiScreen {
+export function createBuildLogScreen({
+  controls,
+  jobs,
+}: {
+  controls: TuiControls;
+  jobs?: ChromiumJobController;
+}): TuiScreen {
   let view = createLogView();
   let build: AgentBuildView | null = null;
   let shownAt = 0;
   let database: ReturnType<typeof openDb> | null = null;
 
   const refresh = () => {
-    database ??= openDb();
-    build = currentAgentBuild(database);
+    const inspect = inspectBuildView(jobs);
+    const agent = readAgentBuild();
+    // An inspect log wins while that job runs, and after it finishes until an agent build is active.
+    build = inspect != null && (jobs?.status().kind === "build" || agent?.status !== "building") ? inspect : agent;
     view = syncLogView({ view, build });
+  };
+
+  const readAgentBuild = (): AgentBuildView | null => {
+    database ??= openDb();
+
+    return currentAgentBuild(database);
   };
 
   try {
@@ -80,6 +95,33 @@ export function createBuildLogScreen({ controls }: { controls: TuiControls }): T
     onInterrupt: () => false,
     onResize: () => {},
     isBusy: () => false,
+  };
+}
+
+function inspectBuildView(jobs: ChromiumJobController | undefined): AgentBuildView | null {
+  if (!jobs) {
+    return null;
+  }
+
+  const status = jobs.status();
+
+  if (status.logPath == null || status.logId == null) {
+    return null;
+  }
+
+  if (status.kind !== "build" && status.kind !== "idle") {
+    return null;
+  }
+
+  return {
+    id: -status.logId,
+    run_id: null,
+    build_number: status.logId,
+    status: status.kind === "build" ? (status.stopping ? "cancelled" : "building") : "ok",
+    log_path: status.logPath,
+    task_id: null,
+    config_id: null,
+    repeat: null,
   };
 }
 

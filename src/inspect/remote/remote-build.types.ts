@@ -10,6 +10,8 @@ export type RunStep = {
   cwd?: string;
   /** Environment variables merged over the inspect process's environment. */
   env?: Record<string, string>;
+  /** When set, append stdout and stderr here instead of inheriting the terminal. */
+  logPath?: string;
 };
 
 /** What the run list shows after a remote build finishes or is cancelled. */

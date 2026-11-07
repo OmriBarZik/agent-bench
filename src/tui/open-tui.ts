@@ -88,9 +88,23 @@ function runTui<Result>({
       resolve(result);
     };
 
-    const host: TuiHost<Result> = { repaint: () => paint(), size, isClosed: () => settled, finish };
-    const tabList = tabs(host);
+    let tabList: TuiTab[] = [];
     const current = () => tabList[active].screen;
+    const host: TuiHost<Result> = {
+      repaint: () => paint(),
+      size,
+      isClosed: () => settled,
+      finish,
+      setActiveTab: (index: number) => {
+        if (settled || index < 0 || index >= tabList.length || current().isBusy()) {
+          return;
+        }
+
+        active = index;
+        paint();
+      },
+    };
+    tabList = tabs(host);
 
     const paint = () => {
       if (settled) {

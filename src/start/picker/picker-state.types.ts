@@ -71,3 +71,16 @@ export type PickerResult = {
   sync: boolean;
   autoReview: boolean;
 };
+
+/** Whether Enter on the Start tab began a matrix job. */
+export type PickerStartOutcome = {
+  ok: boolean;
+  notice: string;
+};
+
+/** What the Start tab passes when Enter starts a matrix. */
+export type PickerStartRequest = {
+  picked: PickerResult;
+  /** Wipe uncommitted Chromium changes for this start. */
+  force?: boolean;
+};

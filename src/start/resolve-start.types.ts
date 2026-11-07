@@ -1,5 +1,4 @@
 import type { Task } from "../db/db.types";
-import type { RunChoice } from "../inspect/list/select-state.types";
 import type { BenchConfig } from "../runner/bench-config/bench-config.types";
 
 /** The `bun run start` flags that decide what happens. Number flags stay strings until they are checked. */
@@ -28,6 +27,8 @@ export type RunPlanFlags = {
   setups: boolean;
   /** --cli: never open the TUI. */
   cli: boolean;
+  /** Model for the read-only judge session. */
+  judgeModel: string;
 };
 
 /** The tasks × configs × repeats to run, and the per-run settings. */
@@ -43,22 +44,16 @@ export type RunPlan = {
   autoReview: boolean;
 };
 
-/** Run the benchmark with this plan. */
+/** Run the benchmark with this plan (CLI / non-TTY path). */
 export type RunDecision = {
   kind: "run";
   plan: RunPlan;
 };
 
-/** Check this run's branch out instead of running anything. */
-export type CheckoutDecision = {
-  kind: "checkout";
-  choice: RunChoice;
-};
-
-/** The TUI was closed without choosing anything. */
+/** The TUI was closed, or the interactive session ended. */
 export type QuitDecision = {
   kind: "quit";
 };
 
-/** What `bun run start` does next. */
-export type StartDecision = RunDecision | CheckoutDecision | QuitDecision;
+/** What `bun run start` does next. Checkout and matrices from the TUI run inside it. */
+export type StartDecision = RunDecision | QuitDecision;

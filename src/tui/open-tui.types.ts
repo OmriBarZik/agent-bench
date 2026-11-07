@@ -12,6 +12,8 @@ export type TuiControls = {
   size: () => TuiSize;
   /** True once the TUI has resolved, so late async work must not touch the terminal. */
   isClosed: () => boolean;
+  /** Switch to this tab index (used when a build log starts). */
+  setActiveTab: (index: number) => void;
 };
 
 /** The controls plus `finish`, which closes the TUI with a result (null means the user quit). */

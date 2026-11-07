@@ -7,14 +7,17 @@ import { setTerminalTitle } from "../../terminal/terminal-title";
 import { buildTitle } from "../../terminal/title-text";
 import type { BuildStep } from "../../terminal/title-text.types";
 import {
+  buildSay,
   CompileFailedError,
   failureNotice,
   openChromiumCommand,
   runIdsForCompileFailure,
   runStep,
+  shouldWaitForReturn,
+  stepLog,
   waitForReturn,
 } from "../build/build-process";
-import type { BuildFinish } from "../build/build-session.types";
+import type { BuildFinish, BuildPresentation } from "../build/build-session.types";
 import type { BuilderConfig } from "../build/builder-config.types";
 import { openBuildWatch } from "../build/record/record-build";
 import { gitlinkCommitsBetween } from "../gitlink/gitlink-commits";
@@ -44,42 +47,50 @@ export async function presentBuild({
   config,
   chromiumSrc,
   signal,
+  presentation,
 }: {
   choice: RunChoice;
   config: BuilderConfig;
   chromiumSrc: string;
   signal: AbortSignal;
+  presentation?: BuildPresentation;
 }): Promise<BuildFinish> {
   const watch = openBuildWatch({ choice, target: "remote", host: config.host });
 
   try {
     showStep({ choice, config, step: "check" });
-    console.log(`Checking ${config.host}…`);
+    buildSay({ presentation, line: `Checking ${config.host}…` });
     const problem = await validateRemote({ config, signal });
 
     if (problem) {
       watch.failed({ signal, notice: problem });
       showStep({ choice, config, step: "failed" });
-      console.error(`\n${problem}`);
-      await waitForReturn(signal);
+      buildSay({ presentation, line: `\n${problem}`, stream: "stderr" });
+
+      if (shouldWaitForReturn(presentation)) {
+        await waitForReturn(signal);
+      }
 
       return { notice: problem, failedRunIds: [] };
     }
 
-    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal, openApp: true });
+    const built = await buildRemoteRun({ choice, config, chromiumSrc, signal, openApp: true, presentation });
     watch.passed();
     showStep({ choice, config, step: "built" });
-    console.log(`\n${built.notice}`);
-    await waitForReturn(signal);
+    buildSay({ presentation, line: `\n${built.notice}` });
+
+    if (shouldWaitForReturn(presentation)) {
+      await waitForReturn(signal);
+    }
 
     return { notice: built.notice, failedRunIds: [] };
   } catch (error) {
     const notice = failureNotice({ error, signal });
     watch.failed({ signal, notice });
     showStep({ choice, config, step: "failed" });
-    console.error(`\n${notice}`);
+    buildSay({ presentation, line: `\n${notice}`, stream: "stderr" });
 
-    if (!signal.aborted) {
+    if (!signal.aborted && shouldWaitForReturn(presentation)) {
       await waitForReturn(signal);
     }
 
@@ -97,6 +108,7 @@ export async function buildRemoteRun({
   chromiumSrc,
   signal,
   openApp,
+  presentation,
 }: {
   choice: RunChoice;
   config: BuilderConfig;
@@ -104,12 +116,14 @@ export async function buildRemoteRun({
   signal: AbortSignal;
   /** When true, launch the copied app. A queue leaves this false. */
   openApp: boolean;
+  presentation?: BuildPresentation;
 }): Promise<BuildResult> {
   const destination = join(config.buildDirectory, choice.runId);
-  console.log(`Building ${choice.branch} on ${config.host}`);
-  console.log(destination);
-  console.log("Ctrl-C cancels and returns to the list.");
-  const commits = await commitsToSend({ choice, chromiumSrc, signal });
+  const log = stepLog(presentation);
+  buildSay({ presentation, line: `Building ${choice.branch} on ${config.host}` });
+  buildSay({ presentation, line: destination });
+  buildSay({ presentation, line: "Ctrl-C cancels the build." });
+  const commits = await commitsToSend({ choice, chromiumSrc, signal, presentation });
   const argsGn = await Bun.file(BUILDER_ARGS).text();
 
   if (argsGn.trim() === "") {
@@ -119,8 +133,13 @@ export async function buildRemoteRun({
   const script = remoteBuildScript({ argsGn, commits });
   const refspec = branchRefspec(choice.branch);
   showStep({ choice, config, step: "send" });
-  console.log("Sending the branch…");
-  await runStep({ command: detachCommand({ host: config.host, source: config.source }), signal, label: "detach" });
+  buildSay({ presentation, line: "Sending the branch…" });
+  await runStep({
+    command: detachCommand({ host: config.host, source: config.source }),
+    signal,
+    label: "detach",
+    ...log,
+  });
 
   for (const commit of commits) {
     await runStep({
@@ -132,6 +151,7 @@ export async function buildRemoteRun({
       }),
       signal,
       label: `send ${commit.path}`,
+      ...log,
     });
   }
 
@@ -144,9 +164,10 @@ export async function buildRemoteRun({
     }),
     signal,
     label: "send branch",
+    ...log,
   });
   showStep({ choice, config, step: "build" });
-  console.log("Building chrome…");
+  buildSay({ presentation, line: "Building chrome…" });
   await withRemoteBuildLock({
     directory: config.buildDirectory,
     signal,
@@ -161,9 +182,10 @@ export async function buildRemoteRun({
         signal,
         label: "build",
         stdin: script,
+        ...log,
       });
       showStep({ choice, config, step: "copy" });
-      console.log("Copying the app back…");
+      buildSay({ presentation, line: "Copying the app back…" });
       await publishCopiedTree({
         destination,
         copy: (staging) =>
@@ -171,6 +193,7 @@ export async function buildRemoteRun({
             command: copyBackCommand({ host: config.host, source: config.source, destination: staging }),
             signal,
             label: "copy",
+            ...log,
           }),
       });
     },
@@ -182,7 +205,7 @@ export async function buildRemoteRun({
   }
 
   if (openApp) {
-    await runStep({ command: openChromiumCommand(app), signal, label: "open" });
+    await runStep({ command: openChromiumCommand(app), signal, label: "open", ...log });
   }
 
   return { notice: `built ${choice.branch} at ${destination}` };
@@ -198,15 +221,17 @@ async function commitsToSend({
   choice,
   chromiumSrc,
   signal,
+  presentation,
 }: {
   choice: RunChoice;
   chromiumSrc: string;
   signal: AbortSignal;
+  presentation?: BuildPresentation;
 }): Promise<SubmoduleCommit[]> {
   const taskSha = chromiumSha(choice.taskId);
 
   if (taskSha == null) {
-    console.log("This run has no Chromium revision recorded. Sending the branch only.");
+    buildSay({ presentation, line: "This run has no Chromium revision recorded. Sending the branch only." });
 
     return [];
   }
