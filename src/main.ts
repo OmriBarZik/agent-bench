@@ -51,8 +51,8 @@ const { values: args } = parseArgs({
  *     A failed compile asks whether to mark that run failed. Ctrl-f sets the judge
  *     decision (1–4 or enter). Ctrl-x twice removes the run from the database; the branch and artifact files stay.
  *     Ctrl-g checks the branch out in CHROMIUM_SRC without leaving the TUI. Type to filter.
- *   Build: the log of the active inspect build or the remote build the agent requested. It follows the tail while that build runs.
- *     Up and down scroll. End follows the tail again.
+ *   Build: a list of past and present agent builds (plus a live inspect-build log when one is running). Enter opens a log;
+ *     esc returns to the list; ←→ steps between builds. Up and down scroll the log; end follows the tail. Tab still switches tabs.
  *   Setups: every config, the checks in its setup.json, and how many runs it has. r reloads.
  * Ctrl-C cancels the active job; when idle, it quits the TUI. A second Ctrl-C force-exits.
  * --interactive opens the TUI with the flags as the Start tab's values, --runs opens it on the Runs tab

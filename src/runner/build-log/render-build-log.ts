@@ -99,7 +99,7 @@ function footerLine({
 }): string {
   const place = following ? "following" : "scrolled up";
   const stream = status === "building" && following ? "streaming" : place;
-  const keys = chrome === "run" ? "esc hides · ctrl-c stops the run" : "esc quits";
+  const keys = chrome === "run" ? "esc hides · ctrl-c stops the run" : "←→ builds · esc list · tab switches";
   const text = `↑↓ scrolls · end follows · ${stream} · ${keys}`;
 
   return paint({ text: fit({ text, width }), kind: "hint" });

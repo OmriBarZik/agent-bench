@@ -624,7 +624,7 @@ export function listBuilds({ db, runId }: { db: Database; runId: string }): Buil
 }
 
 const AGENT_BUILD_VIEW = `SELECT builds.id, builds.run_id, builds.build_number, builds.status, builds.log_path,
-       runs.task_id, runs.config_id, runs.repeat
+       builds.started_at, runs.task_id, runs.config_id, runs.repeat
 FROM builds
 LEFT JOIN runs ON runs.run_id = builds.run_id`;
 
@@ -633,6 +633,13 @@ export function currentAgentBuild(db: Database): AgentBuildView | null {
   return db
     .query(`${AGENT_BUILD_VIEW} ORDER BY (builds.status = 'building') DESC, builds.id DESC LIMIT 1`)
     .get() as AgentBuildView | null;
+}
+
+/** Recent agent builds for the Build tab list: building ones first, then newest id. */
+export function listAgentBuilds({ db, limit = 100 }: { db: Database; limit?: number }): AgentBuildView[] {
+  return db
+    .query(`${AGENT_BUILD_VIEW} ORDER BY (builds.status = 'building') DESC, builds.id DESC LIMIT $limit`)
+    .all({ limit }) as AgentBuildView[];
 }
 
 /** The newest build this run requested, including one that has already finished. */

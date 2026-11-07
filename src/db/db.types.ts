@@ -291,6 +291,8 @@ export type AgentBuildView = {
   build_number: number;
   status: BuildStatus;
   log_path: string | null;
+  /** When the build row was inserted. */
+  started_at: string | null;
   task_id: string | null;
   config_id: string | null;
   repeat: number | null;

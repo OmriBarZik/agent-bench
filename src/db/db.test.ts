@@ -12,6 +12,7 @@ import {
   finishChromiumBuild,
   finishRun,
   latestRunBuild,
+  listAgentBuilds,
   listBuilds,
   listRunBranches,
   listToolTrouble,
@@ -865,6 +866,11 @@ test("builds rows record every build, close open ones as abandoned, and roll up 
 
     expect(currentAgentBuild(db)).toMatchObject({ build_number: 3, status: "building", task_id: "dino" });
     expect(latestRunBuild({ db, runId })).toMatchObject({ build_number: 3, log_path: "/logs/build-3.log" });
+    expect(listAgentBuilds({ db }).map((build) => [build.build_number, build.status])).toEqual([
+      [3, "building"],
+      [2, "ok"],
+      [1, "failed"],
+    ]);
 
     abandonOpenBuilds({ db, runId });
 

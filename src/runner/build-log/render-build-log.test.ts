@@ -10,6 +10,7 @@ const building: AgentBuildView = {
   build_number: 2,
   status: "building",
   log_path: "/logs/build-2.log",
+  started_at: "2026-11-07T12:00:00.000Z",
   task_id: "dino",
   config_id: "haiku",
   repeat: 0,
@@ -38,7 +39,8 @@ test("the frame shows the build, the tail, and the waiting state", () => {
   expect(frame).toContain("copy");
   expect(frame).toContain("ctrl-c stops the run");
   expect(waiting).toContain("Waiting for an agent to request a remote build.");
-  expect(waiting).toContain("esc quits");
+  expect(waiting).toContain("esc list");
+  expect(waiting).toContain("tab switches");
 
   const paused = renderBuildLog({
     build: building,
