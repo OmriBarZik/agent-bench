@@ -42,7 +42,7 @@
     "model": "claude-sonnet-5-5",
     "toolPromptFile": "configs/setup/sift/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)"],
+    "allowedTools": ["Bash(grep *)", "Bash(sift *)"],
     "permissionMode": "acceptEdits"
   },
   {
