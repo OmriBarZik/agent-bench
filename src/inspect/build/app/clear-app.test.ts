@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from "bun:test";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { clearAllChromiumAppCopies, clearChromiumAppCopies, hasChromiumAppCopy } from "./clear-app";
@@ -65,6 +65,27 @@ test("clear all removes every run folder and keeps Default and Reports", async (
   expect(hasChromiumAppCopy({ buildDirectory: root, runId: "Default" })).toBe(false);
   expect(existsSync(join(root, "Default"))).toBe(true);
   expect(existsSync(join(root, "Reports"))).toBe(true);
+});
+
+test("freed bytes count each hard link once, not once per name", async () => {
+  const root = tempDir();
+  const runA = join(root, "run-a");
+  const runB = join(root, "run-b");
+  mkdirSync(runA, { recursive: true });
+  mkdirSync(runB, { recursive: true });
+  const payload = "x".repeat(64 * 1024);
+  writeFileSync(join(runA, "blob"), payload);
+  linkSync(join(runA, "blob"), join(runA, "blob-link"));
+  linkSync(join(runA, "blob"), join(runB, "blob"));
+
+  const result = await clearChromiumAppCopies({
+    buildDirectory: root,
+    runIds: ["run-a", "run-b"],
+  });
+
+  // One inode of ~64 KiB, not 3× that from the three directory entries.
+  expect(result.freedBytes).toBeGreaterThan(0);
+  expect(result.freedBytes).toBeLessThan(200 * 1024);
 });
 
 test("progress pane names the current path and lists pending copies", () => {

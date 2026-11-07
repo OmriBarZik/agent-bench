@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readdirSync, statSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { ClearAppProgress, ClearAppResult, ClearChromiumAppCopiesOptions } from "./clear-app.types";
@@ -43,6 +43,8 @@ export async function clearChromiumAppCopies({
   let freedBytes = 0;
   const pending = [...runIds];
   const total = runIds.length;
+  // Chromium.app trees share hard links; count each inode once across the whole clear.
+  const seenInodes = new Set<string>();
 
   for (let index = 0; index < runIds.length; index++) {
     if (signal?.aborted) {
@@ -83,7 +85,7 @@ export async function clearChromiumAppCopies({
       freedBytes,
     });
 
-    const bytes = folderBytes(folder);
+    const bytes = folderDiskBytes({ path: folder, seenInodes });
     await rm(folder, { recursive: true, force: true });
     freedBytes += bytes;
     removed.push(folder);
@@ -201,22 +203,48 @@ function isRemovableRunFolder({ buildDirectory, folderName }: { buildDirectory: 
   }
 }
 
-function folderBytes(path: string): number {
+/**
+ * Disk blocks under `path`, counting each inode only once.
+ * A naive sum of `stat.size` multiplies Chromium Framework hard links into hundreds of GB.
+ * Symlinks are not followed, so a link into out/Default is not billed as that whole tree.
+ */
+function folderDiskBytes({ path, seenInodes }: { path: string; seenInodes: Set<string> }): number {
   try {
-    const info = statSync(path);
+    const info = lstatSync(path);
+
+    if (info.isSymbolicLink()) {
+      return blockBytes(info.blocks);
+    }
+
+    if (info.isFile() || info.isSocket() || info.isFIFO() || info.isCharacterDevice() || info.isBlockDevice()) {
+      const key = `${info.dev}:${info.ino}`;
+
+      if (seenInodes.has(key)) {
+        return 0;
+      }
+
+      seenInodes.add(key);
+
+      return blockBytes(info.blocks);
+    }
 
     if (!info.isDirectory()) {
-      return info.size;
+      return 0;
     }
 
     let total = 0;
 
     for (const name of readdirSync(path)) {
-      total += folderBytes(join(path, name));
+      total += folderDiskBytes({ path: join(path, name), seenInodes });
     }
 
     return total;
   } catch {
     return 0;
   }
+}
+
+/** `stat.blocks` is 512-byte units on macOS and Linux. */
+function blockBytes(blocks: number): number {
+  return Math.max(blocks, 0) * 512;
 }
