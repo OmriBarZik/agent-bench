@@ -15,14 +15,24 @@ git checkout --quiet --force --detach "$sha"
 git clean -fdq'`;
 
 /**
- * Shell that checks out a revision on the builder and builds chrome. Args are source, revision, depot_tools.
+ * Shell that checks out a revision on the builder and builds a ninja target. Args are source, revision, depot_tools.
  * The revision is a branch name or a commit sha. A build already running in out/Default finishes first.
  */
-export function remoteBuildScript({ argsGn, commits }: { argsGn: string; commits: SubmoduleCommit[] }): string {
+export function remoteBuildScript({
+  argsGn,
+  commits,
+  ninjaTarget = "chrome",
+}: {
+  argsGn: string;
+  commits: SubmoduleCommit[];
+  /** Ninja target. Defaults to `chrome` for Runs-tab builds. */
+  ninjaTarget?: string;
+}): string {
   if (argsGn.includes("END_ARGS")) {
     throw new Error("configs/builder/args.gn cannot contain END_ARGS");
   }
 
+  const target = safeNinjaTarget(ninjaTarget);
   const checkouts = commits.map((commit) => checkoutLine(commit)).join("\n");
 
   return `set -eu
@@ -68,7 +78,7 @@ if [ ! -f out/Default/args.gn ] || ! cmp -s out/Default/args.gn "$desired_args";
 fi
 rm -f "$desired_args" "$previous_args"
 # SSH has no tty, so siso turns fast local off. Pass it back on, as the build log says.
-autoninja --fast_local -C out/Default chrome
+autoninja --fast_local -C out/Default ${target}
 `;
 }
 
@@ -123,7 +133,7 @@ export function buildCommand({
 }
 
 /**
- * Copies the runnable build back. `obj/` and `gen/` stay on the builder; a component build
+ * Copies the runnable chrome build back. `obj/` and `gen/` stay on the builder; a component build
  * still needs `Chromium.app` and the libraries beside it.
  */
 export function copyBackCommand({
@@ -158,6 +168,37 @@ export function copyBackCommand({
   ];
 }
 
+/**
+ * Shell that copies selected paths under the builder's `out/Default/` into `destination`,
+ * preserving their relative layout. Used for light validate modes that only need gen/ output.
+ */
+export function copyPathsScript({
+  host,
+  source,
+  destination,
+  relativePaths,
+}: {
+  host: string;
+  source: string;
+  destination: string;
+  relativePaths: string[];
+}): string {
+  const lines = relativePaths.map((path) => {
+    const safe = safeRelativePath(path);
+
+    return `mkdir -p ${shellSingleQuote(`${destination}/${safe}`)}
+rsync -a --delete -e ${shellSingleQuote(RSYNC_SSH)} ${shellSingleQuote(`${host}:${source}/out/Default/${safe}/`)} ${shellSingleQuote(`${destination}/${safe}/`)}`;
+  });
+
+  return `set -eu
+${lines.join("\n")}
+`;
+}
+
+function shellSingleQuote(value: string): string {
+  return `'${value.replaceAll("'", `'"'"'`)}'`;
+}
+
 function checkoutLine(commit: SubmoduleCommit): string {
   const path = safeRelativePath(commit.path);
   const sha = safeSha(commit.sha);
@@ -169,10 +210,18 @@ function safeRelativePath(path: string): string {
   const parts = path.split("/");
 
   if (parts.some((part) => part === "" || part === "." || part === "..") || !/^[A-Za-z0-9._+/-]+$/.test(path)) {
-    throw new Error(`submodule path is not safe to check out: ${path}`);
+    throw new Error(`path is not safe to use remotely: ${path}`);
   }
 
   return path;
+}
+
+function safeNinjaTarget(target: string): string {
+  if (!/^[A-Za-z0-9._+/-:]+$/.test(target) || target.includes("..")) {
+    throw new Error(`ninja target is not safe to build: ${target}`);
+  }
+
+  return target;
 }
 
 function safeSha(sha: string): string {

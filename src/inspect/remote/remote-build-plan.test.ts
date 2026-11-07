@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { branchRefspec, copyBackCommand, remoteBuildScript } from "./remote-build-plan";
+import { branchRefspec, copyBackCommand, copyPathsScript, remoteBuildScript } from "./remote-build-plan";
 
 test("the remote script builds chrome and checks out sent submodule commits", () => {
   const sha = "a".repeat(40);
@@ -20,6 +20,17 @@ test("the remote script builds chrome and checks out sent submodule commits", ()
   expect(script).not.toContain("$HOME/depot_tools");
 });
 
+test("the remote script can build a light ninja target", () => {
+  const script = remoteBuildScript({
+    argsGn: "is_debug = false\n",
+    commits: [],
+    ninjaTarget: "components/neterror/resources:build_ts",
+  });
+
+  expect(script).toContain("autoninja --fast_local -C out/Default components/neterror/resources:build_ts");
+  expect(script).not.toMatch(/autoninja --fast_local -C out\/Default chrome$/m);
+});
+
 test("copying the build leaves object files on the builder", () => {
   const command = copyBackCommand({
     host: "builder",
@@ -31,6 +42,19 @@ test("copying the build leaves object files on the builder", () => {
   expect(command).toContain("obj");
   expect(command).toContain("builder:/chromium/src/out/Default/");
   expect(command.at(-1)).toBe("/tmp/chrome-builds/run/");
+});
+
+test("light modes copy only the listed gen paths", () => {
+  const script = copyPathsScript({
+    host: "builder",
+    source: "/chromium/src",
+    destination: "/tmp/chrome-builds/run",
+    relativePaths: ["gen/components/neterror/resources/tsc"],
+  });
+
+  expect(script).toContain("mkdir -p '/tmp/chrome-builds/run/gen/components/neterror/resources/tsc'");
+  expect(script).toContain("builder:/chromium/src/out/Default/gen/components/neterror/resources/tsc/");
+  expect(script).toContain("'/tmp/chrome-builds/run/gen/components/neterror/resources/tsc/'");
 });
 
 test("the run branch refspec updates only that branch on the builder", () => {

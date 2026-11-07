@@ -92,7 +92,16 @@ function appendSessionTools({
   ];
 
   if (autoReview) {
-    args.push("--mcp-config", validateMcpConfig({ runId, taskSha: task.chromiumSha, buildTimeoutMs }), ...mcpConfigs);
+    args.push(
+      "--mcp-config",
+      validateMcpConfig({
+        runId,
+        taskSha: task.chromiumSha,
+        validateMode: task.validate ?? "chrome",
+        buildTimeoutMs,
+      }),
+      ...mcpConfigs,
+    );
   } else if (mcpConfigs.length > 0) {
     args.push("--mcp-config", ...mcpConfigs);
   }
@@ -124,10 +133,13 @@ function appendSessionTools({
 export function validateMcpConfig({
   runId,
   taskSha,
+  validateMode,
   buildTimeoutMs,
 }: {
   runId: string;
   taskSha: string;
+  /** Per-task build/check style from benchmark-tasks.json. */
+  validateMode: string;
   buildTimeoutMs: number;
 }): string {
   return JSON.stringify({
@@ -138,6 +150,7 @@ export function validateMcpConfig({
         env: {
           BENCH_RUN_ID: runId,
           BENCH_TASK_SHA: taskSha,
+          BENCH_VALIDATE_MODE: validateMode,
           BENCH_BUILD_TIMEOUT_MS: String(buildTimeoutMs),
           CHROMIUM_SRC,
         },

@@ -20,10 +20,16 @@ export async function loadSelection({
   return narrowSelection({ selection: { tasks, configs }, taskIds: onlyTasks, configIds: onlyConfigs });
 }
 
+const VALIDATE_MODES = new Set(["chrome", "dino", "devtools"]);
+
 /** Turns a benchmark-tasks.json entry into a Task by reading its prompt files, which are relative to the tasks file. */
 async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: string }): Promise<Task> {
   if (!entry.promptFile || !entry.judgePromptFile) {
     throw new Error(`${entry.taskId} needs promptFile and judgePromptFile`);
+  }
+
+  if (entry.validate != null && !VALIDATE_MODES.has(entry.validate)) {
+    throw new Error(`${entry.taskId} validate must be chrome, dino, or devtools; got ${entry.validate}`);
   }
 
   const prompt = await readTrimmed({
@@ -44,6 +50,7 @@ async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: strin
     prompt,
     judgePrompt,
     chromiumSha: entry.chromiumSha,
+    validate: entry.validate,
     scoring: entry.scoring,
   };
 }

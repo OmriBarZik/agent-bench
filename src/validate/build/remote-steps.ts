@@ -4,8 +4,15 @@ import type { BuilderConfig } from "../../inspect/build/builder-config.types";
 import { gitlinkCommitsBetween } from "../../inspect/gitlink/gitlink-commits";
 import type { SubmoduleCommit } from "../../inspect/gitlink/gitlink-diff.types";
 import { publishCopiedTree } from "../../inspect/remote/guard/publish-app";
-import { buildCommand, copyBackCommand, pushCommand, remoteBuildScript } from "../../inspect/remote/remote-build-plan";
+import {
+  buildCommand,
+  copyBackCommand,
+  copyPathsScript,
+  pushCommand,
+  remoteBuildScript,
+} from "../../inspect/remote/remote-build-plan";
 import { BENCH_DIR } from "../../paths";
+import type { ValidateBuildPlan } from "../mode/validate-mode.types";
 import { runCaptured } from "./captured-step";
 import { errorExcerpt } from "./error-excerpt";
 
@@ -70,17 +77,19 @@ export async function sendSnapshot({
   return commits;
 }
 
-/** Checks the snapshot out on the builder and builds chrome there. */
+/** Checks the snapshot out on the builder and builds the plan's ninja target there. */
 export async function buildOnBuilder({
   builder,
   snapshotSha,
   commits,
+  plan,
   logPath,
   signal,
 }: {
   builder: BuilderConfig;
   snapshotSha: string;
   commits: SubmoduleCommit[];
+  plan: ValidateBuildPlan;
   logPath: string;
   signal: AbortSignal;
 }) {
@@ -93,36 +102,57 @@ export async function buildOnBuilder({
       revision: hexSha(snapshotSha),
       depotTools: builder.depotTools,
     }),
-    stdin: remoteBuildScript({ argsGn, commits }),
+    stdin: remoteBuildScript({ argsGn, commits, ninjaTarget: plan.ninjaTarget }),
     logPath,
     signal,
   });
 }
 
 /**
- * Copies the runnable build into a staging directory, then swaps it into `destination`.
- * A failed copy leaves the previous Chromium.app in place.
+ * Copies the build output into a staging directory, then swaps it into `destination`.
+ * A full chrome plan copies the runnable app; light plans copy only the listed gen/ paths.
+ * A failed copy leaves the previous destination in place.
  */
 export async function copyBack({
   builder,
   destination,
+  plan,
   logPath,
   signal,
 }: {
   builder: BuilderConfig;
   destination: string;
+  plan: ValidateBuildPlan;
   logPath: string;
   signal: AbortSignal;
 }) {
   await publishCopiedTree({
     destination,
-    copy: (staging) =>
-      step({
+    copy: async (staging) => {
+      if (plan.copyPaths == null) {
+        await step({
+          step: "copy",
+          command: copyBackCommand({ host: builder.host, source: builder.source, destination: staging }),
+          logPath,
+          signal,
+        });
+
+        return;
+      }
+
+      await step({
         step: "copy",
-        command: copyBackCommand({ host: builder.host, source: builder.source, destination: staging }),
+        command: ["bash", "-s"],
+        stdin: copyPathsScript({
+          host: builder.host,
+          source: builder.source,
+          destination: staging,
+          relativePaths: plan.copyPaths,
+        }),
         logPath,
         signal,
-      }),
+      });
+    },
   });
 }
 

@@ -60,6 +60,26 @@ test("auto review attaches chrome-validate", () => {
   expect(args.join(" ")).toContain("chrome-validate");
 });
 
+test("auto review passes the task validate mode to chrome-validate", () => {
+  const args = claudeArgs({
+    task: {
+      taskId: "dino-hat",
+      prompt: "do it",
+      judgePrompt: "score",
+      chromiumSha: "abc",
+      validate: "dino",
+    },
+    config: { configId: "baseline" },
+    sessionId: "session",
+    runId: "run",
+    autoReview: true,
+  });
+  const mcpIndex = args.indexOf("--mcp-config");
+  const mcpConfig = JSON.parse(args[mcpIndex + 1]!);
+
+  expect(mcpConfig.mcpServers["chrome-validate"].env.BENCH_VALIDATE_MODE).toBe("dino");
+});
+
 test("turning auto review off drops chrome-validate and its instructions", () => {
   const args = claudeArgs({
     task: {

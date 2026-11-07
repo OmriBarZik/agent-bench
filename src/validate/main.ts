@@ -8,17 +8,19 @@ import { CHROMIUM_SRC, RUNS_DIR } from "../paths";
 import { cancelBuildJobs } from "./build/build-job";
 import type { BuildState, ValidateContext } from "./build/build-job.types";
 import { serveStdio } from "./mcp/protocol";
+import { readValidateMode } from "./mode/validate-mode";
 import { TOOL_DEFINITIONS } from "./tools/tool-definitions";
 import { callTool } from "./tools/tools";
 
 /**
  * The chrome-validate MCP server (stdio). The runner starts it when auto review is on:
  *
- *   bun src/validate/main.ts      with BENCH_RUN_ID and BENCH_TASK_SHA in the environment
+ *   bun src/validate/main.ts      with BENCH_RUN_ID, BENCH_TASK_SHA, and BENCH_VALIDATE_MODE
  *
- * Tools: start_build snapshots the working tree and builds chrome on the build Mac from
- * configs/builder/remote.yaml; wait_build blocks until that build ends and copies Chromium.app back;
- * run_chrome starts the newest good build headless and drives a page. Every build is a `builds` row.
+ * Tools: start_build snapshots the working tree and builds the task's target on the build Mac from
+ * configs/builder/remote.yaml; wait_build blocks until that build ends and copies the output back;
+ * run_chrome starts Chromium headless and drives a page (a dino harness, DevTools with
+ * --custom-devtools-frontend, or the rebuilt Chromium.app). Every build is a `builds` row.
  * Builds still running when stdin closes are cancelled.
  */
 async function main() {
@@ -27,6 +29,7 @@ async function main() {
     runId,
     taskSha: process.env.BENCH_TASK_SHA ?? (await $`git rev-parse HEAD`.cwd(CHROMIUM_SRC).text()).trim(),
     chromiumSrc: CHROMIUM_SRC,
+    mode: readValidateMode(),
     builder: loadBuilder(),
     logDir: runId == null ? join(tmpdir(), "chrome-validate") : join(RUNS_DIR, runId, "builds"),
   };

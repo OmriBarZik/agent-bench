@@ -39,6 +39,49 @@ test("loadSelection reads the task prompt and the judge prompt", async () => {
   }
 });
 
+test("loadSelection reads a task validate mode", async () => {
+  const directory = mkdtempSync(join(tmpdir(), "agent-bench-tasks-"));
+  try {
+    const taskDir = join(directory, "tasks", "t1");
+    mkdirSync(taskDir, { recursive: true });
+    await Bun.write(join(taskDir, "prompt.md"), "do the thing");
+    await Bun.write(join(taskDir, "judge.md"), "score the thing");
+    await Bun.write(
+      join(directory, "tasks.json"),
+      JSON.stringify([
+        {
+          taskId: "t1",
+          promptFile: "tasks/t1/prompt.md",
+          judgePromptFile: "tasks/t1/judge.md",
+          chromiumSha: "abc",
+          validate: "dino",
+        },
+      ]),
+    );
+    await Bun.write(join(directory, "configs.json"), JSON.stringify([{ configId: "baseline" }]));
+    const selection = await loadSelection({
+      tasksPath: join(directory, "tasks.json"),
+      configsPath: join(directory, "configs.json"),
+    });
+
+    expect(selection.tasks[0]?.validate).toBe("dino");
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("the shipped tasks declare validate modes", async () => {
+  const selection = await loadSelection({
+    tasksPath: join(BENCH_DIR, "configs/benchmark-tasks.json"),
+    configsPath: join(BENCH_DIR, "configs/benchmark-setup.json"),
+  });
+  const modeByTask = new Map(selection.tasks.map((task) => [task.taskId, task.validate]));
+
+  expect(modeByTask.get("dino-hat")).toBe("dino");
+  expect(modeByTask.get("dino-devtools")).toBe("devtools");
+  expect(modeByTask.get("dino-ai-player")).toBe("chrome");
+});
+
 test("loadSelection rejects a task with no judge prompt", async () => {
   const directory = mkdtempSync(join(tmpdir(), "agent-bench-tasks-"));
   try {

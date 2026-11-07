@@ -1,5 +1,6 @@
 import type { BuildStatus, BuildStep } from "../../db/db.types";
 import type { BuilderConfig } from "../../inspect/build/builder-config.types";
+import type { ValidateMode } from "../mode/validate-mode.types";
 
 /** What the chrome-validate server knows about the session it serves. */
 export type ValidateContext = {
@@ -8,6 +9,8 @@ export type ValidateContext = {
   /** The task's Chromium revision. Submodule commits newer than it are sent to the builder. */
   taskSha: string;
   chromiumSrc: string;
+  /** How this task builds and checks its change. */
+  mode: ValidateMode;
   /** The build Mac from configs/builder/remote.yaml, or null when it is not set up. */
   builder: BuilderConfig | null;
   /** Where build logs go on this Mac. */
@@ -17,8 +20,15 @@ export type ValidateContext = {
 /** How a finished build ended, as the agent is told. */
 export type BuildOutcome = {
   status: Exclude<BuildStatus, "building">;
-  /** Chromium.app copied back to this Mac, when the build succeeded. */
+  /** Chromium.app to launch with run_chrome, when the build succeeded. */
   appPath: string | null;
+  /**
+   * Light-mode output under the copy destination (dino tsc tree, or DevTools front_end).
+   * Null for a full chrome build.
+   */
+  artifactPath: string | null;
+  /** Folder that received the copy for this build. Null when the build failed before copying. */
+  outputDir: string | null;
   durationMs: number;
   failedStep: BuildStep | null;
   /** Compiler errors, or the tail of the log, when it failed. */

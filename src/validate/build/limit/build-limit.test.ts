@@ -54,6 +54,8 @@ function fakeJob(): BuildJob {
     done: Promise.resolve({
       status: "failed",
       appPath: null,
+      artifactPath: null,
+      outputDir: null,
       durationMs: 0,
       failedStep: null,
       error: null,

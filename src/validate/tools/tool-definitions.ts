@@ -6,7 +6,9 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: "start_build",
     description:
       "Snapshot the current Chromium working tree (including new files and submodule edits) and start building " +
-      "the `chrome` target from it on the build Mac. Returns at once with a build number. Then call wait_build. " +
+      "this task's validate target on the build Mac. The target depends on the task: full `chrome`, the offline " +
+      "dino TypeScript (`components/neterror/resources:build_ts`), or the DevTools frontend " +
+      "(`devtools_frontend_resources`). Returns at once with a build number. Then call wait_build. " +
       "Only one build runs at a time. If the tree is unchanged since the last successful build, nothing is rebuilt.",
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
@@ -15,7 +17,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     description:
       "Pause until a build finishes, then report it. You are stopped while it waits: that time is not part of " +
       "your session, and you are resumed when the build finishes. The build has its own time limit. On success, " +
-      "the result says which build and snapshot the local Chromium is. On failure, you get only the compiler errors.",
+      "the result says which build and snapshot are ready, and how to check them with run_chrome. On failure, " +
+      "you get only the compiler errors.",
     inputSchema: {
       type: "object",
       properties: {
@@ -27,15 +30,20 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: "run_chrome",
     description:
-      "Start the newest successfully built Chromium headless with a fresh profile, open a URL, run actions in " +
-      "order, and return eval results, console output, page exceptions and screenshots. Says which build it ran " +
-      "and warns when the working tree has changed since that build.",
+      "Start Chromium headless with a fresh profile, open a URL, run actions in order, and return eval results, " +
+      "console output, page exceptions and screenshots. Uses the newest successful build. For a full chrome " +
+      'task that is the rebuilt Chromium.app. For a dino task, url "dino" (or chrome://dino) opens a harness ' +
+      "that loads your rebuilt game with the real sprites and sounds. For a DevTools task, stock Chromium is " +
+      "launched with --custom-devtools-frontend pointed at the rebuilt front_end. Warns when the working tree " +
+      "has changed since that build.",
     inputSchema: {
       type: "object",
       properties: {
         url: {
           type: "string",
-          description: "Page to open, e.g. chrome://dino or devtools://devtools/bundled/devtools_app.html",
+          description:
+            'Page to open, e.g. chrome://dino, "dino" (dino harness), or ' +
+            "devtools://devtools/bundled/devtools_app.html",
         },
         flags: {
           type: "array",

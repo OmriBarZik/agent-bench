@@ -111,12 +111,13 @@ To inspect a run, use the Runs tab of `bun run start` (`bun run start:inspect` o
     "chromiumSha": "abc123",
     "title": "…",
     "difficulty": "simple",
+    "validate": "chrome",
     "scoring": {}
   }
 ]
 ```
 
-`promptFile` and `judgePromptFile` are relative to the tasks file. Each task is a folder under `configs/tasks/<taskId>/` with `prompt.md` and `judge.md`. Leading and trailing whitespace is trimmed. Each prompt's version is the first 8 hex characters of the sha256 of its trimmed text, so editing a prompt gives it a new version with nothing to bump by hand. Every run stores the `prompt_version` and `judge_prompt_version` it was given. The first time a hash is seen it is stored in `prompt_versions` with `added_at`, and that timestamp stays put. Hashes already on runs when the table appeared use the earliest run that used them. Prompt added and Judge added filter by the day that hash was first seen, and Prompt and Judge prompt filter by the hash. The hash label ends in `latest` when it is the one on the task row. The Prompt versions panel groups runs by them. The judge returns one decision: `failed`, `partially-failed`, `partially-pass`, or `pass`. `success` is stored for `pass` and `partially-pass`.
+`promptFile` and `judgePromptFile` are relative to the tasks file. Each task is a folder under `configs/tasks/<taskId>/` with `prompt.md` and `judge.md`. Optional `validate` is how chrome-validate builds and checks the change: `chrome` (full Chromium.app, the default), `dino` (offline-game TypeScript plus an interactive harness), or `devtools` (DevTools frontend with `--custom-devtools-frontend` on a stock Chromium). Leading and trailing whitespace is trimmed. Each prompt's version is the first 8 hex characters of the sha256 of its trimmed text, so editing a prompt gives it a new version with nothing to bump by hand. Every run stores the `prompt_version` and `judge_prompt_version` it was given. The first time a hash is seen it is stored in `prompt_versions` with `added_at`, and that timestamp stays put. Hashes already on runs when the table appeared use the earliest run that used them. Prompt added and Judge added filter by the day that hash was first seen, and Prompt and Judge prompt filter by the hash. The hash label ends in `latest` when it is the one on the task row. The Prompt versions panel groups runs by them. The judge returns one decision: `failed`, `partially-failed`, `partially-pass`, or `pass`. `success` is stored for `pass` and `partially-pass`.
 
 `configs/benchmark-setup.json`:
 

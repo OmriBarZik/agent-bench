@@ -1,6 +1,9 @@
 import type { JudgeBlocker } from "./judge-blocker.types";
 import type { JudgeDecision } from "./judge-decision.types";
 
+/** How chrome-validate builds and checks this task. */
+export type TaskValidateMode = "chrome" | "dino" | "devtools";
+
 /** One entry in benchmark-tasks.json. */
 export type Task = {
   taskId: string;
@@ -10,6 +13,12 @@ export type Task = {
   chromiumSha: string;
   title?: string;
   difficulty?: "simple" | "medium" | "complex" | string;
+  /**
+   * chrome-validate build/check style. `chrome` is a full Chromium build; `dino` rebuilds the
+   * offline-game TypeScript and drives a harness; `devtools` rebuilds the DevTools frontend and
+   * launches stock Chromium with --custom-devtools-frontend. Defaults to `chrome`.
+   */
+  validate?: TaskValidateMode;
   scoring?: unknown;
 };
 

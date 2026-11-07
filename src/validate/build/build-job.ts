@@ -1,9 +1,10 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { BuildStep } from "../../db/db.types";
 import type { BuilderConfig } from "../../inspect/build/builder-config.types";
 import { withRemoteBuildLock } from "../../inspect/remote/guard/remote-build-lock";
 import { warmUpChrome } from "../chrome/warm-up";
+import { stockChromiumApp, validateBuildPlan } from "../mode/validate-mode";
 import { snapshotTree } from "../snapshot/snapshot";
 import type {
   BuildJob,
@@ -23,7 +24,7 @@ export function buildLogPath({ logDir, buildNumber }: { logDir: string; buildNum
   return join(logDir, `build-${buildNumber}.log`);
 }
 
-/** The folder on this Mac that receives the session's Chromium.app. The same folder for every build of a run. */
+/** The folder on this Mac that receives the session's build output. The same folder for every build of a run. */
 export function appDirectory({ context, builder }: { context: ValidateContext; builder: BuilderConfig }): string {
   return join(builder.buildDirectory, context.runId ?? "manual-validate");
 }
@@ -94,7 +95,7 @@ async function runJob({
 }): Promise<BuildOutcome> {
   mkdirSync(context.logDir, { recursive: true });
   const logPath = buildLogPath({ logDir: context.logDir, buildNumber: job.number });
-  writeFileSync(logPath, `build ${job.number} of ${job.snapshotSha}\n`);
+  writeFileSync(logPath, `build ${job.number} of ${job.snapshotSha} (${context.mode})\n`);
   const buildId = recordBuildStart(
     context.runId == null ? null : { runId: context.runId, buildNumber: job.number, logPath },
   );
@@ -103,8 +104,17 @@ async function runJob({
   let outcome: BuildOutcome;
 
   try {
-    const appPath = await runSteps({ job, context, builder, logPath, times });
-    outcome = { status: "ok", appPath, durationMs: elapsed(job), failedStep: null, error: null, logPath };
+    const built = await runSteps({ job, context, builder, logPath, times });
+    outcome = {
+      status: "ok",
+      appPath: built.appPath,
+      artifactPath: built.artifactPath,
+      outputDir: built.outputDir,
+      durationMs: elapsed(job),
+      failedStep: null,
+      error: null,
+      logPath,
+    };
   } catch (error) {
     outcome = failedOutcome({ error, job, logPath });
   } finally {
@@ -126,7 +136,7 @@ async function runJob({
   return outcome;
 }
 
-/** Send, build, copy back, stamp. Fills `times` as each step finishes and returns the local Chromium.app. */
+/** Send, build, copy back, stamp. Fills `times` as each step finishes. */
 async function runSteps({
   job,
   context,
@@ -139,7 +149,8 @@ async function runSteps({
   builder: BuilderConfig;
   logPath: string;
   times: StepTimes;
-}): Promise<string> {
+}): Promise<{ appPath: string; artifactPath: string | null; outputDir: string }> {
+  const plan = validateBuildPlan(context.mode);
   const signal = job.controller.signal;
   const destination = appDirectory({ context, builder });
   let mark = Date.now();
@@ -161,13 +172,13 @@ async function runSteps({
       body: async () => {
         step = "build";
         mark = Date.now();
-        await buildOnBuilder({ builder, snapshotSha: job.snapshotSha, commits, logPath, signal });
+        await buildOnBuilder({ builder, snapshotSha: job.snapshotSha, commits, plan, logPath, signal });
         times.buildMs = Date.now() - mark;
         step = "copy";
         mark = Date.now();
-        await copyBack({ builder, destination, logPath, signal });
+        await copyBack({ builder, destination, plan, logPath, signal });
         times.copyMs = Date.now() - mark;
-        // Written last, so a stamp that names this build means its app is fully copied.
+        // Written last, so a stamp that names this build means its output is fully copied.
         const stamp: BuildStamp = {
           build: job.number,
           snapshotSha: job.snapshotSha,
@@ -186,10 +197,24 @@ async function runSteps({
     throw new BuildStepError({ step, excerpt: message });
   }
 
-  const appPath = join(destination, "Chromium.app");
-  await warmUpChrome({ appPath, logPath });
+  const artifactPath = plan.artifactRelativePath == null ? null : join(destination, plan.artifactRelativePath);
+  const appPath = plan.copyPaths == null ? join(destination, "Chromium.app") : stockChromiumApp(context.chromiumSrc);
 
-  return appPath;
+  if (!existsSync(join(appPath, "Contents/MacOS/Chromium"))) {
+    throw new BuildStepError({
+      step: "copy",
+      excerpt:
+        plan.copyPaths == null
+          ? `${appPath} is missing after the copy`
+          : `${appPath} is missing; light validate modes need a prior chrome build at out/Default/Chromium.app on this Mac`,
+    });
+  }
+
+  if (plan.copyPaths == null) {
+    await warmUpChrome({ appPath, logPath });
+  }
+
+  return { appPath, artifactPath, outputDir: destination };
 }
 
 function failedOutcome({ error, job, logPath }: { error: unknown; job: BuildJob; logPath: string }): BuildOutcome {
@@ -201,6 +226,8 @@ function failedOutcome({ error, job, logPath }: { error: unknown; job: BuildJob;
     return {
       status: "failed",
       appPath: null,
+      artifactPath: null,
+      outputDir: null,
       durationMs,
       failedStep: null,
       error: `Timed out after ${minutes} min.`,
@@ -209,16 +236,43 @@ function failedOutcome({ error, job, logPath }: { error: unknown; job: BuildJob;
   }
 
   if (job.controller.signal.aborted) {
-    return { status: "cancelled", appPath: null, durationMs, failedStep: null, error: null, logPath };
+    return {
+      status: "cancelled",
+      appPath: null,
+      artifactPath: null,
+      outputDir: null,
+      durationMs,
+      failedStep: null,
+      error: null,
+      logPath,
+    };
   }
 
   if (error instanceof BuildStepError) {
-    return { status: "failed", appPath: null, durationMs, failedStep: error.step, error: error.excerpt, logPath };
+    return {
+      status: "failed",
+      appPath: null,
+      artifactPath: null,
+      outputDir: null,
+      durationMs,
+      failedStep: error.step,
+      error: error.excerpt,
+      logPath,
+    };
   }
 
   const message = error instanceof Error ? error.message : String(error);
 
-  return { status: "failed", appPath: null, durationMs, failedStep: null, error: message, logPath };
+  return {
+    status: "failed",
+    appPath: null,
+    artifactPath: null,
+    outputDir: null,
+    durationMs,
+    failedStep: null,
+    error: message,
+    logPath,
+  };
 }
 
 function elapsed(job: BuildJob): number {

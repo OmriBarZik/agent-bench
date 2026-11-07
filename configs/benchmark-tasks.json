@@ -6,6 +6,7 @@
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
     "promptFile": "tasks/dino-hat/prompt.md",
     "judgePromptFile": "tasks/dino-hat/judge.md",
+    "validate": "dino",
     "scoring": {
       "checks": [
         "change is in the offline dino game sources (components/neterror/resources/dino_game)",
@@ -22,6 +23,7 @@
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
     "promptFile": "tasks/dino-devtools/prompt.md",
     "judgePromptFile": "tasks/dino-devtools/judge.md",
+    "validate": "devtools",
     "scoring": {
       "checks": [
         "a DevTools UI entry (panel or drawer view) that hosts the game",
@@ -39,6 +41,7 @@
     "chromiumSha": "920e1e66e67c6038a08847aa817a771c5c180ed3",
     "promptFile": "tasks/dino-ai-player/prompt.md",
     "judgePromptFile": "tasks/dino-ai-player/judge.md",
+    "validate": "chrome",
     "scoring": {
       "checks": [
         "decision model built into the browser returns jump/duck/nothing with probabilities",
