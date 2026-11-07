@@ -6,9 +6,26 @@ import type { ChromeCheck, DevToolsTarget, LaunchedChrome } from "./chrome-check
 const START_TIMEOUT_MS = 30_000;
 const STDERR_LINES = 30;
 
-/** Starts the built Chromium headless with a fresh profile and a DevTools port, and finds its first page. */
+/** Starts the built Chromium headless for a check, with its window size and flags. */
 export async function launchChrome(check: ChromeCheck): Promise<LaunchedChrome> {
-  const executable = join(check.appPath, "Contents/MacOS/Chromium");
+  return startChrome({
+    appPath: check.appPath,
+    switches: [`--window-size=${check.width},${check.height}`, ...check.flags],
+    timeoutMs: START_TIMEOUT_MS,
+  });
+}
+
+/** Starts the built Chromium headless with a fresh profile and a DevTools port, and finds its first page. */
+export async function startChrome({
+  appPath,
+  switches,
+  timeoutMs,
+}: {
+  appPath: string;
+  switches: string[];
+  timeoutMs: number;
+}): Promise<LaunchedChrome> {
+  const executable = join(appPath, "Contents/MacOS/Chromium");
 
   if (!existsSync(executable)) {
     throw new Error(`${executable} is missing; run start_build and wait_build first`);
@@ -22,11 +39,10 @@ export async function launchChrome(check: ChromeCheck): Promise<LaunchedChrome> 
       "--headless=new",
       "--remote-debugging-port=0",
       `--user-data-dir=${profile}`,
-      `--window-size=${check.width},${check.height}`,
       "--no-first-run",
       "--no-default-browser-check",
       "--disable-background-networking",
-      ...check.flags,
+      ...switches,
       "about:blank",
     ],
     { stdin: "ignore", stdout: "ignore", stderr: "pipe" },
@@ -39,7 +55,7 @@ export async function launchChrome(check: ChromeCheck): Promise<LaunchedChrome> 
   };
 
   try {
-    const pageUrl = await devToolsPage({ profile, exited: browser.exited });
+    const pageUrl = await devToolsPage({ profile, exited: browser.exited, timeoutMs });
 
     return { pageUrl, stop, stderrTail: () => stderrLines.join("\n") };
   } catch (error) {
@@ -54,9 +70,17 @@ export async function launchChrome(check: ChromeCheck): Promise<LaunchedChrome> 
  * Waits until Chromium has written its DevTools port and `/json/list` answers with a page.
  * The port file appears before the HTTP server accepts connections, so a refused fetch is retried.
  */
-async function devToolsPage({ profile, exited }: { profile: string; exited: Promise<number> }): Promise<string> {
+async function devToolsPage({
+  profile,
+  exited,
+  timeoutMs,
+}: {
+  profile: string;
+  exited: Promise<number>;
+  timeoutMs: number;
+}): Promise<string> {
   const file = join(profile, "DevToolsActivePort");
-  const deadline = Date.now() + START_TIMEOUT_MS;
+  const deadline = Date.now() + timeoutMs;
   let exitCode: number | null = null;
   void exited.then((code) => {
     exitCode = code;
@@ -80,7 +104,7 @@ async function devToolsPage({ profile, exited }: { profile: string; exited: Prom
     await Bun.sleep(200);
   }
 
-  throw new Error("Chromium did not open a page within 30 seconds");
+  throw new Error(`Chromium did not open a page within ${Math.round(timeoutMs / 1000)} seconds`);
 }
 
 function readPort(file: string): number | null {

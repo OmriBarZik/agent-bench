@@ -1,5 +1,5 @@
 import { adjust, eraseDigit, toggleRow, toggleSection, typeDigit } from "./picker-edit";
-import { isDown, isEnd, isHome, isUp } from "./picker-keys";
+import { isDown, isEnd, isHome, isLeft, isRight, isUp } from "./picker-keys";
 import type {
   PickerChoices,
   PickerDefaults,
@@ -32,6 +32,7 @@ export function initialPickerState({
   defaults: PickerDefaults;
 }): PickerState {
   const { taskIds, configIds } = defaults;
+  const rowCount = pickerRows(choices).length;
 
   return {
     tasks: choices.tasks.map((task) => !taskIds || taskIds.includes(task.id)),
@@ -41,7 +42,7 @@ export function initialPickerState({
     buildTimeoutMin: defaults.buildTimeoutMin,
     sync: defaults.sync,
     autoReview: defaults.autoReview,
-    cursor: 0,
+    cursor: Math.min(Math.max(defaults.cursor ?? 0, 0), Math.max(rowCount - 1, 0)),
     editing: false,
     notice: "",
   };
@@ -67,15 +68,18 @@ export function pickerResult({ state, choices }: { state: PickerState; choices: 
 
 /**
  * Applies one keypress. Up/down (or k/j) move, space toggles, a toggles the whole section,
- * left/right change a number or a checkbox, digits type a number, enter starts, and esc, q, or ctrl-c quit.
+ * left/right change a number or a checkbox, digits type a number, r resets to `defaults`,
+ * enter starts, and esc, q, or ctrl-c quit.
  */
 export function applyPickerKey({
   state,
   choices,
+  defaults,
   key,
 }: {
   state: PickerState;
   choices: PickerChoices;
+  defaults: PickerDefaults;
   key: string;
 }): PickerOutcome {
   const rows = pickerRows(choices);
@@ -106,6 +110,10 @@ export function applyPickerKey({
     return stay(moveCursor({ state: cleared, cursor: rows.length - 1, rowCount: rows.length }));
   }
 
+  if (key === "r") {
+    return stay(initialPickerState({ choices, defaults: { ...defaults, cursor: state.cursor } }));
+  }
+
   if (!row) {
     return stay(cleared);
   }
@@ -118,11 +126,11 @@ export function applyPickerKey({
     return stay(toggleSection({ state: cleared, kind: row.kind }));
   }
 
-  if (key === "-") {
+  if (isLeft(key)) {
     return stay(adjust({ state: cleared, kind: row.kind, delta: -1 }));
   }
 
-  if (key === "+") {
+  if (isRight(key)) {
     return stay(adjust({ state: cleared, kind: row.kind, delta: 1 }));
   }
 

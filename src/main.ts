@@ -51,7 +51,9 @@ const { values: args } = parseArgs({
  * On a terminal with none of --only-task, --only-config, or --repeats, it opens a TUI with four tabs;
  * tab and shift-tab switch between them, and esc quits.
  *   Start: check the tasks and configs to run, set repeats, agent timeout, build timeout, sync, and auto review, then enter starts. It prints
- *     the equivalent --cli command first.
+ *     the equivalent --cli command first. Left and right change a number or a checkbox, digits type a number, and r resets
+ *     to the defaults. The selection is saved in data/start-picker.json, so the next open continues from it.
+ *     --only-task, --only-config, and --repeats skip that file.
  *   Runs: the runs in the database. Enter opens a menu of every action below, with submenus; esc goes back.
  *     Ctrl-o opens the run transcript in the browser, ctrl-e the judge session.
  *     Ctrl-r reloads the runs from the database. Left and right arrows do nothing.

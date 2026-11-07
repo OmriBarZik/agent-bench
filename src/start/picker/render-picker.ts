@@ -5,7 +5,7 @@ import type { PickerFrame, PickerLine } from "./render-picker.types";
 
 const HEADER_HEIGHT = 2;
 const FOOTER_HEIGHT = 4;
-const HINT = "↑↓ move  space toggle  a all/none  +/- or digits change  enter start  esc quit";
+const HINT = "↑↓ move  ←→ or digits change  space toggle  a all/none  r reset  enter start  esc quit";
 
 /** Draws the whole picker. The body scrolls so the cursor row stays on screen. */
 export function renderPicker({

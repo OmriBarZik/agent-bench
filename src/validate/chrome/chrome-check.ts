@@ -50,12 +50,16 @@ async function navigate({ page, url, parts }: { page: CdpSession; url: string; p
     setTimeout(resolve, LOAD_TIMEOUT_MS);
   });
   const result = await page.send("Page.navigate", { url });
+  await loaded;
 
+  // chrome://dino is Chromium's network-error page, so it always reports an error such as
+  // net::ERR_INTERNET_DISCONNECTED while the game page loads fine. The actions still run on the error page.
   if (typeof result.errorText === "string") {
-    throw new Error(`could not open ${url}: ${result.errorText}`);
+    parts.push({ type: "text", text: `opened ${url} as an error page (${result.errorText})` });
+
+    return;
   }
 
-  await loaded;
   parts.push({ type: "text", text: `opened ${url}` });
 }
 

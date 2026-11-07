@@ -30,6 +30,8 @@ export const BASELINE_HASH_FILES = [
 ];
 /** Per-run artifacts: runs/<run_id>/. */
 export const RUNS_DIR = join(BENCH_DIR, "runs");
+/** Last Start-tab selection. Gitignored with the rest of data/. The picker restores it on the next open. */
+export const START_PICKER_FILE = join(BENCH_DIR, "data/start-picker.json");
 /** Build-Mac settings. Gitignored; copied from the example by setup:remote-build. */
 export const REMOTE_BUILD_FILE = process.env.BENCH_REMOTE_BUILD_FILE ?? join(BENCH_DIR, "configs/builder/remote.yaml");
 /** Committed template for REMOTE_BUILD_FILE. Placeholders only. */

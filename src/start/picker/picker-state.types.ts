@@ -30,6 +30,8 @@ export type PickerDefaults = {
   sync: boolean;
   /** Attach chrome-validate so the agent builds its change and checks it in Chromium. */
   autoReview: boolean;
+  /** Index into `pickerRows` to start on. Omitted means the first row. */
+  cursor?: number;
 };
 
 /** Everything the picker has chosen so far, plus where the cursor is. */

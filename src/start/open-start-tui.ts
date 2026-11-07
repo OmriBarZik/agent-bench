@@ -24,11 +24,14 @@ export async function openStartTui({
   defaults,
   initialTab,
   force,
+  savedPath,
 }: {
   selection: Selection;
   defaults: PickerDefaults;
   initialTab: StartTab;
   force: boolean;
+  /** Last Start-tab selection. Omitted when flags already name the matrix, so that file is left alone. */
+  savedPath?: string;
 }): Promise<StartTuiPick | null> {
   const runChoices = await loadChoices();
   const pickerChoices = toPickerChoices(selection);
@@ -41,6 +44,7 @@ export async function openStartTui({
         screen: createPickerScreen({
           choices: pickerChoices,
           defaults,
+          savedPath,
           onDone: (picked) => host.finish(picked ? { kind: "start", picked } : null),
         }),
       },

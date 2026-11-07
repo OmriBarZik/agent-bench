@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { BuildStep } from "../../db/db.types";
 import type { BuilderConfig } from "../../inspect/build/builder-config.types";
 import { withRemoteBuildLock } from "../../inspect/remote/guard/remote-build-lock";
+import { warmUpChrome } from "../chrome/warm-up";
 import { snapshotTree } from "../snapshot/snapshot";
 import type {
   BuildJob,
@@ -185,7 +186,10 @@ async function runSteps({
     throw new BuildStepError({ step, excerpt: message });
   }
 
-  return join(destination, "Chromium.app");
+  const appPath = join(destination, "Chromium.app");
+  await warmUpChrome({ appPath, logPath });
+
+  return appPath;
 }
 
 function failedOutcome({ error, job, logPath }: { error: unknown; job: BuildJob; logPath: string }): BuildOutcome {

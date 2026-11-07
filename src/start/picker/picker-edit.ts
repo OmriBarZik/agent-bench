@@ -36,7 +36,10 @@ export function toggleSection({ state, kind }: { state: PickerState; kind: Picke
   return state;
 }
 
-/** Moves a number row by `delta`, staying within 1–999, or flips a checkbox. */
+/**
+ * Moves a number row by `delta`, staying within 1–999.
+ * A positive delta checks sync or auto review; a negative one unchecks it.
+ */
 export function adjust({
   state,
   kind,
@@ -59,11 +62,11 @@ export function adjust({
   }
 
   if (kind === "sync") {
-    return { ...state, sync: !state.sync };
+    return { ...state, sync: delta > 0 };
   }
 
   if (kind === "autoReview") {
-    return { ...state, autoReview: !state.autoReview };
+    return { ...state, autoReview: delta > 0 };
   }
 
   return state;

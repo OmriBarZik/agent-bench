@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import process from "node:process";
-import { BENCH_DIR } from "../paths";
+import { BENCH_DIR, START_PICKER_FILE } from "../paths";
 import { loadSelection } from "../runner/bench-config/bench-config";
 import { narrowSelection } from "../runner/bench-config/narrow-selection";
 import { openStartTui } from "./open-start-tui";
@@ -78,6 +78,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
     },
     initialTab: openingTab(flags),
     force: flags.force,
+    savedPath: selectionFlagged ? undefined : START_PICKER_FILE,
   });
 
   if (!picked) {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { applyPickerKey, initialPickerState, pickerResult, runCount } from "./picker-state";
-import type { PickerChoices, PickerState } from "./picker-state.types";
+import { applyPickerKey, initialPickerState, pickerResult, pickerRows, runCount } from "./picker-state";
+import type { PickerChoices, PickerDefaults, PickerState } from "./picker-state.types";
 
 const CHOICES: PickerChoices = {
   tasks: [
@@ -13,17 +13,19 @@ const CHOICES: PickerChoices = {
   ],
 };
 const DOWN = "\x1b[B";
+const LEFT = "\x1b[D";
 const RIGHT = "\x1b[C";
+const DEFAULTS: PickerDefaults = { repeats: 1, timeoutMin: 60, buildTimeoutMin: 90, sync: false, autoReview: true };
 
 function press({ state, keys }: { state: PickerState; keys: string[] }): PickerState {
-  return keys.reduce((current, key) => applyPickerKey({ state: current, choices: CHOICES, key }).state, state);
+  return keys.reduce(
+    (current, key) => applyPickerKey({ state: current, choices: CHOICES, defaults: DEFAULTS, key }).state,
+    state,
+  );
 }
 
 describe("picker state", () => {
-  const fresh = initialPickerState({
-    choices: CHOICES,
-    defaults: { repeats: 1, timeoutMin: 60, buildTimeoutMin: 90, sync: false, autoReview: true },
-  });
+  const fresh = initialPickerState({ choices: CHOICES, defaults: DEFAULTS });
 
   test("checks everything when no ids are given", () => {
     expect(runCount(fresh)).toBe(4);
@@ -63,13 +65,30 @@ describe("picker state", () => {
     const typed = press({ state: onRepeats, keys: ["3", "2"] });
 
     expect(typed.repeats).toBe(32);
-    expect(press({ state: typed, keys: ["+"] }).repeats).toBe(33);
-    expect(press({ state: typed, keys: [RIGHT] }).repeats).toBe(32);
+    expect(press({ state: typed, keys: [RIGHT] }).repeats).toBe(33);
+    expect(press({ state: typed, keys: [LEFT] }).repeats).toBe(31);
+    expect(press({ state: typed, keys: ["+", "-"] }).repeats).toBe(32);
+  });
+
+  test("r resets the values and keeps the cursor", () => {
+    const changed = press({ state: fresh, keys: [" ", DOWN, DOWN, DOWN, DOWN, "4"] });
+    const reset = press({ state: changed, keys: ["r"] });
+
+    expect(changed.tasks).toEqual([false, true]);
+    expect(reset.repeats).toBe(DEFAULTS.repeats);
+    expect(reset.cursor).toBe(changed.cursor);
+    expect(reset.tasks).toEqual([true, true]);
+  });
+
+  test("starts on a saved cursor and clamps it to the last row", () => {
+    const state = initialPickerState({ choices: CHOICES, defaults: { ...DEFAULTS, cursor: 99 } });
+
+    expect(state.cursor).toBe(pickerRows(CHOICES).length - 1);
   });
 
   test("enter refuses an empty task list", () => {
     const none = press({ state: fresh, keys: ["a"] });
-    const outcome = applyPickerKey({ state: none, choices: CHOICES, key: "\r" });
+    const outcome = applyPickerKey({ state: none, choices: CHOICES, defaults: DEFAULTS, key: "\r" });
 
     expect(outcome.action).toBe("stay");
     expect(outcome.state.notice).toBe("check at least one task");
@@ -79,12 +98,14 @@ describe("picker state", () => {
     const onReview = press({ state: fresh, keys: [DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN] });
 
     expect(onReview.autoReview).toBe(true);
+    expect(press({ state: onReview, keys: [RIGHT] }).autoReview).toBe(true);
+    expect(press({ state: onReview, keys: [LEFT] }).autoReview).toBe(false);
     expect(press({ state: onReview, keys: [" "] }).autoReview).toBe(false);
     expect(pickerResult({ state: press({ state: onReview, keys: [" "] }), choices: CHOICES }).autoReview).toBe(false);
   });
 
   test("enter starts and esc quits", () => {
-    expect(applyPickerKey({ state: fresh, choices: CHOICES, key: "\r" }).action).toBe("start");
-    expect(applyPickerKey({ state: fresh, choices: CHOICES, key: "\x1b" }).action).toBe("quit");
+    expect(applyPickerKey({ state: fresh, choices: CHOICES, defaults: DEFAULTS, key: "\r" }).action).toBe("start");
+    expect(applyPickerKey({ state: fresh, choices: CHOICES, defaults: DEFAULTS, key: "\x1b" }).action).toBe("quit");
   });
 });
