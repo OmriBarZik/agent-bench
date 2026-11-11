@@ -161,3 +161,17 @@ function choice(overrides: Partial<RunChoice> = {}): RunChoice {
     ...overrides,
   };
 }
+
+test("the live agent log row shows only while that run's agent is working", () => {
+  const running = choice({ liveLogPath: "/runs/r/agent-live.log" });
+  const finished = choice();
+  const opened = openActionMenu([running.runId]);
+
+  expect(applyMenuKey({ menu: opened, key: "\r", choices: [running] })).toEqual({ kind: "run", command: "live-log" });
+  expect(actionMenuLines({ menu: opened, choices: [running], height: 20, columns: 80 }).join("\n")).toContain(
+    "View live agent log",
+  );
+  expect(actionMenuLines({ menu: opened, choices: [finished], height: 20, columns: 80 }).join("\n")).not.toContain(
+    "View live agent log",
+  );
+});

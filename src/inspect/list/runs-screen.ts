@@ -1,3 +1,4 @@
+import { applyLogKey, logLineCount } from "../../runner/build-log/log-view";
 import type { TuiControls, TuiScreen } from "../../tui/open-tui.types";
 import type { ChromiumJobController } from "../../start/jobs/chromium-job.types";
 import { attachChromiumApps, chromiumBuildDirectory, openBuiltChromium } from "../build/app/chromium-app";
@@ -9,6 +10,9 @@ import { applyMarkFailedKey, openMarkFailedPrompt } from "../decision/mark-faile
 import type { MarkFailedPrompt } from "../decision/mark-failed-prompt.types";
 import { setListedDecision } from "../decision/set-decision";
 import { deleteIntent, removeListedRun } from "../delete/delete-run";
+import { liveRun, markLiveRun, openLiveLog, syncLiveLog } from "../live/live-log";
+import type { LiveLogViewer } from "../live/live-log.types";
+import { renderLiveLog } from "../live/render-live-log";
 import { applyMenuKey, backMenu, openActionMenu } from "../menu/action-menu";
 import type { ActionMenu, MenuCommand } from "../menu/action-menu.types";
 import { frameLayout, renderFrame } from "../render/render-frame";
@@ -36,6 +40,8 @@ import type { RunChoice, SelectAction, SelectState } from "./select-state.types"
  * Ctrl-r reloads the runs from the database and the branches from Chromium. The list also refreshes on its own
  * while a matrix job is running, and while this tab is on screen, so a `running` row appears once startRun writes it.
  * Ctrl-g checks the highlighted run's branch out without leaving the TUI.
+ * While a run's agent is working, its Enter menu offers its live agent log. The row goes away, and an open log
+ * closes, once that agent finishes.
  * Esc closes the build question, the failed-build question, the decision dialog, or a menu page; otherwise it is left to the TUI, which quits.
  */
 export function createRunsScreen({
@@ -63,6 +69,7 @@ export function createRunsScreen({
   let markFailedPrompt: MarkFailedPrompt | null = null;
   let actionMenu: ActionMenu | null = null;
   let choosingBuild = false;
+  let liveLog: LiveLogViewer | null = null;
   let refreshing = false;
   /** Last time the Runs tab was painted; quiet polls only while this is recent or a matrix is running. */
   let shownAt = 0;
@@ -93,6 +100,35 @@ export function createRunsScreen({
   };
 
   buildFinishSlot.handle = applyBuildFinish;
+
+  /** Marks the run whose agent is working, follows its open log, and closes that log once the agent is done. */
+  const updateLive = () => {
+    const live = liveRun(jobs.status());
+    markLiveRun({ choices, live });
+
+    if (liveLog && live?.runId !== liveLog.runId) {
+      liveLog = null;
+      notice = "the agent finished · live log closed";
+
+      return;
+    }
+
+    if (liveLog) {
+      liveLog = syncLiveLog(liveLog);
+    }
+  };
+
+  const openLiveChoice = (choice: RunChoice | undefined) => {
+    const live = liveRun(jobs.status());
+
+    if (!choice || live?.runId !== choice.runId) {
+      notice = "this run's agent is not running";
+
+      return;
+    }
+
+    liveLog = openLiveLog(live);
+  };
 
   const openTranscriptChoice = ({ choice, judge }: { choice: RunChoice | undefined; judge: boolean }) => {
     const transcriptPath = judge ? choice?.judgeTranscriptPath : choice?.transcriptPath;
@@ -275,6 +311,28 @@ export function createRunsScreen({
   }, POLL_MS);
   timer.unref();
 
+  const LIVE_POLL_MS = 250;
+  const LIVE_SHOWN_MS = 1000;
+  const liveTimer = setInterval(() => {
+    if (controls.isClosed()) {
+      clearInterval(liveTimer);
+
+      return;
+    }
+
+    if (!liveLog || Date.now() - shownAt > LIVE_SHOWN_MS) {
+      return;
+    }
+
+    const before = liveLog.view.cursor.offset;
+    updateLive();
+
+    if (liveLog?.view.cursor.offset !== before) {
+      controls.repaint();
+    }
+  }, LIVE_POLL_MS);
+  liveTimer.unref();
+
   const focusRun = (runId: string) => {
     const index = matches().findIndex((choice) => choice.runId === runId);
 
@@ -371,6 +429,12 @@ export function createRunsScreen({
     }
 
     actionMenu = null;
+
+    if (command === "live-log") {
+      openLiveChoice(first);
+
+      return;
+    }
 
     if (command === "transcript" || command === "judge") {
       openTranscriptChoice({ choice: first, judge: command === "judge" });
@@ -561,6 +625,12 @@ export function createRunsScreen({
   return {
     render: ({ rows, columns }) => {
       shownAt = Date.now();
+      updateLive();
+
+      if (liveLog) {
+        return renderLiveLog({ viewer: liveLog, rows, columns });
+      }
+
       const job = jobs.status();
       const line = job.kind !== "idle" ? `${job.kind}: ${job.label}` : notice || job.label;
 
@@ -585,6 +655,18 @@ export function createRunsScreen({
         }
 
         onQuit();
+
+        return;
+      }
+
+      updateLive();
+
+      if (liveLog) {
+        const logPage = Math.max(1, controls.size().rows - 3);
+        liveLog = {
+          ...liveLog,
+          view: applyLogKey({ view: liveLog.view, key, pageSize: logPage, lineCount: logLineCount(liveLog.view) }),
+        };
 
         return;
       }
@@ -623,6 +705,12 @@ export function createRunsScreen({
       onListAction(result.action);
     },
     onEscape: () => {
+      if (liveLog) {
+        liveLog = null;
+
+        return true;
+      }
+
       if (markFailedPrompt) {
         markFailedPrompt = null;
 
