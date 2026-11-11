@@ -78,6 +78,7 @@ function follow({ db, runId, signal }: { db: Database; runId: string; signal: Ab
         build,
         cursor: view.cursor,
         above: view.above,
+        unseen: view.unseen,
         rows,
         columns,
         chrome: "run",

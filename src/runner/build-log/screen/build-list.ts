@@ -115,10 +115,11 @@ export function renderBuildList({
       }
 
       const selected = state.scroll + index === state.selected;
+      const live = build.status === "building";
       lines.push(
         colorLine({
-          text: fit({ text: `${selected ? "›" : " "} ${buildRow(build)}`, width }),
-          kind: selected ? "selected" : "plain",
+          text: fit({ text: `${selected ? "›" : " "}${live ? "●" : " "}${buildRow(build)}`, width }),
+          kind: selected ? "selected" : live ? "live" : "plain",
         }),
       );
     }

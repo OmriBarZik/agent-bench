@@ -55,3 +55,22 @@ test("the frame shows the build, the tail, and the waiting state", () => {
   expect(paused).toContain("agent paused");
   expect(paused).toContain("Agent paused until this build finishes.");
 });
+
+test("the footer says live at the tail and warns about new lines when scrolled up", () => {
+  const cursor = appendLogText({ cursor: createLogCursor(), text: "a\nb\nc\nd\n", maxLines: 10 });
+  const live = renderBuildLog({ build: building, cursor, above: 0, rows: 6, columns: 120, chrome: "tab" });
+  const scrolled = renderBuildLog({
+    build: building,
+    cursor,
+    above: 2,
+    unseen: 3,
+    rows: 6,
+    columns: 120,
+    chrome: "tab",
+  });
+
+  expect(live).toContain("● LIVE");
+  expect(live).toContain("4 lines");
+  expect(scrolled).toContain("▲ PAUSED 2 lines up · 3 new lines");
+  expect(scrolled).toContain("end jumps to live");
+});

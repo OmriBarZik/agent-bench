@@ -36,7 +36,8 @@ export function createBuildLogScreen({
   let view = createLogView();
   let shownAt = 0;
   let database: ReturnType<typeof openDb> | null = null;
-  let openedLive = false;
+  /** The live build last opened automatically, so esc back to the list is not undone, but the next build still opens. */
+  let autoOpenedId: number | null = null;
 
   const selectedBuild = (): AgentBuildView | null => list.builds[list.selected] ?? null;
 
@@ -50,13 +51,13 @@ export function createBuildLogScreen({
     const pageSize = Math.max(controls.size().rows - 2, 1);
     list = scrollBuildList({ state: list, pageSize });
 
-    // First time a live build appears while following, open its log (same as the old single-build view).
-    if (list.followLive && !openedLive) {
+    // Each new live build opens its log while following, so the user sees it stream without pressing enter.
+    if (list.followLive) {
       const live = list.builds.find((build) => build.status === "building");
 
-      if (live) {
+      if (live && live.id !== autoOpenedId) {
         list = { ...list, mode: "log", selected: list.builds.findIndex((build) => build.id === live.id) };
-        openedLive = true;
+        autoOpenedId = live.id;
       }
     }
 
@@ -124,6 +125,7 @@ export function createBuildLogScreen({
         build,
         cursor: view.cursor,
         above: view.above,
+        unseen: view.unseen,
         rows: size.rows,
         columns: size.columns,
         chrome: "tab",
@@ -228,5 +230,5 @@ function fingerprint({ list, view }: { list: BuildListState; view: LogView }): s
   const build = list.builds[list.selected];
   const paused = agentIsPaused(build?.run_id ?? null);
 
-  return `${list.mode}:${list.selected}:${list.followLive}:${list.builds.map((item) => `${item.id}:${item.status}`).join(",")}:${paused}:${view.cursor.offset}:${view.cursor.pending}:${view.cursor.lines.length}:${view.above}`;
+  return `${list.mode}:${list.selected}:${list.followLive}:${list.builds.map((item) => `${item.id}:${item.status}`).join(",")}:${paused}:${view.cursor.offset}:${view.cursor.pending}:${view.cursor.lines.length}:${view.above}:${view.unseen}`;
 }

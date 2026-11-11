@@ -10,4 +10,6 @@ export type LogCursor = {
   column: number;
   /** Lines ended by a newline, oldest first, capped by the caller. */
   lines: string[];
+  /** Every line ended so far, including ones dropped by the cap, so a screen can tell how many arrived. */
+  total: number;
 };

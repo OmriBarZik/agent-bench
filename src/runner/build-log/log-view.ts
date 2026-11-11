@@ -1,5 +1,5 @@
 import type { AgentBuildView } from "../../db/db.types";
-import { createLogCursor, linesOfLog, pullLogFile } from "./log-cursor";
+import { createLogCursor, linesOfLog, producedLines, pullLogFile } from "./log-cursor";
 import type { LogScreenRequest, LogView } from "./log-view.types";
 
 /** How many lines a screen keeps so the user can scroll back through recent output. */
@@ -7,10 +7,13 @@ export const MAX_LOG_LINES = 4000;
 
 /** A screen that has not seen a build yet. */
 export function createLogView(): LogView {
-  return { buildId: null, cursor: createLogCursor(), above: 0 };
+  return { buildId: null, cursor: createLogCursor(), above: 0, unseen: 0 };
 }
 
-/** Reads new bytes of `build`'s log into `view`. A different build starts over at the top of that file. */
+/**
+ * Reads new bytes of `build`'s log into `view`. A different build starts over at the top of that file.
+ * At the tail the view follows new lines; scrolled up, it stays on the same lines and counts what arrived below.
+ */
 export function syncLogView({
   view,
   build,
@@ -25,7 +28,7 @@ export function syncLogView({
   }
 
   if (build.log_path == null) {
-    return { buildId: build.id, cursor: createLogCursor(), above: 0 };
+    return { buildId: build.id, cursor: createLogCursor(), above: 0, unseen: 0 };
   }
 
   const same = view.buildId === build.id;
@@ -35,15 +38,27 @@ export function syncLogView({
     maxLines,
   });
 
-  return { buildId: build.id, cursor, above: same ? view.above : 0 };
+  if (!same) {
+    return { buildId: build.id, cursor, above: 0, unseen: 0 };
+  }
+
+  if (view.above === 0) {
+    return { ...view, cursor, unseen: 0 };
+  }
+
+  const added = Math.max(0, producedLines(cursor) - producedLines(view.cursor));
+  const maxAbove = Math.max(0, linesOfLog(cursor).length - 1);
+
+  return { ...view, cursor, above: Math.min(view.above + added, maxAbove), unseen: view.unseen + added };
 }
 
 /** Moves the window. A positive delta shows older lines; zero or less clamps at the tail. */
 export function scrollLog({ view, delta, lineCount }: { view: LogView; delta: number; lineCount: number }): LogView {
   const maxAbove = Math.max(0, lineCount - 1);
   const above = Math.min(Math.max(view.above + delta, 0), maxAbove);
+  const unseen = Math.min(view.unseen, above);
 
-  return { ...view, above };
+  return { ...view, above, unseen };
 }
 
 /** Arrow keys, page up and down, home, and end. Any other key leaves the view as it is. */
@@ -79,7 +94,7 @@ export function applyLogKey({
   }
 
   if (isEnd(key)) {
-    return { ...view, above: 0 };
+    return { ...view, above: 0, unseen: 0 };
   }
 
   return view;
