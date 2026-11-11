@@ -1,6 +1,7 @@
 import type { AgentBuildView } from "../../db/db.types";
+import { colorLine, fit, fitEnd } from "../../inspect/render/terminal-text";
 import { AGENT_PAUSED_LINE } from "../claude/session/agent-pause";
-import { linesOfLog } from "./log-cursor";
+import { linesOfLog, producedLines } from "./log-cursor";
 import type { LogCursor } from "./log-cursor.types";
 
 /** Where the log is drawn. The tab quits with esc; the run hides the screen and keeps the benchmark going. */
@@ -8,6 +9,7 @@ export function renderBuildLog({
   build,
   cursor,
   above,
+  unseen = 0,
   rows,
   columns,
   chrome,
@@ -16,6 +18,8 @@ export function renderBuildLog({
   build: AgentBuildView | null;
   cursor: LogCursor;
   above: number;
+  /** Lines that arrived below the window while the user was scrolled up. */
+  unseen?: number;
   rows: number;
   columns: number;
   chrome: "tab" | "run";
@@ -30,13 +34,13 @@ export function renderBuildLog({
   const end = Math.max(0, lines.length - hidden);
   const window = lines.slice(Math.max(0, end - logRows), end);
   const painted = [
-    headerLine({ build, width, agentPaused }),
+    headerLine({ build, width, agentPaused, lineCount: producedLines(cursor) }),
     detailLine({ build, width, agentPaused }),
     ...pad(window, logRows, width),
   ];
 
   if (rows > 2) {
-    painted.push(footerLine({ chrome, following: hidden === 0, width, status: build?.status ?? null }));
+    painted.push(footerLine({ chrome, hidden, unseen, width, status: build?.status ?? null }));
   }
 
   return painted.slice(0, rows).join("\r\n");
@@ -46,20 +50,22 @@ function headerLine({
   build,
   width,
   agentPaused,
+  lineCount,
 }: {
   build: AgentBuildView | null;
   width: number;
   agentPaused: boolean;
+  lineCount: number;
 }): string {
   if (build == null) {
-    return paint({ text: fit({ text: "Agent build", width }), kind: "title" });
+    return colorLine({ text: fit({ text: "Agent build", width }), kind: "title" });
   }
 
   const status = build.status === "ok" ? "passed" : build.status;
   const paused = agentPaused ? " · agent paused" : "";
-  const text = `Build ${build.build_number} · ${status}${paused} · ${runLabel(build)}`;
+  const text = `Build ${build.build_number} · ${status}${paused} · ${runLabel(build)} · ${lineCount} lines`;
 
-  return paint({ text: fit({ text, width }), kind: "title" });
+  return colorLine({ text: fit({ text, width }), kind: "title" });
 }
 
 function detailLine({
@@ -72,37 +78,52 @@ function detailLine({
   agentPaused: boolean;
 }): string {
   if (agentPaused && build != null) {
-    return paint({ text: fit({ text: AGENT_PAUSED_LINE, width }), kind: "title" });
+    return colorLine({ text: fit({ text: AGENT_PAUSED_LINE, width }), kind: "title" });
   }
 
   if (build == null) {
-    return paint({ text: fit({ text: "Waiting for an agent to request a remote build.", width }), kind: "dim" });
+    return colorLine({ text: fit({ text: "Waiting for an agent to request a remote build.", width }), kind: "dim" });
   }
 
   if (build.log_path == null) {
-    return paint({ text: fit({ text: "This build has no log file.", width }), kind: "dim" });
+    return colorLine({ text: fit({ text: "This build has no log file.", width }), kind: "dim" });
   }
 
-  return paint({ text: fitEnd({ text: build.log_path, width }), kind: "dim" });
+  return colorLine({ text: fit({ text: fitEnd({ text: build.log_path, width }), width }), kind: "dim" });
 }
 
+/** Green while a running build streams at the tail, yellow while scrolled up so new output is never missed. */
 function footerLine({
   chrome,
-  following,
+  hidden,
+  unseen,
   width,
   status,
 }: {
   chrome: "tab" | "run";
-  following: boolean;
+  hidden: number;
+  unseen: number;
   width: number;
   status: AgentBuildView["status"] | null;
 }): string {
-  const place = following ? "following" : "scrolled up";
-  const stream = status === "building" && following ? "streaming" : place;
   const keys = chrome === "run" ? "esc hides · ctrl-c stops the run" : "←→ builds · esc list · tab switches";
-  const text = `↑↓ scrolls · end follows · ${stream} · ${keys}`;
 
-  return paint({ text: fit({ text, width }), kind: "hint" });
+  if (hidden > 0) {
+    const fresh = unseen > 0 ? `${unseen} new line${unseen === 1 ? "" : "s"} · ` : "";
+    const text = `▲ PAUSED ${hidden} lines up · ${fresh}end jumps to live · ↑↓ scrolls · ${keys}`;
+
+    return colorLine({ text: fit({ text, width }), kind: "alert" });
+  }
+
+  if (status === "building") {
+    const text = `● LIVE · following new output · ↑↓ scrolls · ${keys}`;
+
+    return colorLine({ text: fit({ text, width }), kind: "live" });
+  }
+
+  const text = `■ at the end · ↑↓ scrolls · ${keys}`;
+
+  return colorLine({ text: fit({ text, width }), kind: "hint" });
 }
 
 function runLabel(build: AgentBuildView): string {
@@ -114,47 +135,11 @@ function runLabel(build: AgentBuildView): string {
 }
 
 function pad(lines: string[], height: number, width: number): string[] {
-  const painted = lines.map((line) => paint({ text: fit({ text: line, width }), kind: "plain" }));
+  const painted = lines.map((line) => colorLine({ text: fit({ text: line, width }), kind: "plain" }));
 
   while (painted.length < height) {
-    painted.push(paint({ text: "", kind: "plain" }));
+    painted.push(colorLine({ text: "", kind: "plain" }));
   }
 
   return painted;
-}
-
-function fit({ text, width }: { text: string; width: number }): string {
-  if (text.length <= width) {
-    return text.padEnd(width);
-  }
-
-  if (width <= 1) {
-    return "…";
-  }
-
-  return `${text.slice(0, width - 1)}…`;
-}
-
-function fitEnd({ text, width }: { text: string; width: number }): string {
-  if (text.length <= width) {
-    return text.padEnd(width);
-  }
-
-  if (width <= 1) {
-    return "…";
-  }
-
-  return `…${text.slice(text.length - (width - 1))}`.padEnd(width);
-}
-
-function paint({ text, kind }: { text: string; kind: "title" | "dim" | "hint" | "plain" }): string {
-  if (kind === "title") {
-    return `\x1b[1m${text}\x1b[0m\x1b[K`;
-  }
-
-  if (kind === "dim" || kind === "hint") {
-    return `\x1b[2m${text}\x1b[0m\x1b[K`;
-  }
-
-  return `${text}\x1b[K`;
 }

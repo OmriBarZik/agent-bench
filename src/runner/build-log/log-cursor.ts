@@ -7,7 +7,7 @@ const MAX_CHUNK = 256 * 1024;
 
 /** An empty cursor at the start of a log file. */
 export function createLogCursor(): LogCursor {
-  return { offset: 0, held: "", pending: "", column: 0, lines: [] };
+  return { offset: 0, held: "", pending: "", column: 0, lines: [], total: 0 };
 }
 
 /**
@@ -33,7 +33,13 @@ export function appendLogText({
     pending: written.line,
     column: written.column,
     lines: overflow > 0 ? lines.slice(overflow) : lines,
+    total: cursor.total + written.finished.length,
   };
+}
+
+/** How many lines the log has produced so far, counting the one still being written. */
+export function producedLines(cursor: LogCursor): number {
+  return cursor.total + (cursor.pending === "" ? 0 : 1);
 }
 
 /** Finished lines plus the line still being written. */

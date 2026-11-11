@@ -8,6 +8,8 @@ export type LogView = {
   cursor: LogCursor;
   /** Lines of the tail hidden below the window. Zero follows the newest line. */
   above: number;
+  /** Lines that arrived while scrolled up. Zero while following. */
+  unseen: number;
 };
 
 /** Whether the runner should take the terminal for this build. */

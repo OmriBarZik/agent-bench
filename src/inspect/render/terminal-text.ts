@@ -44,6 +44,14 @@ export function colorLine({ text, kind }: { text: string; kind: LineKind }): str
     return `\x1b[33m${text}\x1b[0m\x1b[K`;
   }
 
+  if (kind === "live") {
+    return `\x1b[1;32m${text}\x1b[0m\x1b[K`;
+  }
+
+  if (kind === "alert") {
+    return `\x1b[1;30;43m${text}\x1b[0m\x1b[K`;
+  }
+
   if (kind === "title") {
     return `\x1b[1m${text}\x1b[0m\x1b[K`;
   }
