@@ -52,7 +52,7 @@ src/main.ts
         2. createRunBranch(runId)      branch at that SHA, named after the run id
         3. startRun                    insert the runs row (status = running)
         4. runClaude                   claude -p … --append-system-prompt (baseline, then the config tool prompt) --settings hooks/settings.example.json
-        │     ├─ hooks/tool-log.ts        PreToolUse/PostToolUse → tool_calls rows (only when BENCH_RUN_ID is set)
+        │     ├─ hooks/tool-log.ts        PreToolUse/PostToolUse/PostToolUseFailure → tool_calls rows (only when BENCH_RUN_ID is set)
         │     └─ hooks/baseline-guard.ts  PreToolUse Bash: deny cd, shell file edits, and other runs' branches for every config
         5. copyTranscript              ~/.claude/projects/**/<session>.jsonl → runs/<run_id>/
         6. commitRunChanges            commit submodule checkouts, then the superproject
@@ -153,7 +153,7 @@ Each config is a folder under `configs/setup/<configId>/`. That folder holds the
 | `runs`                  | task × config × repeat | status `running` / `done` / `crashed` / `cancelled`, plus the agent's metrics. `branch` equals `run_id`; `changed_files` and `raw_result` are JSON. `auto_review` is 1 when the run attached chrome-validate |
 | `judge_runs`            | judge session          | one row per run. The judge's own cost, tokens, duration, `decision`, `success`, `blocked`, and `blockers`. `cancelled` has no decision                                                                       |
 | `tool_calls`            | hook event             | `phase` is `pre` / `post`. For Bash, `program` is the executable the parsed script runs (`git`, `rg`, `head`), one row per program                                                                           |
-| `tool_attempts` (view)  | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied                                                                                                                                  |
+| `tool_attempts` (view)  | attempted tool call    | joins pre ↔ post on `tool_use_id`. `ran = 0` means it was blocked or denied; a failed tool is `ran = 1, is_error = 1`                                                                                        |
 | `chromium_builds`       | Chromium build         | one Runs-tab build, on this Mac or the build Mac. status `building` / `passed` / `failed` / `cancelled`. A queue is one row per run                                                                          |
 | `builds`                | agent build            | one chrome-validate build. status `building` / `ok` / `failed` / `cancelled` / `abandoned`                                                                                                                   |
 | `build_activity` (view) | either build           | Runs-tab rows plus agent rows. Agent `ok` is `passed` and `abandoned` is `cancelled`, which is what the builds dashboard shows                                                                               |

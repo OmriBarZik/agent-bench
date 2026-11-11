@@ -26,11 +26,13 @@ frontend only. `wait_build` tells you which output is ready and how to open it.
    - **ok**: the result names the build number, snapshot, and how to check the change with `run_chrome`.
 4. `run_chrome`: starts Chromium headless with a fresh profile, opens a URL and runs your actions:
    - `{"key": "Space"}`, `{"key": "ArrowDown", "hold_ms": 400}` press keys like a user would.
-   - `{"wait_ms": 300}` pauses.
+   - `{"wait_ms": 300}` pauses, for at most 30000 ms per wait. For a longer run, chain several waits. A longer
+     value is cut to 30000 and the result says so.
    - `{"eval": "document.title"}` or `{"eval": "const r = await foo(); return r;"}` runs JavaScript in the page.
      Not for dino tasks.
-   - `{"state": true}` returns the dino harness game state: playing, crashed, speed, and the T-Rex status,
-     position, jumping, and ducking.
+   - `{"state": true}` returns the dino game state on the dino harness or on `chrome://dino`: playing, crashed,
+     speed, distance, playCount (it goes up on every start and restart), and the T-Rex status, position, jumping,
+     and ducking. Read it twice with a wait between to see the game move or restart.
    - `{"screenshot": true}` returns an image (at most 8 per call). Look at it.
    - `flags` adds Chromium switches, such as `["--enable-features=MyFeature"]` for code behind a feature flag.
    - Console messages and page exceptions come back too.
@@ -43,7 +45,8 @@ then you are testing old code, so build again first.
 ## Task modes
 
 - **Full chrome** (cross-module / built-in AI work): `start_build` builds `chrome`. `run_chrome` launches that
-  Chromium.app. Useful pages include `chrome://dino`.
+  Chromium.app. Useful pages include `chrome://dino`, which always opens as an error page
+  (`net::ERR_INTERNET_DISCONNECTED`): that is the game page, and `eval`, keys, and `state` all work on it.
 - **Dino** (offline game TypeScript only): `start_build` builds the neterror/dino TypeScript. `run_chrome` with
   url `"dino"` opens a harness that boots your rebuilt game with Chromium's own sprites and sounds. Check it the
   way a player sees it: key presses, waits, screenshots, and `{"state": true}`. `eval` and other URLs are refused,

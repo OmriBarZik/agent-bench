@@ -55,9 +55,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "array",
           description:
             'Steps after the page loads, in order: {"key":"Space","hold_ms":50} presses a key (letters, digits, Space, ' +
-            'Arrow*, Enter, Escape, Tab, Backspace); {"wait_ms":500}; {"eval":"js"} runs an expression, or ' +
-            'statements that return a value, awaiting promises (not for dino tasks); {"state":true} returns the ' +
-            "dino harness game state (playing, crashed, speed, T-Rex status, position, jumping, ducking); " +
+            'Arrow*, Enter, Escape, Tab, Backspace); {"wait_ms":500} (at most 30000 per wait; chain waits for ' +
+            'longer); {"eval":"js"} runs an expression, or statements that return a value, awaiting promises (not ' +
+            'for dino tasks); {"state":true} returns the dino game state on the dino harness or chrome://dino ' +
+            "(playing, crashed, speed, distance, playCount, T-Rex status, position, jumping, ducking); " +
             '{"screenshot":true} (max 8).',
           items: { type: "object" },
         },

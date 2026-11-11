@@ -235,7 +235,7 @@ export type RunBranchRow = {
   judgeTurns: number | null;
 };
 
-/** One PreToolUse/PostToolUse hook event, stored as a tool_calls row. */
+/** One PreToolUse/PostToolUse hook event, stored as a tool_calls row. A PostToolUseFailure is a `post` row with isError. */
 export type ToolCall = {
   runId: string;
   phase: "pre" | "post";

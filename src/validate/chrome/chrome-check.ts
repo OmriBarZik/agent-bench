@@ -4,12 +4,14 @@ import type { CdpParams, CdpSession } from "./cdp.types";
 import type { ChromeAction, ChromeCheck, ChromeReport } from "./chrome-check.types";
 import { keyDefinition, KEY_NAMES } from "./keys";
 import { launchChrome } from "./launch";
+import { describeException, evaluate, truncate } from "./page/evaluate";
+import { readGameState } from "./page/game-state";
 
 const MAX_SCREENSHOTS = 8;
 const MAX_CONSOLE_LINES = 60;
 const LOAD_TIMEOUT_MS = 30_000;
-const STATE_EXPRESSION =
-  "typeof globalThis.benchGameState === 'function' ? globalThis.benchGameState() : 'this page reports no game state'";
+/** One wait action's longest pause. A longer wait_ms is cut to this and the agent is told so. */
+const MAX_WAIT_MS = 30_000;
 
 /**
  * Opens `url` in a fresh headless Chromium from the build, runs the actions in order, and returns what happened:
@@ -73,7 +75,7 @@ async function runAction({ page, action, parts }: { page: CdpSession; action: Ch
   }
 
   if ("wait_ms" in action) {
-    await Bun.sleep(Math.min(Math.max(action.wait_ms, 0), 30_000));
+    await waitFor({ waitMs: action.wait_ms, parts });
 
     return;
   }
@@ -85,7 +87,7 @@ async function runAction({ page, action, parts }: { page: CdpSession; action: Ch
   }
 
   if ("state" in action) {
-    parts.push({ type: "text", text: `state → ${await evaluate({ page, code: STATE_EXPRESSION })}` });
+    parts.push({ type: "text", text: `state → ${await readGameState(page)}` });
 
     return;
   }
@@ -98,6 +100,19 @@ async function runAction({ page, action, parts }: { page: CdpSession; action: Ch
 
   const shot = await page.send("Page.captureScreenshot", { format: "png" });
   parts.push({ type: "image", data: String(shot.data), mimeType: "image/png" });
+}
+
+/** Waits, and says so when the wait was cut to MAX_WAIT_MS, so the agent never assumes a longer run. */
+async function waitFor({ waitMs, parts }: { waitMs: number; parts: ContentPart[] }) {
+  const waited = Math.min(Math.max(waitMs, 0), MAX_WAIT_MS);
+  await Bun.sleep(waited);
+
+  if (waited < waitMs) {
+    parts.push({
+      type: "text",
+      text: `waited ${waited} ms, not ${waitMs}: one wait_ms is at most ${MAX_WAIT_MS}; add more waits for longer`,
+    });
+  }
 }
 
 async function pressKey({ page, name, holdMs }: { page: CdpSession; name: string; holdMs: number }) {
@@ -118,34 +133,6 @@ async function pressKey({ page, name, holdMs }: { page: CdpSession; name: string
   await page.send("Input.dispatchKeyEvent", { type: "keyUp", ...event });
 }
 
-/** Statements that `return` stay a function body. An expression, including a word like `data-return`, is returned. */
-export function evaluationBody(code: string): string {
-  if (/(^|[^-\w])return\b/.test(code)) {
-    return code;
-  }
-
-  return `return (${code});`;
-}
-
-/** Statements that `return` run inside an async function; anything else is evaluated as an expression. */
-async function evaluate({ page, code }: { page: CdpSession; code: string }): Promise<string> {
-  const body = evaluationBody(code);
-  const result = await page.send("Runtime.evaluate", {
-    expression: `(async () => { ${body} })()`,
-    awaitPromise: true,
-    returnByValue: true,
-  });
-  const exception = result.exceptionDetails as CdpParams | undefined;
-
-  if (exception) {
-    return `threw ${describeException(exception)}`;
-  }
-
-  const value = (result.result as CdpParams | undefined)?.value;
-
-  return value === undefined ? "undefined" : truncate(JSON.stringify(value));
-}
-
 function listenToConsole({ page, consoleLines }: { page: CdpSession; consoleLines: string[] }) {
   const add = (line: string) => {
     if (consoleLines.length < MAX_CONSOLE_LINES) {
@@ -159,14 +146,4 @@ function listenToConsole({ page, consoleLines }: { page: CdpSession; consoleLine
   page.on("Runtime.exceptionThrown", (params) => {
     add(`[exception] ${describeException(params.exceptionDetails as CdpParams)}`);
   });
-}
-
-function describeException(details: CdpParams): string {
-  const exception = details.exception as CdpParams | undefined;
-
-  return String(exception?.description ?? details.text ?? "an exception");
-}
-
-function truncate(text: string): string {
-  return text.length > 2000 ? `${text.slice(0, 2000)}…` : text;
 }

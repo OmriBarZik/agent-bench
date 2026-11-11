@@ -138,7 +138,11 @@ function successHint({ session, outcome }: { session: ToolSession; outcome: Buil
     );
   }
 
-  return `Chromium is at ${outcome.appPath}. Check it with run_chrome.`;
+  return (
+    `Chromium is at ${outcome.appPath}. Check it with run_chrome. chrome://dino opens as an error page ` +
+    `(net::ERR_INTERNET_DISCONNECTED); that is the game page, and actions run on it. {"state":true} there returns ` +
+    `the game state, including playCount, which goes up on every restart.`
+  );
 }
 
 async function runChrome({ session, args }: { session: ToolSession; args: ToolArguments }): Promise<ToolResult> {
