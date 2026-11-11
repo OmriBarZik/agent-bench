@@ -7,6 +7,7 @@ import {
   FILE_DENIAL,
   PRIVATE_PATH_DENIAL,
 } from "../src/baseline-policy";
+import { CHROMIUM_SRC } from "../src/paths";
 import { gitSubcommand } from "./bash/git-subcommand";
 import { readsOtherBranches } from "./bash/other-branches";
 import { isPrivatePath } from "./paths/private-paths";
@@ -50,8 +51,8 @@ export function commandDenial(command: Command): string | null {
     return BRANCH_DENIAL;
   }
 
-  // The hook runs in the session's working directory, the checkout root, so relative paths resolve from there.
-  if (words.some((word) => isPrivatePath({ word, cwd: process.cwd(), program: program ?? undefined }))) {
+  // The baseline keeps the shell at the checkout root, so relative paths resolve from there.
+  if (words.some((word) => isPrivatePath({ word, cwd: CHROMIUM_SRC, program: program ?? undefined }))) {
     return PRIVATE_PATH_DENIAL;
   }
 
