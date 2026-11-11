@@ -31,7 +31,7 @@ bun run start                      # on a terminal, opens the long-lived TUI: St
 bun run start --only-task t1 --repeats 3
 bun run start:inspect              # the same TUI on the Runs tab: space checks runs, enter opens an action menu (narrowed when several are checked), ctrl-o opens a transcript, ctrl-e the judge transcript, ctrl-b then l or r builds (r queues checked runs; a failed compile asks whether to mark that run failed), ctrl-p opens a built Chromium.app, ctrl-f sets the judge decision, ctrl-x twice removes, ctrl-g checks out, ctrl-r refreshes
 bun run start:setups               # the same TUI on the Setups tab: each config's setup checks, and whether that config has been run
-bun run start:dashboard            # view results in Grafana at http://localhost:3000
+bun run start:dashboard            # view results in Grafana at http://localhost:8080
 ```
 
 > ⚠️ The runner **wipes uncommitted work** in the Chromium checkout (`git reset --hard` + `git clean -fd`), including every checked-out submodule, before every run. It refuses to start if tracked files are modified, unless you pass `--force` or answer yes when asked to delete those changes.
@@ -178,7 +178,7 @@ Each config is a folder under `configs/setup/<configId>/`. That folder holds the
 
 ## Dashboard
 
-`bun run start:dashboard` starts Grafana in Docker at <http://localhost:3000> with the [SQLite plugin](https://grafana.com/grafana/plugins/frser-sqlite-datasource/). `bun run start:dashboard:stop` stops it and the snapshot loop. No login is needed (anonymous admin, bound to localhost only).
+`bun run start:dashboard` starts Grafana in Docker at <http://localhost:8080> with the [SQLite plugin](https://grafana.com/grafana/plugins/frser-sqlite-datasource/). `bun run start:dashboard:stop` stops it and the snapshot loop. No login is needed (anonymous admin, bound to localhost only).
 
 Grafana reads `dashboard/snapshot/bench.sqlite`, a copy of `data/bench.sqlite` that `dashboard/snapshot.sh` refreshes every 5 seconds (`SNAPSHOT_SECONDS` changes it). The script shells out to the `sqlite3` CLI, which is preinstalled on macOS. It doesn't read the live DB because Docker can't share SQLite's WAL index with the host, which causes `database is locked (261)` errors when panels query at once. The dashboard is therefore up to 5 seconds behind.
 
