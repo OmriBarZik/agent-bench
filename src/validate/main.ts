@@ -9,6 +9,7 @@ import { cancelBuildJobs } from "./build/build-job";
 import type { BuildState, ValidateContext } from "./build/build-job.types";
 import { serveStdio } from "./mcp/protocol";
 import { readValidateMode } from "./mode/validate-mode";
+import type { ChromeQueue } from "./tools/chrome-queue.types";
 import { TOOL_DEFINITIONS } from "./tools/tool-definitions";
 import { callTool } from "./tools/tools";
 
@@ -34,11 +35,12 @@ async function main() {
     logDir: runId == null ? join(tmpdir(), "chrome-validate") : join(RUNS_DIR, runId, "builds"),
   };
   const state: BuildState = { jobs: [] };
+  const chromeQueue: ChromeQueue = { tail: Promise.resolve() };
   await serveStdio({
     name: "chrome-validate",
     version: "1.0.0",
     tools: TOOL_DEFINITIONS,
-    callTool: (name, args) => callTool({ session: { context, state }, name, args }),
+    callTool: (name, args) => callTool({ session: { context, state, chromeQueue }, name, args }),
   });
   cancelBuildJobs(state);
   await Promise.all(state.jobs.map((job) => job.done));

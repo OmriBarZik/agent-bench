@@ -5,7 +5,8 @@ import { startChrome } from "./launch";
 const WARM_UP_TIMEOUT_MS = 5 * 60_000;
 
 /**
- * Launches a freshly copied Chromium.app once and stops it, logging how long that took.
+ * Launches the Chromium.app run_chrome will use (a fresh copy, or the stock app in light modes) once and stops it,
+ * logging how long that took.
  * macOS checks every new dylib of the component build on its first launch, which takes minutes and would
  * otherwise time out the agent's first run_chrome calls. Never throws: a failed warm-up leaves run_chrome to report.
  */
