@@ -29,7 +29,7 @@ bun run start --only-task t1,t2 --repeats 3   # flags skip the TUI (add -i to op
 bun run start:inspect                         # the same TUI, opened on the Runs tab (= bun run start --runs); enter opens an action menu, ctrl-o the transcript, ctrl-g checks out
 bun run start:setups                          # the same TUI, opened on the Setups tab (= bun run start --setups); which setups are missing, and which configs have been run
 bun run start --checkout <branch>             # check out that run's branch, no TUI
-bun run start:dashboard                       # view results in Grafana at http://localhost:3000
+bun run start:dashboard                       # view results in Grafana at http://localhost:8080
 ```
 
 > ⚠️ Each run wipes uncommitted work in `chromium/src` (`git reset --hard` + `git clean -fd`), including checked-out submodules. The runner refuses to start if tracked files are modified, unless you pass `--force` or answer yes when asked to delete those changes.
