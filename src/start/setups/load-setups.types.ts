@@ -26,6 +26,8 @@ export type ConfigSetup = {
 export type SharedCheck = {
   label: string;
   ok: boolean;
+  /** Shown after the label instead of `ok` or `missing`. */
+  word?: string;
 };
 
 /** What the Setups tab draws. */

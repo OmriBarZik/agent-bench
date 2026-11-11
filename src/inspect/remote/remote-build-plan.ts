@@ -1,4 +1,5 @@
 import { RSYNC_SSH, sshCommand } from "../../builder/ssh";
+import { recordToolchainScript, toolchainGuardScript } from "../../builder/toolchain/toolchain-script";
 import { prepareCcacheScript } from "../build/ccache";
 import type { SubmoduleCommit } from "../gitlink/gitlink-diff.types";
 
@@ -77,9 +78,9 @@ if [ ! -f out/Default/args.gn ] || ! cmp -s out/Default/args.gn "$desired_args";
   fi
 fi
 rm -f "$desired_args" "$previous_args"
-# SSH has no tty, so siso turns fast local off. Pass it back on, as the build log says.
+${toolchainGuardScript()}# SSH has no tty, so siso turns fast local off. Pass it back on, as the build log says.
 autoninja --fast_local -C out/Default ${target}
-`;
+${recordToolchainScript(target)}`;
 }
 
 /** Moves the builder off the run branch so the push is accepted, without deleting ignored build output. */

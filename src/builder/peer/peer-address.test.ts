@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test";
 import { parseRemoteBuildFile } from "../remote-file";
 import { renderSshConfig } from "../ssh";
+import { peerProxyCommand } from "./find-peer";
 import { deviceForConnection, ownAddresses, peerAddresses } from "./peer-address";
 
 const ifconfig = `bridge0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
@@ -38,7 +39,7 @@ test("deviceForConnection accepts the port name or the device, in any case", () 
   expect(deviceForConnection({ hardwarePorts, name: "Ethernet" })).toBeNull();
 });
 
-test("remote.yaml takes a connection instead of hostName, and not both", () => {
+test("remote.yaml takes a connection, a hostName, or both, and not neither", () => {
   const base = `host: builder
 user: mock-user
 source: /src
@@ -51,6 +52,13 @@ depotTools: /depot_tools
   ProxyCommand /bun /peer-proxy.ts bridge0 %p
   User mock-user
 `);
-  expect(() => parseRemoteBuildFile(base)).toThrow(/exactly one/);
-  expect(() => parseRemoteBuildFile(`${base}hostName: 10.0.0.2\nconnection: bridge0\n`)).toThrow(/exactly one/);
+  expect(() => parseRemoteBuildFile(base)).toThrow(/needs a hostName/);
+
+  const both = parseRemoteBuildFile(`${base}hostName: 10.0.0.2\nconnection: bridge0\n`);
+
+  expect(both.hostName).toBe("10.0.0.2");
+  expect(both.connection).toBe("bridge0");
+  expect(peerProxyCommand({ device: "bridge0", fallbackHost: "10.0.0.2" })).toEndWith("bridge0 %p 10.0.0.2");
+  expect(peerProxyCommand({ device: "bridge0" })).toEndWith("bridge0 %p");
+  expect(() => peerProxyCommand({ device: "bridge0", fallbackHost: "bad host" })).toThrow(/space or %/);
 });

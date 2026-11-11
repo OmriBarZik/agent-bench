@@ -11,13 +11,15 @@ import { createChromiumJobController } from "./jobs/chromium-job";
 import type { OpenStartTuiOptions, StartTab } from "./open-start-tui.types";
 import { createPickerScreen } from "./picker/picker-screen";
 import type { PickerChoices, PickerStartRequest } from "./picker/picker-state.types";
+import { createQuitGuard } from "./quit-guard";
 import { createSetupsScreen } from "./setups/setups-screen";
 
 const TAB_ORDER: StartTab[] = ["start", "runs", "build", "setups"];
 
 /**
  * Opens the long-lived `bun run start` TUI. Start, builds, and checkout run as one-at-a-time
- * Chromium jobs while tabs stay navigable. Resolves only when the user quits.
+ * Chromium jobs while tabs stay navigable. Resolves only when the user quits. Quitting stops the running job,
+ * so esc and the screens' quit keys ask first while one runs.
  */
 export async function openStartTui(options: OpenStartTuiOptions): Promise<null> {
   const runChoices = await loadChoices();
@@ -48,8 +50,10 @@ export async function openStartTui(options: OpenStartTuiOptions): Promise<null> 
         jobs.cancel();
       };
 
+      const quitGuard = createQuitGuard({ jobStatus: jobs.status, quit: () => host.finish(null) });
+
       const withJobInterrupt = (screen: TuiScreen): TuiScreen => ({
-        ...screen,
+        ...quitGuard.wrap(screen),
         onInterrupt: () => {
           if (jobs.status().stopping) {
             process.exit(130);
@@ -99,7 +103,7 @@ export async function openStartTui(options: OpenStartTuiOptions): Promise<null> 
               savedPath: options.savedPath,
               force: options.force,
               jobs,
-              onQuit: () => host.finish(null),
+              onQuit: quitGuard.requestQuit,
               onStart: startMatrix,
             }),
           ),
@@ -113,7 +117,7 @@ export async function openStartTui(options: OpenStartTuiOptions): Promise<null> 
               force: options.force,
               controls: host,
               jobs,
-              onQuit: () => host.finish(null),
+              onQuit: quitGuard.requestQuit,
               buildFinishSlot,
             }),
           ),
@@ -126,6 +130,7 @@ export async function openStartTui(options: OpenStartTuiOptions): Promise<null> 
           label: "Setups",
           screen: withJobInterrupt(
             createSetupsScreen({
+              controls: host,
               configs: options.selection.configs.map((config) => ({
                 configId: config.configId,
                 description: config.description,

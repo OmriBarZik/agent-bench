@@ -37,18 +37,30 @@ export function findPeer(device: string): string {
   return peers[0] as string;
 }
 
-/** The ssh_config ProxyCommand that finds the peer on `device` each time ssh connects. */
-export function peerProxyCommand(device: string): string {
+/**
+ * The ssh_config ProxyCommand that finds the peer on `device` each time ssh connects.
+ * With `fallbackHost`, ssh connects to that address when nobody answers on `device`.
+ */
+export function peerProxyCommand({ device, fallbackHost }: { device: string; fallbackHost?: string }): string {
   // Prefer the PATH entry (e.g. /opt/homebrew/bin/bun): execPath is a versioned Cellar path that an upgrade removes.
   const parts = [Bun.which("bun") ?? process.execPath, PEER_PROXY_SCRIPT, device];
 
-  for (const part of parts) {
+  for (const part of [...parts, fallbackHost ?? ""]) {
     if (/[\s%]/.test(part)) {
       throw new Error(`ProxyCommand cannot use ${part} because it has a space or %`);
     }
   }
 
+  if (fallbackHost) {
+    return `${parts.join(" ")} %p ${fallbackHost}`;
+  }
+
   return `${parts.join(" ")} %p`;
+}
+
+/** True when `host` accepts a TCP connection on the SSH port within three seconds. */
+export function answersSsh(host: string): boolean {
+  return Bun.spawnSync(["nc", "-z", "-G", "3", host, "22"], { stdout: "ignore", stderr: "ignore" }).success;
 }
 
 function runText(command: string[]): string {

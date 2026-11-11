@@ -3,7 +3,7 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { installSshInclude } from "../../builder/install-ssh";
-import { findPeer, peerProxyCommand, resolveConnection } from "../../builder/peer/find-peer";
+import { answersSsh, findPeer, peerProxyCommand, resolveConnection } from "../../builder/peer/find-peer";
 import { parseRemoteBuildFile } from "../../builder/remote-file";
 import type { RemoteBuildFile } from "../../builder/remote-file.types";
 import { renderSshConfig } from "../../builder/ssh";
@@ -18,8 +18,9 @@ import { REMOTE_BUILD_EXAMPLE, REMOTE_BUILD_FILE, REMOTE_SSH_CONFIG } from "../.
  * when that file is missing, and stops so you can fill in the address, account, and paths.
  * The next run writes configs/builder/ssh_config from that file and adds
  * `Include <that path>` to the top of ~/.ssh/config. Both written files are gitignored.
- * When remote.yaml names a `connection` instead of `hostName`, the Host block gets a ProxyCommand
- * that finds the build Mac on that connection each time ssh connects.
+ * When remote.yaml names a `connection`, the Host block gets a ProxyCommand that finds the build Mac
+ * on that connection each time ssh connects. With a `hostName` as well, ssh uses that address when the
+ * connection has no build Mac on it, and setup says whether that address answers now.
  * Run it again after changing remote.yaml.
  */
 async function main(): Promise<void> {
@@ -61,7 +62,15 @@ function proxyFor(file: RemoteBuildFile): string | undefined {
     console.warn(`Warning: ${error instanceof Error ? error.message : error}`);
   }
 
-  return peerProxyCommand(device);
+  if (file.hostName != null) {
+    if (answersSsh(file.hostName)) {
+      console.log(`Without ${file.connection}, the build Mac answers at ${file.hostName}`);
+    } else {
+      console.warn(`Warning: ${file.hostName} does not answer on the SSH port, so builds need ${file.connection}`);
+    }
+  }
+
+  return peerProxyCommand({ device, fallbackHost: file.hostName });
 }
 
 if (import.meta.main) {

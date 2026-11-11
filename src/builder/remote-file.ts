@@ -30,8 +30,8 @@ export function parseRemoteBuildFile(raw: string): RemoteBuildFile {
   const buildDirectory = optionalPath({ record, key: "buildDirectory" });
   const depotTools = requiredPath({ record, key: "depotTools" });
 
-  if ((hostName == null) === (connection == null)) {
-    throw new Error(`${FILE} needs exactly one of hostName (an address) or connection (such as Thunderbolt Bridge)`);
+  if (hostName == null && connection == null) {
+    throw new Error(`${FILE} needs a hostName (an address), a connection (such as Thunderbolt Bridge), or both`);
   }
 
   if (user === PLACEHOLDER_USER) {

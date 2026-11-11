@@ -70,3 +70,13 @@ test("the run branch refspec updates only that branch on the builder", () => {
   expect(branchRefspec("dino__haiku__r0")).toBe("+refs/heads/dino__haiku__r0:refs/heads/dino__haiku__r0");
   expect(() => branchRefspec("dino haiku")).toThrow(/branch/);
 });
+
+test("a chrome build warns about a changed toolchain and records it, and a light target does not record", () => {
+  const chrome = remoteBuildScript({ argsGn: "", commits: [] });
+  const light = remoteBuildScript({ argsGn: "", commits: [], ninjaTarget: "components/neterror/resources:build_ts" });
+
+  expect(chrome).toContain("toolchain changed since the last chrome build");
+  expect(chrome.trimEnd().endsWith("> out/Default/.agent-bench-toolchain")).toBe(true);
+  expect(light).toContain("toolchain changed since the last chrome build");
+  expect(light).not.toContain("> out/Default/.agent-bench-toolchain");
+});

@@ -43,7 +43,7 @@ The first run copies [configs/builder/remote.yaml.example](../configs/builder/re
 | Field            | Where     | Meaning                                                                                               |
 | ---------------- | --------- | ----------------------------------------------------------------------------------------------------- |
 | `host`           | SSH alias | Name the Runs tab uses, as in `ssh builder`.                                                          |
-| `hostName`       | Build Mac | Its current IP, or a name such as `Mac-mini.local`. Set this or `connection`.                         |
+| `hostName`       | Build Mac | Its current IP, or a name such as `Mac-mini.local`. Set this, `connection`, or both.                  |
 | `connection`     | This Mac  | Port name (`Thunderbolt Bridge`) or device (`bridge0`) that links only the two Macs.                  |
 | `user`           | Build Mac | Output of `whoami` there. The example value `your-user` is rejected until you replace it.             |
 | `source`         | Build Mac | Absolute path of the Chromium `src/` checkout.                                                        |
@@ -68,6 +68,8 @@ ssh builder
 
 `ssh builder` should open a shell on the build Mac with no password. The build refuses a password prompt.
 
+Set both `connection` and `hostName` to keep building when the cable is out. `hostName` is then the build Mac's Wi-Fi address (System Settings → Wi-Fi → Details on the build Mac, or its `Name.local`). SSH tries the cable first. When nobody answers on it, which takes about two seconds to find out, SSH connects to `hostName`, and the build log has a line saying so. Setup prints whether `hostName` answers on the SSH port. A Wi-Fi IP from DHCP can change; the `.local` name does not. Copying `Chromium.app` back is slower over Wi-Fi.
+
 With `connection`, the Host block has a `ProxyCommand` (`src/builder/peer/peer-proxy.ts`) instead of a `HostName`, and `known_hosts` stores the build Mac's key under the alias (`builder`), not under an IP. After you switch from `hostName` to `connection`, run `ssh builder` once by hand and accept the key. Builds run SSH in batch mode, which cannot answer that prompt.
 
 ## Each run
@@ -88,5 +90,11 @@ Highlight a run and press Ctrl-B. The list asks where to build:
 Object files stay on the build Mac. The build writes [configs/builder/args.gn](../configs/builder/args.gn) into `out/Default` when that file is missing or differs, then runs `gn gen`. Later builds reuse `out/`, so only the branch's changes compile. A non-interactive ssh session does not load Homebrew's PATH. When `ccache` is not already visible, the build appends `/opt/homebrew/bin` and `/usr/local/bin`.
 
 Ctrl-C cancels the check or the build and returns to the list. Enter after a finished build returns to the list as well. The app stays open.
+
+## When the build Mac's toolchain changes
+
+Every object file depends on Xcode, the macOS SDK, and Chromium's clang. When one of them changes, such as an Xcode update from the App Store, the next `chrome` build recompiles everything (about 60,000 steps, over an hour), and ccache cannot reuse its old entries because the headers differ. Turn off automatic Xcode updates on the build Mac to choose when that happens.
+
+A finished `chrome` build records the three versions in `out/Default/.agent-bench-toolchain` on the build Mac. A lighter target does not, because it leaves the object files stale. Before each build the script compares them, and the build log says so when they differ. The Setups tab asks the build Mac the same question in the background and shows the answer on the shared line as `build mac`: `toolchain unchanged`, `toolchain changed` with the old and new values, `no chrome build recorded`, or `unreachable`. `r` asks again. The entry is absent when `configs/builder/remote.yaml` does not exist.
 
 The build Mac's checkout is switched with `git switch --force`, which discards tracked edits there. `out/` is left in place.

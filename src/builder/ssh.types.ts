@@ -4,7 +4,7 @@ import type { RemoteBuildFile } from "./remote-file.types";
 export type SshHost = {
   /** The parsed remote.yaml. */
   file: RemoteBuildFile;
-  /** ProxyCommand that finds the build Mac. Set when remote.yaml names a connection instead of hostName. */
+  /** ProxyCommand that finds the build Mac. Set when remote.yaml names a connection. */
   proxyCommand?: string;
 };
 

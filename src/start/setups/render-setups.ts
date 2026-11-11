@@ -74,7 +74,7 @@ function heading(report: SetupReport): string {
 }
 
 function sharedLine(report: SetupReport): string {
-  const parts = report.shared.map((check) => `${check.label} ${check.ok ? "ok" : "missing"}`);
+  const parts = report.shared.map((check) => `${check.label} ${check.word ?? (check.ok ? "ok" : "missing")}`);
 
   return `shared  ${parts.join(" · ")}`;
 }
