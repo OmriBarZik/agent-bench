@@ -55,8 +55,9 @@ then you are testing old code, so build again first.
   source and build again. For the 2x sprites, pass `flags: ["--force-device-scale-factor=2"]`. Do not expect a
   full Chromium rebuild.
 - **DevTools**: `start_build` builds `devtools_frontend_resources`. `run_chrome` launches a stock Chromium with
-  `--custom-devtools-frontend` pointed at that front_end. Open your panel with
-  `devtools://devtools/bundled/devtools_app.html?panel=<your panel id>`, then use it the way a user does:
+  `--custom-devtools-frontend` pointed at that front_end. Open `devtools://devtools/bundled/devtools_app.html`
+  and click your panel's tab (`?panel=` only accepts Chromium's built-in panel ids; a new id is an invalid URL).
+  Pass a wider `width`, such as 1600, if the tab is hidden behind the » overflow menu. Then use it as a user does:
   `{"click": {"x": …, "y": …}}` into the game (pick the point from a screenshot), key presses, screenshots, and
   `{"state": true}`, which finds the game in the page or any of its frames. `eval` and pages outside DevTools are
   refused. After you stop, the benchmark itself checks the final tree: copied sprites and sounds byte for byte

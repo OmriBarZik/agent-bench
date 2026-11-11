@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { gitBlobId } from "./copies-check";
-import { isPanel, viewsInSource } from "./devtools-panel";
+import { isPanel, viewsInSource } from "./play/devtools-panel";
 
 test("gitBlobId matches git hash-object", () => {
   // `printf 'hello\n' | git hash-object --stdin`

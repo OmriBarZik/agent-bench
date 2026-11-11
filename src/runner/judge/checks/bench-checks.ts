@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { BenchCheck, BenchCheckInput, BenchCheckRun, NamedBenchCheck } from "./bench-checks.types";
 import { checkFinalBuild } from "./build-check";
 import { checkAssetCopies, checkGameSources } from "./copies-check";
-import { checkPlayInDevtools } from "./play-check";
+import { checkPlayInDevtools } from "./play/play-check";
 import { checkBuildWiring } from "./wiring-check";
 
 const CHECKS: NamedBenchCheck[] = [

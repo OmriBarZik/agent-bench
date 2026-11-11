@@ -135,7 +135,8 @@ function successHint({ session, outcome }: { session: ToolSession; outcome: Buil
     return (
       `DevTools frontend is at ${outcome.artifactPath}. Check it with run_chrome: the stock Chromium at ` +
       `${outcome.appPath} is launched with --custom-devtools-frontend pointing at that front_end. ` +
-      `Open devtools://devtools/bundled/devtools_app.html?panel=<your panel id>, click into the game, press keys, ` +
+      `Open devtools://devtools/bundled/devtools_app.html, click your panel's tab (?panel= only takes built-in ` +
+      `panel ids; use a wider width if the tab is behind the overflow menu), click into the game, press keys, ` +
       `and check it with screenshots and {"state":true}; eval is off for DevTools tasks.`
     );
   }

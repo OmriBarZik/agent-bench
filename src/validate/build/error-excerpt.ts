@@ -3,8 +3,9 @@ const TAIL_LINES = 40;
 const PROGRESS = /^\[\d+\/\d+\]/;
 
 /**
- * The part of a failed build's output the agent needs: each ninja `FAILED:` block with the compiler errors under
- * it, without the progress lines. Falls back to the last lines when there is no `FAILED:` block (gn, git, ssh).
+ * The part of a failed build's output the agent needs: each gn `ERROR at` block (gn prints the reason before the
+ * `FAILED:` regeneration step, which only says "rebuild manifest failed") and each ninja `FAILED:` block with the
+ * compiler errors under it, without the progress lines. Falls back to the last lines when there is neither (git, ssh).
  */
 export function errorExcerpt(output: string): string {
   const lines = output.split("\n");
@@ -12,7 +13,7 @@ export function errorExcerpt(output: string): string {
   let inFailure = false;
 
   for (const line of lines) {
-    if (line.startsWith("FAILED:")) {
+    if (line.startsWith("FAILED:") || line.startsWith("ERROR at ")) {
       inFailure = true;
     } else if (PROGRESS.test(line) || line.startsWith("ninja: build stopped")) {
       inFailure = false;

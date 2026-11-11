@@ -64,3 +64,9 @@ export type NamedBenchCheck = {
   name: string;
   run: BenchCheckRun;
 };
+
+/** One try of the play check: it played, the game failed a user would see fail, or the bench could not tell. */
+export type PlayOutcome = {
+  status: "pass" | "fail" | "not-run";
+  reason: string;
+};

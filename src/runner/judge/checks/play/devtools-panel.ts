@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { BenchCheckInput, RegisteredView } from "./bench-checks.types";
+import type { BenchCheckInput, RegisteredView } from "../bench-checks.types";
 
 const DEVTOOLS_FRONT_END = "third_party/devtools-frontend/src/front_end/";
 const CALL = "registerViewExtension(";
@@ -37,7 +37,7 @@ export function viewsInSource({ source, file }: { source: string; file: string }
   return views;
 }
 
-/** True for a main-panel view, which devtools_app.html?panel=<id> opens. Drawer views cannot be opened by URL. */
+/** True for a main-panel view, whose tab (`tab-<id>`) sits in the DevTools tab strip. Drawer views are not there. */
 export function isPanel(view: RegisteredView): boolean {
   return /\bPANEL\b|['"]panel['"]/.test(view.location);
 }

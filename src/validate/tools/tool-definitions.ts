@@ -36,7 +36,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       "rebuilt game with Chromium's own sprites and sounds; play it with keys, waits, screenshots, and state " +
       "(eval and other urls are refused for dino tasks). For a DevTools task, stock Chromium is " +
       "launched with --custom-devtools-frontend pointed at the rebuilt front_end; open " +
-      "devtools://devtools/bundled/devtools_app.html?panel=<id>, click into the game, and play it with keys, " +
+      "devtools://devtools/bundled/devtools_app.html, click your panel's tab and the game, and play it with keys, " +
       "screenshots, and state (eval and non-DevTools urls are refused). Warns when the working tree " +
       "has changed since that build.",
     inputSchema: {
