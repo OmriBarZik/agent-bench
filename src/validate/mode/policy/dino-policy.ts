@@ -1,4 +1,4 @@
-import type { ChromeAction } from "../chrome/chrome-check.types";
+import type { ChromeAction } from "../../chrome/chrome-check.types";
 
 const HARNESS_URLS = ["dino", "chrome://dino", "chrome://dino/"];
 

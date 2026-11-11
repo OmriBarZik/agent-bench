@@ -6,7 +6,7 @@ import type { BuildJob, BuildOutcome } from "../build/build-job.types";
 import { runChromeCheck } from "../chrome/chrome-check";
 import type { ToolArguments, ToolResult } from "../mcp/protocol.types";
 import { startDinoHarness } from "../mode/dino-harness";
-import { dinoRefusal } from "../mode/dino-policy";
+import { runChromeRefusal } from "../mode/policy/run-chrome-policy";
 import { validateBuildPlan } from "../mode/validate-mode";
 import { snapshotTree } from "../snapshot/snapshot";
 import { runQueued } from "./chrome-queue";
@@ -135,7 +135,8 @@ function successHint({ session, outcome }: { session: ToolSession; outcome: Buil
     return (
       `DevTools frontend is at ${outcome.artifactPath}. Check it with run_chrome: the stock Chromium at ` +
       `${outcome.appPath} is launched with --custom-devtools-frontend pointing at that front_end. ` +
-      `Open devtools://devtools/bundled/devtools_app.html (or your new panel URL).`
+      `Open devtools://devtools/bundled/devtools_app.html?panel=<your panel id>, click into the game, press keys, ` +
+      `and check it with screenshots and {"state":true}; eval is off for DevTools tasks.`
     );
   }
 
@@ -168,7 +169,7 @@ async function runChromeNow({ session, args }: { session: ToolSession; args: Too
     return failure("No successful build yet. Call start_build, then wait_build.");
   }
 
-  const refusal = session.context.mode === "dino" ? dinoRefusal(input) : null;
+  const refusal = runChromeRefusal({ mode: session.context.mode, url: input.url, actions: input.actions });
 
   if (refusal != null) {
     return failure(refusal);

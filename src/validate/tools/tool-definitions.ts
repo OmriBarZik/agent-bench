@@ -35,7 +35,9 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       'task that is the rebuilt Chromium.app. For a dino task, url "dino" opens a harness that boots your ' +
       "rebuilt game with Chromium's own sprites and sounds; play it with keys, waits, screenshots, and state " +
       "(eval and other urls are refused for dino tasks). For a DevTools task, stock Chromium is " +
-      "launched with --custom-devtools-frontend pointed at the rebuilt front_end. Warns when the working tree " +
+      "launched with --custom-devtools-frontend pointed at the rebuilt front_end; open " +
+      "devtools://devtools/bundled/devtools_app.html?panel=<id>, click into the game, and play it with keys, " +
+      "screenshots, and state (eval and non-DevTools urls are refused). Warns when the working tree " +
       "has changed since that build.",
     inputSchema: {
       type: "object",
@@ -55,9 +57,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: "array",
           description:
             'Steps after the page loads, in order: {"key":"Space","hold_ms":50} presses a key (letters, digits, Space, ' +
-            'Arrow*, Enter, Escape, Tab, Backspace); {"wait_ms":500} (at most 30000 per wait; chain waits for ' +
+            'Arrow*, Enter, Escape, Tab, Backspace); {"click":{"x":100,"y":200}} clicks the left mouse button at ' +
+            'a viewport point; {"wait_ms":500} (at most 30000 per wait; chain waits for ' +
             'longer); {"eval":"js"} runs an expression, or statements that return a value, awaiting promises (not ' +
-            'for dino tasks); {"state":true} returns the dino game state on the dino harness or chrome://dino ' +
+            'for dino and DevTools tasks); {"state":true} returns the dino game state from any frame of the page ' +
             "(playing, crashed, speed, distance, playCount, T-Rex status, position, jumping, ducking); " +
             '{"screenshot":true} (max 8).',
           items: { type: "object" },

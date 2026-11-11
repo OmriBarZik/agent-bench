@@ -26,11 +26,12 @@ frontend only. `wait_build` tells you which output is ready and how to open it.
    - **ok**: the result names the build number, snapshot, and how to check the change with `run_chrome`.
 4. `run_chrome`: starts Chromium headless with a fresh profile, opens a URL and runs your actions:
    - `{"key": "Space"}`, `{"key": "ArrowDown", "hold_ms": 400}` press keys like a user would.
+   - `{"click": {"x": 400, "y": 300}}` clicks at a point in the viewport, for example to focus the game.
    - `{"wait_ms": 300}` pauses, for at most 30000 ms per wait. For a longer run, chain several waits. A longer
      value is cut to 30000 and the result says so.
    - `{"eval": "document.title"}` or `{"eval": "const r = await foo(); return r;"}` runs JavaScript in the page.
-     Not for dino tasks.
-   - `{"state": true}` returns the dino game state on the dino harness or on `chrome://dino`: playing, crashed,
+     Not for dino or DevTools tasks.
+   - `{"state": true}` returns the dino game state on the dino harness, `chrome://dino`, or a DevTools panel: playing, crashed,
      speed, distance, playCount (it goes up when a game starts after its intro animation, and on every restart), and the T-Rex status, position, jumping,
      and ducking. Read it twice with a wait between to see the game move or restart.
    - `{"screenshot": true}` returns an image (at most 8 per call). Look at it.
@@ -54,8 +55,13 @@ then you are testing old code, so build again first.
   source and build again. For the 2x sprites, pass `flags: ["--force-device-scale-factor=2"]`. Do not expect a
   full Chromium rebuild.
 - **DevTools**: `start_build` builds `devtools_frontend_resources`. `run_chrome` launches a stock Chromium with
-  `--custom-devtools-frontend` pointed at that front_end. Open
-  `devtools://devtools/bundled/devtools_app.html` (or your new panel URL) and interact with it there.
+  `--custom-devtools-frontend` pointed at that front_end. Open your panel with
+  `devtools://devtools/bundled/devtools_app.html?panel=<your panel id>`, then use it the way a user does:
+  `{"click": {"x": …, "y": …}}` into the game (pick the point from a screenshot), key presses, screenshots, and
+  `{"state": true}`, which finds the game in the page or any of its frames. `eval` and pages outside DevTools are
+  refused. After you stop, the benchmark itself checks the final tree: copied sprites and sounds byte for byte
+  against `components/neterror/resources`, that every new file is in the build lists, that the final tree was
+  the one that built, and that the game plays in your panel.
 
 ## Tips
 
@@ -63,6 +69,6 @@ then you are testing old code, so build again first.
 - Edits keep going into the working tree while a build runs. That build compiles the snapshot taken at
   `start_build`, and only one build runs at a time.
 - `start_build` on an unchanged tree returns the previous build instead of rebuilding.
-- Prefer an `eval` (or `state` on a dino task) that returns the exact state you need over many screenshots. A
+- Prefer an `eval` (or `state` on a dino or DevTools task) that returns the exact state you need over many screenshots. A
   screenshot costs far more tokens than a short JSON value.
 - A failed build means your change does not compile. Do not finish with a build that fails.

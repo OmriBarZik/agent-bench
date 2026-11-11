@@ -12,6 +12,12 @@ export type KeyDefinition = {
 /** Press a key, holding it for `hold_ms` (default 50) before releasing. */
 export type KeyAction = { key: string; hold_ms?: number };
 
+/** A point in the page, in CSS pixels from the top left of the viewport. */
+export type PagePoint = { x: number; y: number };
+
+/** Click the left mouse button at a point, as a user would to focus the game. */
+export type ClickAction = { click: PagePoint };
+
 /** Pause between actions. */
 export type WaitAction = { wait_ms: number };
 
@@ -25,7 +31,7 @@ export type ScreenshotAction = { screenshot: true };
 export type StateAction = { state: true };
 
 /** One step of a check, run in order after the page loads. */
-export type ChromeAction = KeyAction | WaitAction | EvalAction | StateAction | ScreenshotAction;
+export type ChromeAction = KeyAction | ClickAction | WaitAction | EvalAction | StateAction | ScreenshotAction;
 
 /** The run_chrome request. */
 export type ChromeCheck = {

@@ -6,6 +6,9 @@ import type { BenchConfig } from "../bench-config/bench-config.types";
 import { claudeArgs, runClaude } from "../claude/claude";
 import { readClaudeOutput } from "../claude/claude-result";
 import { languageServerPathEntries } from "../claude/language-server-path";
+import { CHROMIUM_SRC } from "../../paths";
+import { runBenchChecks } from "../judge/checks/bench-checks";
+import type { BenchCheck } from "../judge/checks/bench-checks.types";
 import { judgeRun } from "../judge/judge";
 import { cancelledJudgeMetrics, failedJudgeMetrics } from "../judge/result/judge-result";
 import type { RunOneResult, RunOptions } from "./run-one.types";
@@ -73,12 +76,28 @@ export async function judgeAndStore({
   signal: AbortSignal;
   committed: CommittedWork;
 }): Promise<RunOneResult> {
+  const benchChecks = await runBenchChecks({
+    input: {
+      task,
+      runId,
+      commitSha: committed.artifact.commitSha,
+      changedFiles: committed.artifact.changedFiles,
+      chromiumSrc: CHROMIUM_SRC,
+    },
+    outDir,
+  });
+
+  for (const check of benchChecks) {
+    console.log(`  check ${check.status.padEnd(7)} ${check.name}: ${check.detail}`);
+  }
+
   console.log(`  judging with ${options.judgeModel}`);
   const judge = await scoreRun({
     task,
     result: committed.result,
     artifact: committed.artifact,
     toolTrouble: listToolTrouble({ db, runId }),
+    benchChecks,
     outDir,
     options,
     signal,
@@ -152,6 +171,7 @@ async function scoreRun({
   result,
   artifact,
   toolTrouble,
+  benchChecks,
   outDir,
   options,
   signal,
@@ -160,6 +180,7 @@ async function scoreRun({
   result: ClaudeResult;
   artifact: RunArtifact;
   toolTrouble: ToolTrouble[];
+  benchChecks: BenchCheck[];
   outDir: string;
   options: RunOptions;
   signal: AbortSignal;
@@ -170,6 +191,7 @@ async function scoreRun({
       result,
       artifact,
       toolTrouble,
+      benchChecks,
       outDir,
       judgeModel: options.judgeModel,
       timeoutMs: options.timeoutMs,

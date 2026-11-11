@@ -2,10 +2,11 @@ import type { ContentPart } from "../mcp/protocol.types";
 import { connectCdp } from "./cdp";
 import type { CdpParams, CdpSession } from "./cdp.types";
 import type { ChromeAction, ChromeCheck, ChromeReport } from "./chrome-check.types";
-import { keyDefinition, KEY_NAMES } from "./keys";
 import { launchChrome } from "./launch";
+import { clickAt } from "./page/click";
 import { describeException, evaluate, truncate } from "./page/evaluate";
 import { readGameState } from "./page/game-state";
+import { pressKey } from "./page/press-key";
 
 const MAX_SCREENSHOTS = 8;
 const MAX_CONSOLE_LINES = 60;
@@ -74,6 +75,12 @@ async function runAction({ page, action, parts }: { page: CdpSession; action: Ch
     return;
   }
 
+  if ("click" in action) {
+    await clickAt({ page, point: action.click });
+
+    return;
+  }
+
   if ("wait_ms" in action) {
     await waitFor({ waitMs: action.wait_ms, parts });
 
@@ -113,24 +120,6 @@ async function waitFor({ waitMs, parts }: { waitMs: number; parts: ContentPart[]
       text: `waited ${waited} ms, not ${waitMs}: one wait_ms is at most ${MAX_WAIT_MS}; add more waits for longer`,
     });
   }
-}
-
-async function pressKey({ page, name, holdMs }: { page: CdpSession; name: string; holdMs: number }) {
-  const key = keyDefinition(name);
-
-  if (key == null) {
-    throw new Error(`unknown key ${name}; use a letter, a digit, or one of ${KEY_NAMES.join(", ")}`);
-  }
-
-  const event = { key: key.key, code: key.code, windowsVirtualKeyCode: key.keyCode, nativeVirtualKeyCode: key.keyCode };
-  await page.send("Input.dispatchKeyEvent", { type: "keyDown", ...event, ...(key.text ? { text: key.text } : {}) });
-
-  if (key.text) {
-    await page.send("Input.dispatchKeyEvent", { type: "char", text: key.text, key: key.key });
-  }
-
-  await Bun.sleep(Math.min(Math.max(holdMs, 0), 10_000));
-  await page.send("Input.dispatchKeyEvent", { type: "keyUp", ...event });
 }
 
 function listenToConsole({ page, consoleLines }: { page: CdpSession; consoleLines: string[] }) {
