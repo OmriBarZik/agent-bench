@@ -1,4 +1,4 @@
-import type { ChromeAction } from "../chrome/chrome-check.types";
+import type { ChromeAction, PagePoint } from "../chrome/chrome-check.types";
 import type { ToolArguments } from "../mcp/protocol.types";
 import type { ChromeInput, WaitInput } from "./tools.types";
 
@@ -34,6 +34,10 @@ function chromeAction(raw: unknown): ChromeAction {
     return { key: action.key, hold_ms: typeof action.hold_ms === "number" ? action.hold_ms : undefined };
   }
 
+  if (action.click != null) {
+    return { click: pagePoint(action.click) };
+  }
+
   if (typeof action.wait_ms === "number") {
     return { wait_ms: action.wait_ms };
   }
@@ -50,5 +54,15 @@ function chromeAction(raw: unknown): ChromeAction {
     return { screenshot: true };
   }
 
-  throw new Error(`unknown action ${JSON.stringify(raw)}; use key, wait_ms, eval, state, or screenshot`);
+  throw new Error(`unknown action ${JSON.stringify(raw)}; use key, click, wait_ms, eval, state, or screenshot`);
+}
+
+function pagePoint(raw: unknown): PagePoint {
+  const point = (raw ?? {}) as Record<string, unknown>;
+
+  if (typeof point.x !== "number" || typeof point.y !== "number") {
+    throw new Error(`click needs {"x": number, "y": number}; got ${JSON.stringify(raw)}`);
+  }
+
+  return { x: point.x, y: point.y };
 }

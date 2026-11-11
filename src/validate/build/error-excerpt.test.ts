@@ -36,3 +36,23 @@ test("caps a long excerpt and says how much was left out", () => {
   expect(lines).toHaveLength(151);
   expect(lines.at(-1)).toBe("… 51 more lines in the build log");
 });
+
+test("keeps the gn ERROR block that explains a failed regeneration", () => {
+  const output = [
+    "[0/2] 0.81s S Regenerating ninja files",
+    "",
+    "ERROR at //third_party/node/node.gni:9:3: Dependency not allowed.",
+    "The item //components/neterror/resources:bundle_devtools_js",
+    "can not depend on //components/neterror/resources:build_ts",
+    "",
+    "[0/2] 4.51s E Regenerating ninja files",
+    'FAILED: 6dfc "./build.ninja.stamp" Regenerating ninja files',
+    "rebuild manifest failed",
+  ].join("\n");
+  const excerpt = errorExcerpt(output);
+
+  expect(excerpt).toContain("ERROR at //third_party/node/node.gni:9:3: Dependency not allowed.");
+  expect(excerpt).toContain("can not depend on //components/neterror/resources:build_ts");
+  expect(excerpt).toContain("rebuild manifest failed");
+  expect(excerpt).not.toContain("Regenerating ninja files\n[0/2]");
+});

@@ -5,6 +5,7 @@ import { JUDGE_BLOCKER_KINDS, JUDGE_BLOCKER_MEANING } from "../../db/judge-block
 import { JUDGE_DECISION_MEANING, JUDGE_DECISIONS } from "../../db/judge-decision";
 import { CHROMIUM_SRC, JUDGE_TRANSCRIPT_FILE } from "../../paths";
 import { copyTranscript } from "../claude/claude";
+import type { BenchCheck } from "./checks/bench-checks.types";
 import { captureClaude } from "../claude/claude-process";
 import { buildJudgePrompt } from "./prompt/judge-prompt";
 import { judgeMetrics } from "./result/judge-result";
@@ -69,6 +70,7 @@ export async function judgeRun({
   result,
   artifact,
   toolTrouble,
+  benchChecks,
   outDir,
   judgeModel,
   timeoutMs,
@@ -79,6 +81,8 @@ export async function judgeRun({
   artifact: RunArtifact;
   /** The agent's tool calls that never ran or failed, shown to the judge to spot a blocked agent. */
   toolTrouble: ToolTrouble[];
+  /** The runner's own checks of the final tree, shown to the judge as evidence. */
+  benchChecks: BenchCheck[];
   outDir: string;
   judgeModel: string;
   timeoutMs: number;
@@ -92,6 +96,7 @@ export async function judgeRun({
     diff,
     agentReport: reportedText(result),
     toolTrouble,
+    benchChecks,
   });
   const sessionId = randomUUID();
   const command = judgeCommand({ prompt, judgeModel, sessionId });
