@@ -102,6 +102,29 @@ export type ChangedFile = {
   previousPath?: string;
 };
 
+/** `discovery` is finding the code and writing the change; `validation` starts at the first chrome-validate call. */
+export type RunPhase = "discovery" | "validation";
+
+/** Tokens, cost, turns, and wall-clock time one phase of a run spent. Stored as a run_phases row. */
+export type PhaseUsage = {
+  phase: RunPhase;
+  turns: number;
+  durationMs: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  totalTokens: number;
+  /** The run's cost_usd split by price-weighted tokens; null when the run has no cost. */
+  costUsd: number | null;
+};
+
+/** A finished run that has no run_phases rows yet. */
+export type RunWithoutPhases = {
+  runId: string;
+  costUsd: number | null;
+};
+
 /** The Chromium commit that holds a run's final tree, and the paths in it. */
 export type RunArtifact = {
   /** NULL when the branch tip is still the task SHA. */

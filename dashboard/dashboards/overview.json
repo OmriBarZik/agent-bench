@@ -659,6 +659,374 @@
       ]
     },
     {
+      "id": 130,
+      "type": "row",
+      "title": "Discovery and writing vs validation",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 131,
+      "type": "barchart",
+      "title": "Tokens per run by phase",
+      "description": "Average agent tokens in one run. Discovery is finding the code and writing the change; validation starts at the first chrome-validate call (start_build, wait_build, run_chrome) and runs to the end of the session, fix loops included. Runs that never validated count 0 for validation. Lower is better.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id || ' (' || count(DISTINCT runs.run_id) || ' runs)' AS config, avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.total_tokens END) AS \"discovery\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.total_tokens END) AS \"validation\" FROM run_phases JOIN runs ON runs.run_id = run_phases.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY avg(run_phases.total_tokens)",
+          "rawQueryText": "SELECT runs.config_id || ' (' || count(DISTINCT runs.run_id) || ' runs)' AS config, avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.total_tokens END) AS \"discovery\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.total_tokens END) AS \"validation\" FROM run_phases JOIN runs ON runs.run_id = run_phases.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY avg(run_phases.total_tokens)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "never",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^discovery.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^validation.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "id": 132,
+      "type": "barchart",
+      "title": "Cost per run by phase",
+      "description": "Average agent cost in one run, split by phase. The run's cost is shared out by price-weighted tokens (output 5\u00d7, cache write 1.25\u00d7 or 2\u00d7, cache read 0.1\u00d7 of fresh input), so the two phases add up to the run's cost. Lower is better.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id || ' (' || count(DISTINCT runs.run_id) || ' runs)' AS config, avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.cost_usd END) AS \"discovery\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.cost_usd END) AS \"validation\" FROM run_phases JOIN runs ON runs.run_id = run_phases.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY avg(run_phases.cost_usd)",
+          "rawQueryText": "SELECT runs.config_id || ' (' || count(DISTINCT runs.run_id) || ' runs)' AS config, avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.cost_usd END) AS \"discovery\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.cost_usd END) AS \"validation\" FROM run_phases JOIN runs ON runs.run_id = run_phases.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY avg(run_phases.cost_usd)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "never",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 3
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^discovery.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^validation.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 19,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "id": 133,
+      "type": "barchart",
+      "title": "Share spent on validation (%)",
+      "description": "Of all agent tokens, cost, and wall-clock time in these runs, the part spent from the first chrome-validate call on. Time includes waiting for remote builds.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.config_id AS config, 100.0 * sum(CASE WHEN run_phases.phase = 'validation' THEN run_phases.total_tokens END) / nullif(sum(run_phases.total_tokens), 0) AS \"validation tokens\", 100.0 * sum(CASE WHEN run_phases.phase = 'validation' THEN run_phases.cost_usd END) / nullif(sum(run_phases.cost_usd), 0) AS \"validation cost\", 100.0 * sum(CASE WHEN run_phases.phase = 'validation' THEN run_phases.duration_ms END) / nullif(sum(run_phases.duration_ms), 0) AS \"validation time\" FROM run_phases JOIN runs ON runs.run_id = run_phases.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY runs.config_id",
+          "rawQueryText": "SELECT runs.config_id AS config, 100.0 * sum(CASE WHEN run_phases.phase = 'validation' THEN run_phases.total_tokens END) / nullif(sum(run_phases.total_tokens), 0) AS \"validation tokens\", 100.0 * sum(CASE WHEN run_phases.phase = 'validation' THEN run_phases.cost_usd END) / nullif(sum(run_phases.cost_usd), 0) AS \"validation cost\", 100.0 * sum(CASE WHEN run_phases.phase = 'validation' THEN run_phases.duration_ms END) / nullif(sum(run_phases.duration_ms), 0) AS \"validation time\" FROM run_phases JOIN runs ON runs.run_id = run_phases.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.config_id ORDER BY runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "never",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": 0,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^discovery.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "^validation.*"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "orange"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 19,
+        "w": 8,
+        "h": 9
+      }
+    },
+    {
+      "id": 134,
+      "type": "table",
+      "title": "Phases by task and config",
+      "description": "Average per run, by task and config. Runs from before the phase split have no rows until `bun run phases:backfill` reads their transcripts.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "SELECT runs.task_id AS task, runs.config_id AS config, count(DISTINCT runs.run_id) AS runs, avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.total_tokens END) AS \"discovery tokens\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.total_tokens END) AS \"validation tokens\", avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.cost_usd END) AS \"discovery cost\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.cost_usd END) AS \"validation cost\", avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.duration_ms END) AS \"discovery time\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.duration_ms END) AS \"validation time\", avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.turns END) AS \"discovery turns\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.turns END) AS \"validation turns\" FROM run_phases JOIN runs ON runs.run_id = run_phases.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "rawQueryText": "SELECT runs.task_id AS task, runs.config_id AS config, count(DISTINCT runs.run_id) AS runs, avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.total_tokens END) AS \"discovery tokens\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.total_tokens END) AS \"validation tokens\", avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.cost_usd END) AS \"discovery cost\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.cost_usd END) AS \"validation cost\", avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.duration_ms END) AS \"discovery time\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.duration_ms END) AS \"validation time\", avg(CASE WHEN run_phases.phase = 'discovery' THEN run_phases.turns END) AS \"discovery turns\", avg(CASE WHEN run_phases.phase = 'validation' THEN run_phases.turns END) AS \"validation turns\" FROM run_phases JOIN runs ON runs.run_id = run_phases.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}) GROUP BY runs.task_id, runs.config_id ORDER BY runs.task_id, runs.config_id",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "tokens$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "cost$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "currencyUSD"
+              },
+              {
+                "id": "decimals",
+                "value": 3
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "time$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "ms"
+              },
+              {
+                "id": "decimals",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byRegexp",
+              "options": "turns$"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "none"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 24,
+        "h": 9
+      }
+    },
+    {
       "id": 116,
       "type": "row",
       "title": "Pass rate, cost and time",
@@ -666,7 +1034,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 18,
+        "y": 37,
         "w": 24,
         "h": 1
       }
@@ -752,7 +1120,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 19,
+        "y": 38,
         "w": 12,
         "h": 9
       }
@@ -880,7 +1248,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 19,
+        "y": 38,
         "w": 12,
         "h": 9
       }
@@ -949,7 +1317,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 47,
         "w": 8,
         "h": 8
       }
@@ -1018,7 +1386,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 28,
+        "y": 47,
         "w": 8,
         "h": 8
       }
@@ -1087,7 +1455,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 28,
+        "y": 47,
         "w": 8,
         "h": 8
       }
@@ -1186,7 +1554,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 55,
         "w": 8,
         "h": 8
       }
@@ -1285,7 +1653,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 36,
+        "y": 55,
         "w": 8,
         "h": 8
       }
@@ -1383,7 +1751,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 36,
+        "y": 55,
         "w": 8,
         "h": 8
       }
@@ -1396,7 +1764,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 63,
         "w": 24,
         "h": 1
       }
@@ -1462,7 +1830,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 45,
+        "y": 64,
         "w": 8,
         "h": 9
       }
@@ -1526,7 +1894,7 @@
       ],
       "gridPos": {
         "x": 8,
-        "y": 45,
+        "y": 64,
         "w": 8,
         "h": 9
       }
@@ -1590,7 +1958,7 @@
       ],
       "gridPos": {
         "x": 16,
-        "y": 45,
+        "y": 64,
         "w": 8,
         "h": 9
       }
@@ -1603,7 +1971,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 54,
+        "y": 73,
         "w": 24,
         "h": 1
       }
@@ -1746,7 +2114,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 55,
+        "y": 74,
         "w": 12,
         "h": 9
       }
@@ -1817,7 +2185,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 55,
+        "y": 74,
         "w": 12,
         "h": 9
       }
@@ -1832,7 +2200,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 64,
+        "y": 83,
         "w": 12,
         "h": 8
       },
@@ -1871,7 +2239,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 64,
+        "y": 83,
         "w": 12,
         "h": 8
       },
@@ -1908,7 +2276,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 72,
+        "y": 91,
         "w": 24,
         "h": 1
       }
@@ -1923,7 +2291,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 73,
+        "y": 92,
         "w": 4,
         "h": 4
       },
@@ -1962,7 +2330,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 73,
+        "y": 92,
         "w": 4,
         "h": 4
       },
@@ -2001,7 +2369,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 73,
+        "y": 92,
         "w": 4,
         "h": 4
       },
@@ -2040,7 +2408,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 73,
+        "y": 92,
         "w": 4,
         "h": 4
       },
@@ -2082,7 +2450,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 73,
+        "y": 92,
         "w": 4,
         "h": 4
       },
@@ -2124,7 +2492,7 @@
       },
       "gridPos": {
         "x": 20,
-        "y": 73,
+        "y": 92,
         "w": 4,
         "h": 4
       },
@@ -2165,7 +2533,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 77,
+        "y": 96,
         "w": 4,
         "h": 4
       },
@@ -2215,7 +2583,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 81,
+        "y": 100,
         "w": 4,
         "h": 4
       },
@@ -2265,7 +2633,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 77,
+        "y": 96,
         "w": 4,
         "h": 8
       },
@@ -2316,7 +2684,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 77,
+        "y": 96,
         "w": 8,
         "h": 8
       },
@@ -2357,7 +2725,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 77,
+        "y": 96,
         "w": 8,
         "h": 8
       },
@@ -2411,7 +2779,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 85,
+        "y": 104,
         "w": 24,
         "h": 1
       }
@@ -2427,7 +2795,7 @@
       "description": "Runs where the judge found that a missing, denied, or failing tool or program stopped the agent.",
       "gridPos": {
         "x": 0,
-        "y": 86,
+        "y": 105,
         "w": 4,
         "h": 4
       },
@@ -2484,7 +2852,7 @@
       "description": "Blocked runs out of the runs the judge checked for blockers.",
       "gridPos": {
         "x": 0,
-        "y": 90,
+        "y": 109,
         "w": 4,
         "h": 4
       },
@@ -2542,7 +2910,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 86,
+        "y": 105,
         "w": 20,
         "h": 8
       },
@@ -3145,7 +3513,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 94,
+        "y": 113,
         "w": 24,
         "h": 1
       }

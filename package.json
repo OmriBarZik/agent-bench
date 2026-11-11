@@ -9,6 +9,7 @@
     "start:setups": "bun src/main.ts --setups",
     "start:dashboard": "(nohup sh dashboard/snapshot.sh >/dev/null 2>&1 &) ; sleep 2 ; docker compose -f dashboard/docker-compose.yml up -d && open http://localhost:8080",
     "start:dashboard:stop": "pkill -f dashboard/snapshot.sh ; docker compose -f dashboard/docker-compose.yml down",
+    "phases:backfill": "bun src/runner/phases/backfill-phases.ts",
     "start": "bun src/main.ts",
     "lint:ts": "bun check",
     "lint:fmt:fix": "bun fmt",
