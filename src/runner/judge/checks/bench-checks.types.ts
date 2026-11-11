@@ -47,6 +47,8 @@ export type PlayState = {
   playing: boolean;
   crashed: boolean;
   distance: number;
+  /** Goes up on every start and restart. */
+  playCount: number;
   trex: PlayTrex | null;
 };
 
@@ -69,4 +71,21 @@ export type NamedBenchCheck = {
 export type PlayOutcome = {
   status: "pass" | "fail" | "not-run";
   reason: string;
+};
+
+/** What the bench saw while it watched the game and sent no input at all. */
+export type GameWatch = {
+  /** The game was running (playing, with the distance growing) at some point. */
+  started: boolean;
+  /** Times the T-Rex left the ground by itself. */
+  jumps: number;
+  crashes: number;
+  /** Crashes that were followed by a running game again. */
+  restarts: number;
+  /** The longest distance any one life reached. */
+  bestDistance: number;
+  /** The distance at the first crash, or null when it never crashed. */
+  firstCrashDistance: number | null;
+  /** The last read was a crashed game. */
+  endedCrashed: boolean;
 };

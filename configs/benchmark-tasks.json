@@ -48,7 +48,7 @@
         "fully offline: no network, no runtime download, packaged in the build",
         "exposed as a built-in AI JS API following the existing AI API pattern",
         "dino game reads real state, calls the API and acts without user input, restarting after a crash",
-        "toggle is off by default and the API is behind a feature flag",
+        "API and auto-play are on by default with no flags, and the game UI has a toggle to switch auto-play off and on",
         "BUILD.gn / IDL / grd / feature registration updated so it builds"
       ]
     }
