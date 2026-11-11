@@ -4,7 +4,22 @@
     "description": "Plain Claude Code, no MCP servers, default tools",
     "model": "claude-sonnet-5-5",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)"],
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)"
+    ],
     "permissionMode": "acceptEdits"
   },
   {
@@ -14,7 +29,29 @@
     "mcpConfig": ["configs/setup/codebase-memory/mcp.json"],
     "toolPromptFile": "configs/setup/codebase-memory/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)", "mcp__codebase-memory-mcp__*"],
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)",
+      "mcp__codebase-memory-mcp__*"
+    ],
+    "disallowedTools": [
+      "mcp__codebase-memory-mcp__manage_adr",
+      "mcp__codebase-memory-mcp__index_repository",
+      "mcp__codebase-memory-mcp__ingest_traces",
+      "mcp__codebase-memory-mcp__delete_project"
+    ],
     "permissionMode": "acceptEdits"
   },
   {
@@ -24,7 +61,23 @@
     "mcpConfig": ["configs/setup/serena/mcp.json"],
     "toolPromptFile": "configs/setup/serena/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)", "mcp__serena__*"],
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)",
+      "mcp__serena__*"
+    ],
     "permissionMode": "acceptEdits"
   },
   {
@@ -33,7 +86,24 @@
     "model": "claude-sonnet-5-5",
     "toolPromptFile": "configs/setup/codesearch/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)", "Bash(csearch *)", "Bash(cgrep *)"],
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)",
+      "Bash(csearch *)",
+      "Bash(cgrep *)"
+    ],
     "permissionMode": "acceptEdits"
   },
   {
@@ -42,7 +112,23 @@
     "model": "claude-sonnet-5-5",
     "toolPromptFile": "configs/setup/sift/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)", "Bash(sift *)"],
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)",
+      "Bash(sift *)"
+    ],
     "permissionMode": "acceptEdits"
   },
   {
@@ -52,7 +138,23 @@
     "pluginDirs": ["plugins/clangd-lsp"],
     "toolPromptFile": "configs/setup/clangd/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)", "LSP"],
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)",
+      "LSP"
+    ],
     "permissionMode": "acceptEdits"
   },
   {
@@ -62,7 +164,23 @@
     "pluginDirs": ["plugins/typescript-lsp"],
     "toolPromptFile": "configs/setup/typescript/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)", "LSP"],
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)",
+      "LSP"
+    ],
     "permissionMode": "acceptEdits"
   },
   {
@@ -72,7 +190,23 @@
     "pluginDirs": ["plugins/clangd-lsp", "plugins/typescript-lsp"],
     "toolPromptFile": "configs/setup/clangd-typescript/tools.md",
     "strictMcpConfig": true,
-    "allowedTools": ["Bash(grep *)", "LSP"],
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)",
+      "LSP"
+    ],
     "permissionMode": "acceptEdits"
   }
 ]

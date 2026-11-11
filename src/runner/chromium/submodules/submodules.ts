@@ -12,9 +12,11 @@ else
 fi`;
 
 // `-x` would wipe ignored build output. A second `-f` would delete nested git dirs that are not submodules.
+// ORIG_HEAD would still name the previous run's submodule commit, so it is deleted after the reset.
 const DISCARD_SCRIPT = `set -eu
 git reset --hard --quiet
-git clean -fdq`;
+git clean -fdq
+git update-ref -d ORIG_HEAD 2>/dev/null || true`;
 
 /**
  * Throws away tracked edits and untracked files in every checked-out submodule.

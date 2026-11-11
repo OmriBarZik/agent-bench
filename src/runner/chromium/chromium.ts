@@ -52,6 +52,8 @@ export async function resetChromium({
     run: () => $`git checkout --quiet --force --detach ${sha}`.cwd(repo).quiet(),
   });
   await syncSubmodulesToHead({ repo, force: true });
+  // `git reset --hard` left the previous run's commit in ORIG_HEAD, where the agent could read it.
+  await $`git update-ref -d ORIG_HEAD`.cwd(repo).quiet().nothrow();
 
   if (sync) {
     await labeledShell({

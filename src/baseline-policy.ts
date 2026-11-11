@@ -33,6 +33,10 @@ export const DIRECTORY_DENIAL =
 export const BRANCH_DENIAL =
   "Other branches, refs, and the reflog are denied. Work from the working tree and the history reachable from HEAD.";
 
+/** Shown to the agent when a tool would read the benchmark's own files or Claude's saved sessions. */
+export const PRIVATE_PATH_DENIAL =
+  "That path is outside this task's workspace and is denied. Work in the Chromium checkout and the paths your tools give you.";
+
 /** Shown to the agent when a Bash command would create or modify a file. */
 export const FILE_DENIAL =
   "Updating a file from the shell is denied. Use the Edit or Write tool, not redirection, tee, an in-place editor, patch, or a script that writes the file.";

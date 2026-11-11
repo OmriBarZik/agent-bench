@@ -125,7 +125,7 @@ function equivalentCommand({ picked, flags }: { picked: PickerResult; flags: Run
 }
 
 /** Splits repeated, comma-separated id flags into one list; absent or empty means no filter. */
-function idList(values?: string[]): string[] | undefined {
+export function idList(values?: string[]): string[] | undefined {
   const ids = (values ?? [])
     .flatMap((value) => value.split(","))
     .map((id) => id.trim())

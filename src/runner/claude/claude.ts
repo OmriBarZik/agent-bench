@@ -210,6 +210,8 @@ export async function runClaude({
     env: {
       ...process.env,
       BENCH_RUN_ID: runId,
+      // Auto memory would carry notes from one run into the next.
+      CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1",
       BENCH_AUTO_REVIEW: autoReview ? "1" : "0",
       BENCH_BUILD_TIMEOUT_MS: String(buildTimeoutMs),
       MCP_TOOL_TIMEOUT: String(buildTimeoutMs + MCP_TOOL_SLACK_MS),

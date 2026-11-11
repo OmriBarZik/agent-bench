@@ -1,9 +1,19 @@
 #!/usr/bin/env bun
 import { forEachChild, parse, type SyntaxNode } from "unbash";
-import { BRANCH_DENIAL, BUILD_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL, buildDenial } from "../src/baseline-policy";
+import {
+  BRANCH_DENIAL,
+  BUILD_DENIAL,
+  DIRECTORY_DENIAL,
+  FILE_DENIAL,
+  PRIVATE_PATH_DENIAL,
+  buildDenial,
+} from "../src/baseline-policy";
+import { namesOtherRun } from "./bash/other-branches";
 import type { GuardDeny, GuardPayload } from "./baseline-guard.types";
 import { commandDenial } from "./command-policy";
 import { nestedScripts } from "./nested-scripts";
+import { mentionsPrivateText } from "./paths/private-paths";
+import { toolInputDenial } from "./paths/tool-input-denial";
 
 /**
  * Why this Bash command is denied, or null when the baseline allows it.
@@ -23,11 +33,21 @@ function denialIn({ source, depth }: { source: string; depth: number }): string 
     return null;
   }
 
+  // Checked on the raw text too, so a variable (`D=…; cat $D/x`) cannot carry the name past the word checks.
+  if (mentionsPrivateText(source)) {
+    return PRIVATE_PATH_DENIAL;
+  }
+
+  if (namesOtherRun(source)) {
+    return BRANCH_DENIAL;
+  }
+
   const script = parse(source);
   let directory = false;
   let fileWrite = false;
   let otherBranch = false;
   let localBuild = false;
+  let privatePath = false;
   const nested: string[] = [];
   walk(script, (node) => {
     if (node.type !== "Command") {
@@ -52,6 +72,10 @@ function denialIn({ source, depth }: { source: string; depth: number }): string 
       localBuild = true;
     }
 
+    if (reason === PRIVATE_PATH_DENIAL) {
+      privatePath = true;
+    }
+
     nested.push(...nestedScripts({ command: node, source }));
   });
 
@@ -65,6 +89,10 @@ function denialIn({ source, depth }: { source: string; depth: number }): string 
 
   if (otherBranch) {
     return BRANCH_DENIAL;
+  }
+
+  if (privatePath) {
+    return PRIVATE_PATH_DENIAL;
   }
 
   if (localBuild) {
@@ -94,23 +122,18 @@ function walk(node: SyntaxNode, visit: (node: SyntaxNode) => void) {
 }
 
 /**
- * PreToolUse hook for every benchmark config. Prints a deny decision for cd, shell file edits, other runs' branches, and local Chromium builds.
+ * PreToolUse hook for every benchmark config. Prints a deny decision for cd, shell file edits, other runs' branches, local
+ * Chromium builds, and, for every tool, paths into the benchmark repo or ~/.claude.
  * Exit 0 always: the decision is the JSON on stdout, and a crash must not fail the tool on its own.
  */
 async function main() {
   const payload = parsePayload(await Bun.stdin.text());
 
-  if (!payload || payload.tool_name !== "Bash") {
+  if (!payload?.tool_name) {
     return;
   }
 
-  const command = payload.tool_input?.command;
-
-  if (typeof command !== "string" || command === "") {
-    return;
-  }
-
-  const reason = baselineDenial(command);
+  const reason = toolDenial(payload);
 
   if (!reason) {
     return;
@@ -124,6 +147,24 @@ async function main() {
     },
   };
   process.stdout.write(JSON.stringify(decision));
+}
+
+function toolDenial(payload: GuardPayload): string | null {
+  if (payload.tool_name !== "Bash") {
+    return toolInputDenial({
+      toolName: payload.tool_name ?? "",
+      toolInput: payload.tool_input,
+      cwd: payload.cwd ?? process.cwd(),
+    });
+  }
+
+  const command = payload.tool_input?.command;
+
+  if (typeof command !== "string" || command === "") {
+    return null;
+  }
+
+  return baselineDenial(command);
 }
 
 function parsePayload(raw: string): GuardPayload | null {

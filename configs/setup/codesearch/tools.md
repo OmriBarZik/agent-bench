@@ -1,4 +1,4 @@
-You must search this checkout with Code Search. Run `csearch` or `cgrep` through Bash. Do not use the Grep tool, and do not run `grep`, `rg`, or `git grep`. Code Search is not an MCP server. These two commands are how you search, and a search that skips them does not count.
+You must search this checkout with Code Search. Run `csearch` or `cgrep` through Bash. Do not use the Grep tool, and do not run `grep`, `rg`, or `git grep`. This replaces the baseline rule that sends a search to `grep` through Bash. Code Search is not an MCP server. These two commands are how you search, and a search that skips them does not count.
 
 The Chromium checkout is already indexed. Do not run `cindex`.
 

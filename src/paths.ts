@@ -26,6 +26,8 @@ export const BASELINE_HASH_FILES = [
   join(BENCH_DIR, "hooks/bash/other-branches.ts"),
   join(BENCH_DIR, "hooks/command-policy.ts"),
   join(BENCH_DIR, "hooks/nested-scripts.ts"),
+  join(BENCH_DIR, "hooks/paths/private-paths.ts"),
+  join(BENCH_DIR, "hooks/paths/tool-input-denial.ts"),
   join(BENCH_DIR, "src/baseline-policy.ts"),
 ];
 /** Per-run artifacts: runs/<run_id>/. */

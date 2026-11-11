@@ -21,6 +21,7 @@ import type {
   PhaseUsage,
   RunArtifact,
   RunBranchRow,
+  RunDiskState,
   RunBranchSql,
   RunStart,
   RunWithoutPhases,
@@ -750,6 +751,18 @@ export function countRunsByConfig(db: Database): ConfigRunCount[] {
   return db
     .query(`SELECT config_id AS configId, COUNT(*) AS runs FROM runs GROUP BY config_id`)
     .all() as ConfigRunCount[];
+}
+
+/** Every run's status, start time, and whether its judge has finished. Used to decide which Chromium.app copies are done with. */
+export function listRunDiskStates(db: Database): RunDiskState[] {
+  return db
+    .query(
+      `SELECT runs.run_id AS runId, runs.task_id AS taskId, runs.config_id AS configId, runs.status AS status, runs.started_at AS startedAt,
+              (judge_runs.run_id IS NOT NULL) AS judged
+       FROM runs
+       LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id`,
+    )
+    .all() as RunDiskState[];
 }
 
 /** Removes one run and the judge, phase, tool-call, and both build tables' rows. The task and config rows stay. */

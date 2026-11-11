@@ -31,6 +31,17 @@ export type Config = {
   permissions?: unknown;
 };
 
+/** One run's status and judge state, used to decide whether its Chromium.app copy can be deleted. */
+export type RunDiskState = {
+  runId: string;
+  taskId: string;
+  configId: string;
+  status: string;
+  startedAt: string;
+  /** 1 once the judge_runs row is stored, so the bench checks no longer need this run's Chromium.app. */
+  judged: number;
+};
+
 /** How many runs one config has, from `COUNT(*)` grouped by `config_id`. */
 export type ConfigRunCount = {
   configId: string;

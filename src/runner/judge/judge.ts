@@ -185,7 +185,7 @@ async function runJudgeClaude({
   signal?: AbortSignal;
 }): Promise<ClaudeResult> {
   await Bun.write(join(outDir, "judge-command.json"), JSON.stringify(command, null, 2));
-  const env: NodeJS.ProcessEnv = { ...process.env };
+  const env: NodeJS.ProcessEnv = { ...process.env, CLAUDE_CODE_DISABLE_AUTO_MEMORY: "1" };
   delete env.BENCH_RUN_ID;
   const captured = await captureClaude({
     command,

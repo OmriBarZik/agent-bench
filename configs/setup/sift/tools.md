@@ -1,4 +1,4 @@
-You must search with `sift`. Call it with Bash. Do not use the Grep tool, and do not run `grep`, `rg`, or `git grep`. The shell stays at the checkout root, and `sift` searches from there. Do not use `cd`.
+You must search with `sift`. Call it with Bash. Do not use the Grep tool, and do not run `grep`, `rg`, or `git grep`. This replaces the baseline rule that sends a search to `grep` through Bash. The shell stays at the checkout root, and `sift` searches from there. Do not use `cd`.
 
 `sift [options] pattern [path...]` searches `pattern` under each path. With no path, it searches the checkout recursively.
 

@@ -1,12 +1,17 @@
 import { describe, expect, test } from "bun:test";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import {
   BRANCH_DENIAL,
   BUILD_DENIAL,
   BUILD_DENIAL_WITHOUT_REVIEW,
   DIRECTORY_DENIAL,
   FILE_DENIAL,
+  PRIVATE_PATH_DENIAL,
 } from "../src/baseline-policy";
+import { BENCH_DIR, CHROMIUM_SRC, RUNS_DIR } from "../src/paths";
 import { baselineDenial } from "./baseline-guard";
+import { toolInputDenial } from "./paths/tool-input-denial";
 
 describe("baseline other branches", () => {
   test("denies listing refs and history wider than HEAD", () => {
@@ -143,5 +148,67 @@ describe("baseline local builds", () => {
     expect(baselineDenial("echo ninja")).toBeNull();
     expect(baselineDenial("ls third_party/ninja")).toBeNull();
     expect(baselineDenial("command -v ninja")).toBeNull();
+  });
+});
+
+describe("baseline earlier runs and benchmark files", () => {
+  test("denies refs that still point at an earlier run, and git's object store", () => {
+    expect(baselineDenial("git show ORIG_HEAD")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git -C /abs/src diff ORIG_HEAD -- chrome")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("cat .git/ORIG_HEAD")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("ls .git/objects/pack")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("cat .git/modules/v8/refs/heads/main")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("git checkout -")).toBe(BRANCH_DENIAL);
+    expect(baselineDenial("B=dino-hat__baseline__r0__mvnh9apl; git log $B")).toBe(BRANCH_DENIAL);
+  });
+
+  test("denies the benchmark repo, ~/.claude, and a search from above them", () => {
+    expect(baselineDenial("cat ../agent-bench/configs/tasks/dino-hat/judge.md")).toBe(PRIVATE_PATH_DENIAL);
+    expect(baselineDenial("D=/x/agent-bench/runs; ls $D")).toBe(PRIVATE_PATH_DENIAL);
+    expect(baselineDenial("ls ~/.claude/projects")).toBe(PRIVATE_PATH_DENIAL);
+    expect(baselineDenial("cat ~/.claude/settings.json")).toBe(PRIVATE_PATH_DENIAL);
+    expect(baselineDenial("grep -rn judge ..")).toBe(PRIVATE_PATH_DENIAL);
+  });
+
+  test("allows this run's own build folder, git's ignore of .git, and the checkout", () => {
+    const previous = process.env.BENCH_RUN_ID;
+    process.env.BENCH_RUN_ID = "dino-hat__baseline__r0__own";
+    expect(baselineDenial("ls out/dino-hat__baseline__r0__own/Chromium.app")).toBeNull();
+    expect(baselineDenial(`tail ${RUNS_DIR}/dino-hat__baseline__r0__own/builds/1.log`)).toBeNull();
+    expect(baselineDenial(`cat ${RUNS_DIR}/dino-hat__baseline__r0__other/transcript.jsonl`)).not.toBeNull();
+    expect(baselineDenial(`cat ${RUNS_DIR}/dino-hat__baseline__r0__own/../x/judge.md`)).not.toBeNull();
+    process.env.BENCH_RUN_ID = previous;
+    expect(baselineDenial("git checkout -- chrome/app.cc")).toBeNull();
+    expect(baselineDenial("find . -name '*.idl' -not -path './.git/*'")).toBeNull();
+    expect(baselineDenial("ls .claude/skills")).toBeNull();
+  });
+});
+
+describe("baseline non-Bash tools", () => {
+  const cwd = CHROMIUM_SRC;
+
+  test("denies reads of the benchmark repo, ~/.claude, and git refs", () => {
+    const judge = join(BENCH_DIR, "configs/tasks/dino-hat/judge.md");
+    expect(toolInputDenial({ toolName: "Read", toolInput: { file_path: judge }, cwd })).toBe(PRIVATE_PATH_DENIAL);
+    const transcripts = join(homedir(), ".claude/projects");
+    expect(toolInputDenial({ toolName: "Glob", toolInput: { pattern: "**/*.jsonl", path: transcripts }, cwd })).toBe(
+      PRIVATE_PATH_DENIAL,
+    );
+    const origHead = join(CHROMIUM_SRC, ".git/ORIG_HEAD");
+    expect(toolInputDenial({ toolName: "Read", toolInput: { file_path: origHead }, cwd })).toBe(BRANCH_DENIAL);
+    expect(
+      toolInputDenial({ toolName: "mcp__serena__serena_repl", toolInput: { code: "open('.git/packed-refs')" }, cwd }),
+    ).toBe(BRANCH_DENIAL);
+  });
+
+  test("allows the checkout, file contents that mention the words, and chrome-validate", () => {
+    const file = join(CHROMIUM_SRC, "components/neterror/resources/dino_game/trex.ts");
+    expect(toolInputDenial({ toolName: "Read", toolInput: { file_path: file }, cwd })).toBeNull();
+    expect(
+      toolInputDenial({ toolName: "Write", toolInput: { file_path: file, content: "// ORIG_HEAD agent-bench" }, cwd }),
+    ).toBeNull();
+    expect(
+      toolInputDenial({ toolName: "mcp__chrome-validate__run_chrome", toolInput: { url: "dino" }, cwd }),
+    ).toBeNull();
   });
 });

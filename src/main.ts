@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { parseArgs } from "node:util";
 import { checkOutNamedRun } from "./inspect/checkout/checkout-run";
+import { runPruneCommand } from "./inspect/prune/prune-command";
 import { DEFAULT_AGENT_TIMEOUT_MIN, DEFAULT_BUILD_TIMEOUT_MIN } from "./runner/claude/session/agent-pause";
 import { watchForShutdown } from "./runner/shutdown/shutdown";
 import { runMatrix } from "./start/jobs/run-matrix";
@@ -25,6 +26,9 @@ const { values: args } = parseArgs({
     setups: { type: "boolean", default: false }, // open the TUI on the Setups tab
     checkout: { type: "string" }, // check this run's branch out and exit, no TUI
     cli: { type: "boolean", default: false }, // never open the TUI
+    "prune-apps": { type: "boolean", default: false }, // delete finished runs' Chromium.app copies and exit
+    "min-free-gb": { type: "string" }, // with --prune-apps: stop once this much disk is free
+    "dry-run": { type: "boolean", default: false }, // with --prune-apps: only list what would go
   },
 });
 
@@ -36,6 +40,7 @@ const { values: args } = parseArgs({
  *                     [--judge-model claude-sonnet-5-5]
  *                     [--sync] [--auto-review | --no-auto-review] [--force] [--interactive | --runs | --setups | --cli]
  *   bun run start --checkout <branch or run id> [--force]
+ *   bun run start --prune-apps [--only-task id[,id]] [--only-config id[,id]] [--min-free-gb 60] [--dry-run]
  *
  * On a terminal with none of --only-task, --only-config, or --repeats, it opens a long-lived TUI with four tabs;
  * tab and shift-tab switch between them, and esc quits. Starting a matrix, a Runs-tab build, or a checkout
@@ -62,7 +67,10 @@ const { values: args } = parseArgs({
  * --auto-review (the default) gives the agent the chrome-validate tools, so it builds the change and checks it in
  * Chromium. --no-auto-review starts the session without those tools. The Start tab has the same checkbox.
  * --only-task and --only-config take comma-separated ids and may be repeated. --checkout skips the TUI
- * and checks that run's branch out. Checking out or building refuses uncommitted tracked changes unless --force.
+ * and checks that run's branch out. --prune-apps deletes per-run Chromium.app copies under the build directory
+ * whose run is judged, cancelled, or no longer in the database, oldest first, and exits. --only-task and --only-config limit it to those runs. --min-free-gb stops once
+ * that much disk is free. A run still working or waiting for its judge keeps its copy, so it is safe mid-matrix.
+ * Checking out or building refuses uncommitted tracked changes unless --force.
  *
  * Uncommitted tracked changes in the Chromium checkout block the run. On a terminal the runner
  * asks whether to delete them and continue. Answering no, or running without a terminal, exits
@@ -95,6 +103,17 @@ const { values: args } = parseArgs({
  * A second Ctrl+C exits immediately.
  */
 async function main() {
+  if (args["prune-apps"]) {
+    await runPruneCommand({
+      onlyTask: args["only-task"],
+      onlyConfig: args["only-config"],
+      minFreeGb: args["min-free-gb"],
+      dryRun: args["dry-run"],
+    });
+
+    return;
+  }
+
   if (args.checkout) {
     await checkOutNamedRun({ name: args.checkout, force: args.force });
 

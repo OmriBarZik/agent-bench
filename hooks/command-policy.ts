@@ -1,8 +1,15 @@
 import { basename } from "node:path";
 import type { Command, CommandArgument } from "unbash";
-import { BRANCH_DENIAL, BUILD_DENIAL, DIRECTORY_DENIAL, FILE_DENIAL } from "../src/baseline-policy";
+import {
+  BRANCH_DENIAL,
+  BUILD_DENIAL,
+  DIRECTORY_DENIAL,
+  FILE_DENIAL,
+  PRIVATE_PATH_DENIAL,
+} from "../src/baseline-policy";
 import { gitSubcommand } from "./bash/git-subcommand";
 import { readsOtherBranches } from "./bash/other-branches";
+import { isPrivatePath } from "./paths/private-paths";
 
 const DIRECTORY_COMMANDS = new Set(["cd", "pushd", "popd"]);
 const BUILD_PROGRAMS = new Set(["gn", "ninja", "autoninja", "siso"]);
@@ -37,8 +44,15 @@ export function commandDenial(command: Command): string | null {
     return BUILD_DENIAL;
   }
 
-  if (program && readsOtherBranches({ program, words: wordValues(command.args) })) {
+  const words = wordValues(command.args);
+
+  if (program && readsOtherBranches({ program, words })) {
     return BRANCH_DENIAL;
+  }
+
+  // The hook runs in the session's working directory, the checkout root, so relative paths resolve from there.
+  if (words.some((word) => isPrivatePath({ word, cwd: process.cwd(), program: program ?? undefined }))) {
+    return PRIVATE_PATH_DENIAL;
   }
 
   return null;
