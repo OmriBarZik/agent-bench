@@ -31,7 +31,7 @@ frontend only. `wait_build` tells you which output is ready and how to open it.
    - `{"eval": "document.title"}` or `{"eval": "const r = await foo(); return r;"}` runs JavaScript in the page.
      Not for dino tasks.
    - `{"state": true}` returns the dino game state on the dino harness or on `chrome://dino`: playing, crashed,
-     speed, distance, playCount (it goes up on every start and restart), and the T-Rex status, position, jumping,
+     speed, distance, playCount (it goes up when a game starts after its intro animation, and on every restart), and the T-Rex status, position, jumping,
      and ducking. Read it twice with a wait between to see the game move or restart.
    - `{"screenshot": true}` returns an image (at most 8 per call). Look at it.
    - `flags` adds Chromium switches, such as `["--enable-features=MyFeature"]` for code behind a feature flag.
@@ -59,6 +59,7 @@ then you are testing old code, so build again first.
 
 ## Tips
 
+- `run_chrome` calls run one at a time. Calls sent together just wait their turn, so send them one by one.
 - Edits keep going into the working tree while a build runs. That build compiles the snapshot taken at
   `start_build`, and only one build runs at a time.
 - `start_build` on an unchanged tree returns the previous build instead of rebuilding.
