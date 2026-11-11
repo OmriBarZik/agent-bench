@@ -33,6 +33,17 @@
           }
         ]
       }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun \"$CLAUDE_PROJECT_DIR\"/../agent-bench/hooks/tool-log.ts failure"
+          }
+        ]
+      }
     ]
   }
 }

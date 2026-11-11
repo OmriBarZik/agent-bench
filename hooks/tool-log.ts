@@ -35,18 +35,24 @@ function looksLikeError(response: any): boolean | null {
 }
 
 /**
- * Claude Code PreToolUse / PostToolUse hook -> writes every tool call into the results DB.
+ * Claude Code PreToolUse / PostToolUse / PostToolUseFailure hook -> writes every tool call into the results DB.
  *
  * Registered in hooks/settings.example.json (passed to `claude --settings`) as:
  *   bun "$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts pre
  *   bun "$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts post
+ *   bun "$CLAUDE_PROJECT_DIR"/../agent-bench/hooks/tool-log.ts failure
+ *
+ * A failed tool (an MCP isError result, a failed Bash command) fires PostToolUseFailure instead of PostToolUse.
+ * It is stored as a `post` row with is_error = 1, so tool_attempts counts it as ran and failed, not as blocked.
  *
  * Only logs when BENCH_RUN_ID is set (the runner sets it), so your normal
  * Claude Code sessions are not recorded. It never blocks a tool: it always exits 0.
  * If the DB is unreachable, the row goes to ~/.claude/bench-hook-fallback.jsonl instead.
  */
 async function main() {
-  const phase = (Bun.argv[2] ?? "pre") as "pre" | "post";
+  const hookPhase = Bun.argv[2] ?? "pre";
+  const failed = hookPhase === "failure";
+  const phase: ToolCall["phase"] = hookPhase === "pre" ? "pre" : "post";
   const runId = process.env.BENCH_RUN_ID;
   const raw = await Bun.stdin.text();
   if (!runId) {
@@ -80,6 +86,13 @@ async function main() {
           ? [input.skill ?? input.name ?? null]
           : [null];
     for (const program of programs.length ? programs : [null]) rows.push({ ...base, program });
+  } else if (failed) {
+    rows.push({
+      ...base,
+      program: null,
+      isError: true,
+      responsePreview: JSON.stringify(payload.error ?? null).slice(0, 500),
+    });
   } else {
     const response = payload.tool_response;
     rows.push({

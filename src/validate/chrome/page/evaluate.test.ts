@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { evaluationBody } from "./chrome-check";
+import { evaluationBody } from "./evaluate";
 
 test("an expression is returned, and a return statement stays the function body", () => {
   expect(evaluationBody("document.title")).toBe("return (document.title);");

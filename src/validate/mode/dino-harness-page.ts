@@ -1,3 +1,4 @@
+import { READ_GAME_STATE } from "../chrome/page/game-state-reader";
 import type { HarnessSounds } from "./dino-harness.types";
 
 /**
@@ -55,23 +56,6 @@ loadTimeData.data = {
 document.documentElement.classList.add('offline');
 Runner.initializeInstance('.interstitial-wrapper');
 
-window.benchGameState = () => {
-  const runner = Runner.getInstance();
-  const trex = runner.tRex;
-  return {
-    playing: runner.playing,
-    crashed: runner.crashed,
-    paused: runner.paused,
-    speed: runner.currentSpeed,
-    devicePixelRatio: window.devicePixelRatio,
-    trex: trex == null ? null : {
-      status: trexModule.Status?.[trex.status] ?? trex.status,
-      xPos: trex.xPos,
-      yPos: trex.yPos,
-      jumping: trex.jumping,
-      ducking: trex.ducking,
-    },
-  };
-};
+window.benchGameState = () => (${READ_GAME_STATE})(Runner.getInstance(), trexModule.Status);
 `;
 }
