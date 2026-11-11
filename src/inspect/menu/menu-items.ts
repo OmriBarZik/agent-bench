@@ -59,6 +59,7 @@ function actionItems(choices: RunChoice[]): MenuItem[] {
   const missingBranch = choice.present ? null : "branch not in the checkout";
 
   return [
+    ...liveLogItems(choice),
     {
       label: "Open run transcript",
       shortcut: "^O",
@@ -135,6 +136,23 @@ function actionItems(choices: RunChoice[]): MenuItem[] {
       unavailable: null,
       scope: "one",
       target: { kind: "screen", screen: "remove" },
+    },
+  ];
+}
+
+/** Only while this run's agent is working: the row goes away when the agent finishes. */
+function liveLogItems(choice: RunChoice): MenuItem[] {
+  if (!choice.liveLogPath) {
+    return [];
+  }
+
+  return [
+    {
+      label: "View live agent log",
+      shortcut: "",
+      unavailable: null,
+      scope: "one",
+      target: { kind: "command", command: "live-log" },
     },
   ];
 }

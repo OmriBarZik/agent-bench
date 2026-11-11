@@ -42,3 +42,5 @@ export const REMOTE_SSH_CONFIG = join(BENCH_DIR, "configs/builder/ssh_config");
 export const TRANSCRIPT_FILE = "transcript.jsonl";
 /** Judge session log inside a run's artifact folder. */
 export const JUDGE_TRANSCRIPT_FILE = "judge-transcript.jsonl";
+/** Readable live log of the agent's messages and tool calls inside a run's artifact folder, written while it runs. */
+export const AGENT_LIVE_LOG_FILE = "agent-live.log";

@@ -17,6 +17,8 @@ export type RunChoice = RunBranchRow & {
    * The shared out/Default app does not count — deleting that would break local builds.
    */
   hasAppCopy: boolean;
+  /** The live agent log while this run's agent is working in the open TUI; null or absent otherwise. */
+  liveLogPath?: string | null;
 };
 
 /** Filter text, the highlighted row, and runs checked for an action that takes more than one. */

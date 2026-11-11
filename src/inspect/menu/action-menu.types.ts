@@ -10,6 +10,7 @@ export type MenuScope = "one" | "many" | "any";
 
 /** What choosing a menu item asks the run list to do for the highlighted run. */
 export type MenuCommand =
+  | "live-log"
   | "transcript"
   | "judge"
   | "checkout"
