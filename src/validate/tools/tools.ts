@@ -9,6 +9,7 @@ import { startDinoHarness } from "../mode/dino-harness";
 import { dinoRefusal } from "../mode/dino-policy";
 import { validateBuildPlan } from "../mode/validate-mode";
 import { snapshotTree } from "../snapshot/snapshot";
+import { runQueued } from "./chrome-queue";
 import { holdAgent } from "./hold-agent";
 import { chromeInput, waitInput } from "./tool-input";
 import type { ToolSession } from "./tools.types";
@@ -145,7 +146,21 @@ function successHint({ session, outcome }: { session: ToolSession; outcome: Buil
   );
 }
 
+/** One Chromium at a time: a call made while another runs waits for it, and is told how long it waited. */
 async function runChrome({ session, args }: { session: ToolSession; args: ToolArguments }): Promise<ToolResult> {
+  const queued = await runQueued({ queue: session.chromeQueue, body: () => runChromeNow({ session, args }) });
+  const waitedSeconds = Math.round(queued.waitedMs / 1000);
+
+  if (waitedSeconds < 1) {
+    return queued.result;
+  }
+
+  const note = `Waited ${waitedSeconds} s for an earlier run_chrome to finish; calls run one at a time.`;
+
+  return { ...queued.result, content: [{ type: "text", text: note }, ...queued.result.content] };
+}
+
+async function runChromeNow({ session, args }: { session: ToolSession; args: ToolArguments }): Promise<ToolResult> {
   const input = chromeInput(args);
   const built = session.state.jobs.findLast((job) => job.outcome?.status === "ok");
 

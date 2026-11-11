@@ -210,9 +210,8 @@ async function runSteps({
     });
   }
 
-  if (plan.copyPaths == null) {
-    await warmUpChrome({ appPath, logPath });
-  }
+  // Light modes run the stock app, which a rebuild of out/Default can leave cold too. A warm app opens in ~2 s.
+  await warmUpChrome({ appPath, logPath });
 
   return { appPath, artifactPath, outputDir: destination };
 }
