@@ -3,10 +3,10 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { cancelRun, promptVersion, startRun } from "../../db/db";
 import type { Task } from "../../db/db.types";
-import { RUNS_DIR } from "../../paths";
+import { AGENT_LIVE_LOG_FILE, RUNS_DIR } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { watchAgentBuildLog } from "../build-log/screen/watch-build-log";
-import type { RunOneResult, RunOptions, RunPhase } from "./run-one.types";
+import type { AgentLog, RunOneResult, RunOptions, RunPhase } from "./run-one.types";
 import { judgeAndStore, runAndCommitAgent, storeInterruptedRun } from "./run-session";
 import { prepareCheckout } from "./run-tree";
 import type { CommittedWork } from "./run-tree.types";
@@ -21,6 +21,7 @@ export async function runOne({
   signal,
   onPhase = () => {},
   onAgentPaused = () => {},
+  onAgentLog = () => {},
 }: {
   db: Database;
   task: Task;
@@ -33,6 +34,8 @@ export async function runOne({
   onPhase?: (phase: RunPhase) => void;
   /** Called when the agent is stopped for a remote build, and when it runs again. */
   onAgentPaused?: (paused: boolean) => void;
+  /** Called with the run's live agent log path just before the agent starts. */
+  onAgentLog?: (agentLog: AgentLog) => void;
 }): Promise<RunOneResult> {
   const runId = `${task.taskId}__${config.configId}__r${repeat}__${Date.now().toString(36)}`;
   onPhase("reset");
@@ -61,6 +64,7 @@ export async function runOne({
   const started = Date.now();
   let recorded = false;
   try {
+    onAgentLog({ runId, path: join(outDir, AGENT_LIVE_LOG_FILE) });
     onPhase("agent");
     const logWatch =
       options.autoReview && options.watchBuildLog !== false ? watchAgentBuildLog({ db, runId, signal }) : null;

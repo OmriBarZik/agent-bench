@@ -18,6 +18,10 @@ export type MatrixProgress = {
   taskId?: string;
   configId?: string;
   repeat?: number;
+  /** The current run, once its agent has started. */
+  liveRunId?: string;
+  /** The current run's live agent log, once its agent has started. */
+  liveLogPath?: string;
 };
 
 /** Whether the caller prints progress and owns a title clock (CLI) or only receives callbacks (TUI). */

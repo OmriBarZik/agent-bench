@@ -135,6 +135,8 @@ export async function runMatrix({
             console.log(startLine);
           }
 
+          let liveRunId: string | undefined;
+          let liveLogPath: string | undefined;
           const clock = quiet
             ? null
             : openRunClock({
@@ -151,6 +153,14 @@ export async function runMatrix({
             repeat,
             options,
             signal,
+            onAgentLog: ({ runId: agentRunId, path }) => {
+              liveRunId = agentRunId;
+              liveLogPath = path;
+
+              if (!quiet) {
+                console.log(`  live agent log: tail -f ${path}`);
+              }
+            },
             onPhase: (phase) => {
               clock?.setPhase(phase);
               emit({
@@ -162,6 +172,8 @@ export async function runMatrix({
                 taskId: task.taskId,
                 configId: config.configId,
                 repeat,
+                liveRunId,
+                liveLogPath,
               });
             },
             onAgentPaused: (paused) => {
@@ -176,6 +188,8 @@ export async function runMatrix({
                 taskId: task.taskId,
                 configId: config.configId,
                 repeat,
+                liveRunId,
+                liveLogPath,
               });
             },
           }).finally(() => {

@@ -33,3 +33,9 @@ export type RunOneResult = {
   /** True when this run was stored as cancelled. */
   cancelled: boolean;
 };
+
+/** The run whose agent just started, and where its live log is written. */
+export type AgentLog = {
+  runId: string;
+  path: string;
+};

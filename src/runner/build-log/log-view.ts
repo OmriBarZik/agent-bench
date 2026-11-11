@@ -31,16 +31,26 @@ export function syncLogView({
     return { buildId: build.id, cursor: createLogCursor(), above: 0, unseen: 0 };
   }
 
-  const same = view.buildId === build.id;
-  const cursor = pullLogFile({
-    cursor: same ? view.cursor : createLogCursor(),
-    path: build.log_path,
-    maxLines,
-  });
+  if (view.buildId !== build.id) {
+    const cursor = pullLogFile({ cursor: createLogCursor(), path: build.log_path, maxLines });
 
-  if (!same) {
     return { buildId: build.id, cursor, above: 0, unseen: 0 };
   }
+
+  return pullLogView({ view, path: build.log_path, maxLines });
+}
+
+/** Reads new bytes of `path` into a view already showing that file, keeping the window still while scrolled up. */
+export function pullLogView({
+  view,
+  path,
+  maxLines = MAX_LOG_LINES,
+}: {
+  view: LogView;
+  path: string;
+  maxLines?: number;
+}): LogView {
+  const cursor = pullLogFile({ cursor: view.cursor, path, maxLines });
 
   if (view.above === 0) {
     return { ...view, cursor, unseen: 0 };

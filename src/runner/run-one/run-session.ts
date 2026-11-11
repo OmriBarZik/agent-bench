@@ -1,12 +1,14 @@
 import type { Database } from "bun:sqlite";
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { abandonOpenBuilds, cancelRun, finishRun, listToolTrouble, saveJudgeRun } from "../../db/db";
 import type { ClaudeResult, JudgeMetrics, RunArtifact, Task, ToolTrouble } from "../../db/db.types";
+import { AGENT_LIVE_LOG_FILE, CHROMIUM_SRC } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { claudeArgs, runClaude } from "../claude/claude";
 import { readClaudeOutput } from "../claude/claude-result";
 import { languageServerPathEntries } from "../claude/language-server-path";
-import { CHROMIUM_SRC } from "../../paths";
+import { followTranscript } from "../claude/live/follow-transcript";
 import { runBenchChecks } from "../judge/checks/bench-checks";
 import type { BenchCheck } from "../judge/checks/bench-checks.types";
 import { judgeRun } from "../judge/judge";
@@ -17,7 +19,7 @@ import type { CommittedWork } from "./run-tree.types";
 
 const emptyArtifact: RunArtifact = { commitSha: null, changedFiles: [] };
 
-/** Runs claude, copies the transcript, and commits the checkout. */
+/** Runs claude while writing its live log, copies the transcript, and commits the checkout. */
 export async function runAndCommitAgent({
   db,
   task,
@@ -40,7 +42,20 @@ export async function runAndCommitAgent({
   onAgentPaused: (paused: boolean) => void;
 }): Promise<CommittedWork> {
   const sessionId = randomUUID();
-  const result = await runAgent({ task, config, sessionId, runId, outDir, started, options, signal, onAgentPaused });
+  const liveLog = followTranscript({ sessionId, logPath: join(outDir, AGENT_LIVE_LOG_FILE) });
+  const result = await runAgent({
+    task,
+    config,
+    sessionId,
+    runId,
+    outDir,
+    started,
+    options,
+    signal,
+    onAgentPaused,
+  }).finally(() => {
+    liveLog.stop();
+  });
   // A killed chrome-validate server cannot close its last build, so the runner does.
   abandonOpenBuilds({ db, runId });
   saveTranscript({ sessionId: result.session_id ?? sessionId, outDir });
