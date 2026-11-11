@@ -18,10 +18,12 @@ import type {
   FinishedRunStatus,
   JudgeMetrics,
   PassedChromiumApps,
+  PhaseUsage,
   RunArtifact,
   RunBranchRow,
   RunBranchSql,
   RunStart,
+  RunWithoutPhases,
   Task,
   ToolCall,
   ToolTrouble,
@@ -387,6 +389,35 @@ export function finishRun({
   });
 }
 
+/** Replaces a run's run_phases rows with the discovery and validation split read from its transcript. */
+export function saveRunPhases({ db, runId, phases }: { db: Database; runId: string; phases: PhaseUsage[] }) {
+  const save = db.transaction(() => {
+    db.query(`DELETE FROM run_phases WHERE run_id = $runId`).run({ runId });
+
+    for (const phase of phases) {
+      db.query(
+        `INSERT INTO run_phases (run_id, phase, turns, duration_ms, input_tokens, output_tokens,
+           cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd)
+         VALUES ($runId, $phase, $turns, $durationMs, $inputTokens, $outputTokens,
+           $cacheCreationTokens, $cacheReadTokens, $totalTokens, $costUsd)`,
+      ).run({ runId, ...phase });
+    }
+  });
+
+  save();
+}
+
+/** Finished runs with no run_phases rows yet, for the backfill. */
+export function listRunsWithoutPhases(db: Database): RunWithoutPhases[] {
+  return db
+    .query(
+      `SELECT run_id AS runId, cost_usd AS costUsd FROM runs
+       WHERE status != 'running' AND NOT EXISTS (SELECT 1 FROM run_phases WHERE run_phases.run_id = runs.run_id)
+       ORDER BY started_at`,
+    )
+    .all() as RunWithoutPhases[];
+}
+
 /** Marks a run the user stopped. Keeps the metrics finishRun already stored and fills finished_at when it is still empty. */
 export function cancelRun({ db, runId }: { db: Database; runId: string }) {
   db.query(
@@ -721,12 +752,13 @@ export function countRunsByConfig(db: Database): ConfigRunCount[] {
     .all() as ConfigRunCount[];
 }
 
-/** Removes one run and the judge, tool-call, and both build tables' rows. The task and config rows stay. */
+/** Removes one run and the judge, phase, tool-call, and both build tables' rows. The task and config rows stay. */
 export function deleteRun({ db, runId }: { db: Database; runId: string }) {
   const remove = db.transaction(() => {
     db.query(`DELETE FROM builds WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM tool_calls WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM judge_runs WHERE run_id = $runId`).run({ runId });
+    db.query(`DELETE FROM run_phases WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM chromium_builds WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM runs WHERE run_id = $runId`).run({ runId });
   });

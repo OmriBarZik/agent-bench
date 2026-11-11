@@ -13,6 +13,7 @@ import { runBenchChecks } from "../judge/checks/bench-checks";
 import type { BenchCheck } from "../judge/checks/bench-checks.types";
 import { judgeRun } from "../judge/judge";
 import { cancelledJudgeMetrics, failedJudgeMetrics } from "../judge/result/judge-result";
+import { storeRunPhases } from "../phases/store-phases";
 import type { RunOneResult, RunOptions } from "./run-one.types";
 import { commitAgentWork, restoreTree, saveTranscript } from "./run-tree";
 import type { CommittedWork } from "./run-tree.types";
@@ -67,6 +68,7 @@ export async function runAndCommitAgent({
     artifact: committed.artifact,
     status: signal.aborted ? "cancelled" : undefined,
   });
+  storeRunPhases({ db, runId, outDir, costUsd: committed.result.total_cost_usd ?? null });
 
   return committed;
 }

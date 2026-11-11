@@ -193,3 +193,20 @@ SELECT run_id,
        duration_ms,
        error
 FROM builds;
+
+-- Agent tokens, cost, and time per phase of a run, read from its transcript. Two rows per run:
+-- discovery (finding the code and writing the change) and validation (from the first chrome-validate
+-- call to the end of the session, fix loops included). cost_usd is runs.cost_usd split by price-weighted tokens.
+CREATE TABLE IF NOT EXISTS run_phases (
+    run_id                 TEXT NOT NULL REFERENCES runs,
+    phase                  TEXT NOT NULL,     -- discovery / validation
+    turns                  INTEGER,           -- API responses in this phase
+    duration_ms            INTEGER,           -- wall clock, build waits included
+    input_tokens           INTEGER,
+    output_tokens          INTEGER,
+    cache_creation_tokens  INTEGER,
+    cache_read_tokens      INTEGER,
+    total_tokens           INTEGER,
+    cost_usd               REAL,
+    PRIMARY KEY (run_id, phase)
+);
