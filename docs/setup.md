@@ -11,6 +11,11 @@ Install the [shared requirements](#requirements) first. The steps for a config l
 | `serena`            | [configs/setup/serena/readme.md](../configs/setup/serena/readme.md)                       |
 | `codesearch`        | [configs/setup/codesearch/readme.md](../configs/setup/codesearch/readme.md)               |
 | `sift`              | [configs/setup/sift/readme.md](../configs/setup/sift/readme.md)                           |
+| `ripgrep`           | [configs/setup/ripgrep/readme.md](../configs/setup/ripgrep/readme.md)                     |
+| `ugrep`             | [configs/setup/ugrep/readme.md](../configs/setup/ugrep/readme.md)                         |
+| `tre-agrep`         | [configs/setup/tre-agrep/readme.md](../configs/setup/tre-agrep/readme.md)                 |
+| `ast-grep`          | [configs/setup/ast-grep/readme.md](../configs/setup/ast-grep/readme.md)                   |
+| `zoekt`             | [configs/setup/zoekt/readme.md](../configs/setup/zoekt/readme.md)                         |
 | `clangd`            | [configs/setup/clangd/readme.md](../configs/setup/clangd/readme.md)                       |
 | `typescript`        | [configs/setup/typescript/readme.md](../configs/setup/typescript/readme.md)               |
 | `clangd-typescript` | [configs/setup/clangd-typescript/readme.md](../configs/setup/clangd-typescript/readme.md) |

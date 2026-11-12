@@ -128,6 +128,16 @@ test("the shipped configs load their tool prompts", async () => {
     expect(allowedTools).toContain("Bash(grep *)");
   }
   expect(toolPromptByConfig.get("sift")).toContain("You must search with `sift`");
+  expect(toolPromptByConfig.get("ripgrep")).toContain("You must search with `rg` (ripgrep)");
+  expect(allowedToolsByConfig.get("ripgrep")).toContain("Bash(rg *)");
+  expect(toolPromptByConfig.get("ugrep")).toContain("You must search with `ugrep`");
+  expect(allowedToolsByConfig.get("ugrep")).toContain("Bash(ugrep *)");
+  expect(toolPromptByConfig.get("tre-agrep")).toContain("You have `agrep`");
+  expect(allowedToolsByConfig.get("tre-agrep")).toContain("Bash(agrep *)");
+  expect(toolPromptByConfig.get("ast-grep")).toContain("You have `ast-grep`");
+  expect(allowedToolsByConfig.get("ast-grep")).toContain("Bash(ast-grep *)");
+  expect(toolPromptByConfig.get("zoekt")).toContain("You must search this checkout with Zoekt");
+  expect(allowedToolsByConfig.get("zoekt")).toContain("Bash(zoekt *)");
   expect(toolPromptByConfig.get("clangd")).toContain("You have clangd, a C and C++ language server");
   expect(toolPromptByConfig.get("typescript")).toContain("You have a TypeScript language server");
   expect(toolPromptByConfig.get("clangd-typescript")).toContain("You have two language servers");

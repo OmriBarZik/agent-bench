@@ -1,0 +1,10 @@
+{
+  "checks": [
+    {
+      "label": "agrep",
+      "kind": "command",
+      "target": "agrep",
+      "fix": "brew install tre"
+    }
+  ]
+}

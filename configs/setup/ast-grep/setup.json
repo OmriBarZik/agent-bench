@@ -1,0 +1,10 @@
+{
+  "checks": [
+    {
+      "label": "ast-grep",
+      "kind": "command",
+      "target": "ast-grep",
+      "fix": "brew install ast-grep"
+    }
+  ]
+}

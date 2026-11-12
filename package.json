@@ -21,6 +21,8 @@
     "setup:codesearch": "bun configs/setup/codesearch/install.ts",
     "setup:codesearch-index": "bun configs/setup/codesearch/index-checkout.ts",
     "setup:sift": "bun configs/setup/sift/install.ts",
+    "setup:zoekt": "bun configs/setup/zoekt/install.ts",
+    "setup:zoekt-index": "bun configs/setup/zoekt/index-checkout.ts",
     "setup:clangd": "bun configs/setup/clangd/prepare.ts",
     "setup:typescript": "bun configs/setup/typescript/prepare.ts"
   },

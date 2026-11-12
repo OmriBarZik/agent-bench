@@ -1,0 +1,10 @@
+{
+  "checks": [
+    {
+      "label": "rg",
+      "kind": "command",
+      "target": "rg",
+      "fix": "brew install ripgrep"
+    }
+  ]
+}

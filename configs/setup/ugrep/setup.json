@@ -1,0 +1,10 @@
+{
+  "checks": [
+    {
+      "label": "ugrep",
+      "kind": "command",
+      "target": "ugrep",
+      "fix": "brew install ugrep"
+    }
+  ]
+}

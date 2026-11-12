@@ -1,0 +1,23 @@
+{
+  "checks": [
+    {
+      "label": "zoekt",
+      "kind": "command",
+      "target": "zoekt",
+      "fix": "bun run setup:zoekt"
+    },
+    {
+      "label": "zoekt-index",
+      "kind": "command",
+      "target": "zoekt-index",
+      "fix": "bun run setup:zoekt"
+    },
+    {
+      "label": "zoekt index",
+      "kind": "directory",
+      "target": "${HOME}/.zoekt",
+      "nonEmpty": true,
+      "fix": "bun run setup:zoekt-index"
+    }
+  ]
+}
