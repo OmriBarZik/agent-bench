@@ -1559,6 +1559,242 @@
       }
     },
     {
+      "id": 136,
+      "type": "barchart",
+      "title": "Tests per run vs ${baseline}",
+      "description": "Average tests per run minus the baseline's average, compared task by task. Below zero means the config needed fewer tests than ${baseline}; above zero, more.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg((SELECT count(*) FROM tool_attempts WHERE tool_attempts.run_id = runs.run_id AND tool_attempts.tool = 'mcp__chrome-validate__run_chrome' AND tool_attempts.ran = 1)) AS tests, avg((SELECT count(*) FROM builds WHERE builds.run_id = runs.run_id)) AS builds FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(avg(config.tests - base.tests), 1) AS \"tests vs baseline\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2",
+          "rawQueryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg((SELECT count(*) FROM tool_attempts WHERE tool_attempts.run_id = runs.run_id AND tool_attempts.tool = 'mcp__chrome-validate__run_chrome' AND tool_attempts.ran = 1)) AS tests, avg((SELECT count(*) FROM builds WHERE builds.run_id = runs.run_id)) AS builds FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(avg(config.tests - base.tests), 1) AS \"tests vs baseline\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 52,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 137,
+      "type": "barchart",
+      "title": "Builds per run vs ${baseline}",
+      "description": "Average builds per run minus the baseline's average, compared task by task. Below zero means the config needed fewer builds than ${baseline}; above zero, more.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg((SELECT count(*) FROM tool_attempts WHERE tool_attempts.run_id = runs.run_id AND tool_attempts.tool = 'mcp__chrome-validate__run_chrome' AND tool_attempts.ran = 1)) AS tests, avg((SELECT count(*) FROM builds WHERE builds.run_id = runs.run_id)) AS builds FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(avg(config.builds - base.builds), 1) AS \"builds vs baseline\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2",
+          "rawQueryText": "WITH per_task AS (SELECT runs.task_id, runs.config_id, avg((SELECT count(*) FROM tool_attempts WHERE tool_attempts.run_id = runs.run_id AND tool_attempts.tool = 'mcp__chrome-validate__run_chrome' AND tool_attempts.ran = 1)) AS tests, avg((SELECT count(*) FROM builds WHERE builds.run_id = runs.run_id)) AS builds FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND (runs.config_id = ${baseline:singlequote} OR (runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote}))) GROUP BY runs.task_id, runs.config_id) SELECT config.config_id AS config, round(avg(config.builds - base.builds), 1) AS \"builds vs baseline\" FROM per_task AS config JOIN per_task AS base ON base.task_id = config.task_id AND base.config_id = ${baseline:singlequote} WHERE config.config_id != ${baseline:singlequote} GROUP BY config.config_id ORDER BY 2",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "always",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": false,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 8,
+        "y": 52,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
+      "id": 135,
+      "type": "barchart",
+      "title": "Tests per run (min / avg / max)",
+      "description": "A test is one chrome-validate run_chrome call that ran: the agent opening its built Chromium to check the change.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH per_run AS (SELECT runs.run_id, runs.config_id, runs.started_at, (SELECT count(*) FROM tool_attempts WHERE tool_attempts.run_id = runs.run_id AND tool_attempts.tool = 'mcp__chrome-validate__run_chrome' AND tool_attempts.ran = 1) AS tests, (SELECT count(*) FROM builds WHERE builds.run_id = runs.run_id) AS builds FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote})) SELECT config_id AS config, min(tests) AS min, avg(tests) AS avg, max(tests) AS max FROM per_run GROUP BY config_id ORDER BY avg(tests)",
+          "rawQueryText": "WITH per_run AS (SELECT runs.run_id, runs.config_id, runs.started_at, (SELECT count(*) FROM tool_attempts WHERE tool_attempts.run_id = runs.run_id AND tool_attempts.tool = 'mcp__chrome-validate__run_chrome' AND tool_attempts.ran = 1) AS tests, (SELECT count(*) FROM builds WHERE builds.run_id = runs.run_id) AS builds FROM runs WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND (('__latest__' IN (${prompt:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.prompt_version = runs.prompt_version)) OR '__all__' IN (${prompt:singlequote}) OR runs.task_id || '|' || coalesce(runs.prompt_version, 'unknown') IN (${prompt:singlequote})) AND (('__latest__' IN (${judge:singlequote}) AND EXISTS (SELECT 1 FROM tasks WHERE tasks.task_id = runs.task_id AND tasks.judge_prompt_version = runs.judge_prompt_version)) OR '__all__' IN (${judge:singlequote}) OR runs.task_id || '|' || coalesce(runs.judge_prompt_version, 'unknown') IN (${judge:singlequote})) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (${run:singlequote})) SELECT config_id AS config, min(tests) AS min, avg(tests) AS avg, max(tests) AS max FROM per_run GROUP BY config_id ORDER BY avg(tests)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "min"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#73BF6966"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "avg"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "blue"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "max"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "mode": "fixed",
+                  "fixedColor": "#F2495C66"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 52,
+        "w": 8,
+        "h": 8
+      }
+    },
+    {
       "id": 117,
       "type": "row",
       "title": "Across tasks",
@@ -1566,7 +1802,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 52,
+        "y": 60,
         "w": 24,
         "h": 1
       }
@@ -1632,7 +1868,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 53,
+        "y": 61,
         "w": 8,
         "h": 9
       }
@@ -1696,7 +1932,7 @@
       ],
       "gridPos": {
         "x": 8,
-        "y": 53,
+        "y": 61,
         "w": 8,
         "h": 9
       }
@@ -1760,7 +1996,7 @@
       ],
       "gridPos": {
         "x": 16,
-        "y": 53,
+        "y": 61,
         "w": 8,
         "h": 9
       }
@@ -1819,7 +2055,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 62,
+        "y": 70,
         "w": 24,
         "h": 8
       },
@@ -1933,7 +2169,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 70,
+        "y": 78,
         "w": 24,
         "h": 9
       }
@@ -1946,7 +2182,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 79,
+        "y": 87,
         "w": 24,
         "h": 1
       }
@@ -2089,7 +2325,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 80,
+        "y": 88,
         "w": 12,
         "h": 9
       }
@@ -2160,7 +2396,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 80,
+        "y": 88,
         "w": 12,
         "h": 9
       }
@@ -2175,7 +2411,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 89,
+        "y": 97,
         "w": 12,
         "h": 8
       },
@@ -2214,7 +2450,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 89,
+        "y": 97,
         "w": 12,
         "h": 8
       },
@@ -2251,7 +2487,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 97,
+        "y": 105,
         "w": 24,
         "h": 1
       }
@@ -2266,7 +2502,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 98,
+        "y": 106,
         "w": 4,
         "h": 4
       },
@@ -2305,7 +2541,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 98,
+        "y": 106,
         "w": 4,
         "h": 4
       },
@@ -2344,7 +2580,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 98,
+        "y": 106,
         "w": 4,
         "h": 4
       },
@@ -2383,7 +2619,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 98,
+        "y": 106,
         "w": 4,
         "h": 4
       },
@@ -2425,7 +2661,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 98,
+        "y": 106,
         "w": 4,
         "h": 4
       },
@@ -2467,7 +2703,7 @@
       },
       "gridPos": {
         "x": 20,
-        "y": 98,
+        "y": 106,
         "w": 4,
         "h": 4
       },
@@ -2508,7 +2744,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 102,
+        "y": 110,
         "w": 4,
         "h": 4
       },
@@ -2558,7 +2794,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 106,
+        "y": 114,
         "w": 4,
         "h": 4
       },
@@ -2608,7 +2844,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 102,
+        "y": 110,
         "w": 4,
         "h": 8
       },
@@ -2659,7 +2895,7 @@
       },
       "gridPos": {
         "x": 8,
-        "y": 102,
+        "y": 110,
         "w": 8,
         "h": 8
       },
@@ -2700,7 +2936,7 @@
       },
       "gridPos": {
         "x": 16,
-        "y": 102,
+        "y": 110,
         "w": 8,
         "h": 8
       },
@@ -2754,7 +2990,7 @@
       "panels": [],
       "gridPos": {
         "x": 0,
-        "y": 110,
+        "y": 118,
         "w": 24,
         "h": 1
       }
@@ -2770,7 +3006,7 @@
       "description": "Runs where the judge found that a missing, denied, or failing tool or program stopped the agent.",
       "gridPos": {
         "x": 0,
-        "y": 111,
+        "y": 119,
         "w": 4,
         "h": 4
       },
@@ -2827,7 +3063,7 @@
       "description": "Blocked runs out of the runs the judge checked for blockers.",
       "gridPos": {
         "x": 0,
-        "y": 115,
+        "y": 123,
         "w": 4,
         "h": 4
       },
@@ -2885,7 +3121,7 @@
       },
       "gridPos": {
         "x": 4,
-        "y": 111,
+        "y": 119,
         "w": 20,
         "h": 8
       },
@@ -3488,7 +3724,7 @@
       ],
       "gridPos": {
         "x": 0,
-        "y": 119,
+        "y": 127,
         "w": 24,
         "h": 1
       }
