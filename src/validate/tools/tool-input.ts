@@ -34,6 +34,14 @@ function chromeAction(raw: unknown): ChromeAction {
     return { key: action.key, hold_ms: typeof action.hold_ms === "number" ? action.hold_ms : undefined };
   }
 
+  if (typeof action.key_down === "string") {
+    return { key_down: action.key_down };
+  }
+
+  if (typeof action.key_up === "string") {
+    return { key_up: action.key_up };
+  }
+
   if (action.click != null) {
     return { click: pagePoint(action.click) };
   }
@@ -54,7 +62,9 @@ function chromeAction(raw: unknown): ChromeAction {
     return { screenshot: true };
   }
 
-  throw new Error(`unknown action ${JSON.stringify(raw)}; use key, click, wait_ms, eval, state, or screenshot`);
+  throw new Error(
+    `unknown action ${JSON.stringify(raw)}; use key, key_down, key_up, click, wait_ms, eval, state, or screenshot`,
+  );
 }
 
 function pagePoint(raw: unknown): PagePoint {

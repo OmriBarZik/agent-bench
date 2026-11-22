@@ -6,7 +6,7 @@ import { launchChrome } from "./launch";
 import { clickAt } from "./page/click";
 import { describeException, evaluate, truncate } from "./page/evaluate";
 import { readGameState } from "./page/game-state";
-import { pressKey } from "./page/press-key";
+import { keyDown, keyUp, pressKey } from "./page/press-key";
 
 const MAX_SCREENSHOTS = 8;
 const MAX_CONSOLE_LINES = 60;
@@ -71,6 +71,18 @@ async function navigate({ page, url, parts }: { page: CdpSession; url: string; p
 async function runAction({ page, action, parts }: { page: CdpSession; action: ChromeAction; parts: ContentPart[] }) {
   if ("key" in action) {
     await pressKey({ page, name: action.key, holdMs: action.hold_ms ?? 50 });
+
+    return;
+  }
+
+  if ("key_down" in action) {
+    await keyDown({ page, name: action.key_down });
+
+    return;
+  }
+
+  if ("key_up" in action) {
+    await keyUp({ page, name: action.key_up });
 
     return;
   }

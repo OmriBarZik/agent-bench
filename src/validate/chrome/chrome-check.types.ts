@@ -12,6 +12,12 @@ export type KeyDefinition = {
 /** Press a key, holding it for `hold_ms` (default 50) before releasing. */
 export type KeyAction = { key: string; hold_ms?: number };
 
+/** Press a key and keep it down until a later key_up, so screenshots and state in between see it held. */
+export type KeyDownAction = { key_down: string };
+
+/** Release a key pressed with key_down. */
+export type KeyUpAction = { key_up: string };
+
 /** A point in the page, in CSS pixels from the top left of the viewport. */
 export type PagePoint = { x: number; y: number };
 
@@ -31,7 +37,8 @@ export type ScreenshotAction = { screenshot: true };
 export type StateAction = { state: true };
 
 /** One step of a check, run in order after the page loads. */
-export type ChromeAction = KeyAction | ClickAction | WaitAction | EvalAction | StateAction | ScreenshotAction;
+export type ChromeAction =
+  KeyAction | KeyDownAction | KeyUpAction | ClickAction | WaitAction | EvalAction | StateAction | ScreenshotAction;
 
 /** The run_chrome request. */
 export type ChromeCheck = {

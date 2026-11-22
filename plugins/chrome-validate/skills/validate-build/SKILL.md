@@ -25,7 +25,10 @@ frontend only. `wait_build` tells you which output is ready and how to open it.
      back to step 2.
    - **ok**: the result names the build number, snapshot, and how to check the change with `run_chrome`.
 4. `run_chrome`: starts Chromium headless with a fresh profile, opens a URL and runs your actions:
-   - `{"key": "Space"}`, `{"key": "ArrowDown", "hold_ms": 400}` press keys like a user would.
+   - `{"key": "Space"}`, `{"key": "ArrowDown", "hold_ms": 400}` press keys like a user would. The key is released
+     before the next action runs.
+   - `{"key_down": "ArrowDown"}` presses a key and keeps it held until `{"key_up": "ArrowDown"}`. Screenshots and
+     `state` in between see it held, for example the dino ducking.
    - `{"click": {"x": 400, "y": 300}}` clicks at a point in the viewport, for example to focus the game.
    - `{"wait_ms": 300}` pauses, for at most 30000 ms per wait. For a longer run, chain several waits. A longer
      value is cut to 30000 and the result says so.
@@ -35,7 +38,8 @@ frontend only. `wait_build` tells you which output is ready and how to open it.
      speed, distance, playCount (it goes up when a game starts after its intro animation, and on every restart), and the T-Rex status, position, jumping,
      and ducking. Read it twice with a wait between to see the game move or restart.
    - `{"screenshot": true}` returns an image (at most 8 per call). Look at it.
-   - `flags` adds Chromium switches, such as `["--enable-features=MyFeature"]` for code behind a feature flag.
+   - `flags` adds Chromium switches, such as `["--enable-features=MyFeature"]` for code behind a feature flag, or
+     `["--force-device-scale-factor=2"]` to render at 2x.
    - Console messages and page exceptions come back too.
 5. If something looks wrong, edit, then go back to step 2. You can build as many times as you need. Every build is
    recorded.

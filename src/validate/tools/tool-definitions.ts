@@ -33,7 +33,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       "Start Chromium headless with a fresh profile, open a URL, run actions in order, and return eval results, " +
       "console output, page exceptions and screenshots. Uses the newest successful build. For a full chrome " +
       'task that is the rebuilt Chromium.app. For a dino task, url "dino" opens a harness that boots your ' +
-      "rebuilt game with Chromium's own sprites and sounds; play it with keys, waits, screenshots, and state " +
+      "rebuilt game with Chromium's own sprites and sounds; play it with keys, waits, screenshots, and state, " +
+      'and add flags ["--force-device-scale-factor=2"] to check the 2x sprites ' +
       "(eval and other urls are refused for dino tasks). For a DevTools task, stock Chromium is " +
       "launched with --custom-devtools-frontend pointed at the rebuilt front_end; open " +
       "devtools://devtools/bundled/devtools_app.html, click your panel's tab and the game, and play it with keys, " +
@@ -51,13 +52,17 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         flags: {
           type: "array",
           items: { type: "string" },
-          description: "Extra Chromium switches, e.g. --enable-features=MyFeature",
+          description:
+            "Extra Chromium switches, e.g. --enable-features=MyFeature. Pass --force-device-scale-factor=2 to render " +
+            "at 2x (the dino game then uses its 2x sprites).",
         },
         actions: {
           type: "array",
           description:
             'Steps after the page loads, in order: {"key":"Space","hold_ms":50} presses a key (letters, digits, Space, ' +
-            'Arrow*, Enter, Escape, Tab, Backspace); {"click":{"x":100,"y":200}} clicks the left mouse button at ' +
+            'Arrow*, Enter, Escape, Tab, Backspace) and releases it before the next step; {"key_down":"ArrowDown"} ' +
+            "presses a key and keeps it held, so later screenshots and state see it (e.g. the dino ducking), until " +
+            '{"key_up":"ArrowDown"} releases it; {"click":{"x":100,"y":200}} clicks the left mouse button at ' +
             'a viewport point; {"wait_ms":500} (at most 30000 per wait; chain waits for ' +
             'longer); {"eval":"js"} runs an expression, or statements that return a value, awaiting promises (not ' +
             'for dino and DevTools tasks); {"state":true} returns the dino game state from any frame of the page ' +
