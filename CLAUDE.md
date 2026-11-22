@@ -21,6 +21,7 @@ bun run start:setups                        # = bun run start --setups: the TUI 
 bun run start --checkout <branch> [--force]  # check a run's branch out without the TUI
 bun run apps:prune [--only-task id,id] [--only-config id,id] [--min-free-gb 60] [--dry-run]   # = bun run start --prune-apps: delete per-run Chromium.app copies under the build directory whose run is judged, cancelled or gone from the DB, oldest first; --min-free-gb stops once that much disk is free. Safe while a matrix runs: a run still working or waiting for its judge keeps its copy
 bun run phases:backfill [--runs-dir path]   # fill run_phases (discovery vs validation tokens/cost) for runs that have none, from their transcripts
+bun run export [--out dir]                  # read-only: write exports/<timestamp>/ with README, summary, tasks.json, configs.json, runs.jsonl, and bench-export.md (one compact file to paste into an AI chat)
 ```
 
 Both `lint:ts` and `lint:fmt` must pass before finishing a change. The husky pre-commit hook (`.husky/pre-commit`, installed by `bun install`) runs `bun fmt --staged` and `bun run lint:ts`. `bun lint` doesn't exist on stable 1.4.4, so the `[lint.rules]` in `bunfig.toml` is inert. There are no tests yet; when adding them use `bun test` with `*.test.ts`, and give DB tests a temp file via `openDb(tmpPath)`.

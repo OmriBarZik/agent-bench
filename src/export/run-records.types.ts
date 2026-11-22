@@ -1,0 +1,96 @@
+/** One deterministic check the runner ran on the final tree (runs/<run_id>/bench-checks.json). */
+export type BenchCheck = {
+  name: string;
+  status: string;
+  detail?: string;
+};
+
+/** Tokens and cost the agent spent in one phase of a run. */
+export type PhaseRecord = {
+  phase: string;
+  turns: number | null;
+  durationMs: number | null;
+  totalTokens: number | null;
+  costUsd: number | null;
+};
+
+/** One chrome-validate build the agent started. */
+export type BuildRecord = {
+  buildNumber: number;
+  status: string;
+  failedStep: string | null;
+  durationMs: number | null;
+  error: string | null;
+};
+
+/** How often the agent used one tool (or one Bash program) in a run. */
+export type ToolUsageRecord = {
+  tool: string | null;
+  program: string | null;
+  calls: number;
+  notRan: number;
+  failed: number;
+};
+
+/** One tool call that was denied (ran = false) or ran and failed. */
+export type ToolTroubleRecord = {
+  tool: string | null;
+  programs: string | null;
+  command: string | null;
+  ran: boolean;
+  failed: boolean;
+};
+
+/** The read-only judge's verdict on a run. */
+export type JudgeRecord = {
+  status: string | null;
+  model: string | null;
+  decision: string | null;
+  success: boolean | null;
+  reason: string | null;
+  error: string | null;
+  blocked: boolean | null;
+  blockers: unknown;
+  costUsd: number | null;
+  durationMs: number | null;
+};
+
+/** Agent metrics for one run. */
+export type AgentRecord = {
+  model: string | null;
+  claudeVersion: string | null;
+  status: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  numTurns: number | null;
+  costUsd: number | null;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheCreationTokens: number | null;
+  cacheReadTokens: number | null;
+  totalTokens: number | null;
+  permissionDenials: number | null;
+  autoReview: boolean | null;
+  finalMessage: string | null;
+};
+
+/** Everything known about one task × config × repeat run, as one JSON line of runs.jsonl. */
+export type RunRecord = {
+  runId: string;
+  taskId: string;
+  configId: string;
+  repeat: number;
+  promptVersion: string | null;
+  judgePromptVersion: string | null;
+  agent: AgentRecord;
+  judge: JudgeRecord;
+  benchChecks: BenchCheck[] | null;
+  branch: string | null;
+  commitSha: string | null;
+  changedFiles: unknown;
+  phases: PhaseRecord[];
+  builds: BuildRecord[];
+  toolUsage: ToolUsageRecord[];
+  toolTrouble: ToolTroubleRecord[];
+};
