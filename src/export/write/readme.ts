@@ -4,15 +4,24 @@ export function readmeMarkdown({
   taskCount,
   configCount,
   runCount,
+  filterLines,
 }: {
   generatedAt: string;
   taskCount: number;
   configCount: number;
   runCount: number;
+  filterLines: string[];
 }): string {
   return `# agent-bench results export
 
 Generated ${generatedAt}: ${taskCount} tasks, ${configCount} configs, ${runCount} runs.
+
+## Filters
+
+The same filters as the dashboard. Only runs that match all of them are in this export. "Prompt: latest" keeps runs
+that used each task's current prompt; older prompt versions are left out.
+
+${filterLines.map((line) => `- ${line}`).join("\n")}
 
 ## What is being tested
 
@@ -39,7 +48,7 @@ servers, MCP servers, etc.) help the agent finish the task more often, faster, o
 | File | What it holds |
 | --- | --- |
 | \`README.md\` | This guide |
-| \`summary.md\` / \`summary.json\` | One row per task × config: run count, success rate, decision counts, blocked runs, average cost, tokens, minutes, turns, builds (done and crashed runs only) |
+| \`summary.md\` / \`summary.json\` | One row per task × config: run count, success rate, decision counts, blocked runs, average cost, tokens, minutes (total, before testing, testing), turns, builds (done and crashed runs only), and \`comparison\` against the Compare against config on the same task: Δ success rate and cost, tokens, and time ratios (this ÷ that) |
 | \`tasks.json\` | Every task: title, difficulty, validate mode, scoring checks, the full agent prompt and judge rubric |
 | \`configs.json\` | Every config: description, model, allowed tools, MCP config, permissions, and the tool prompt text |
 | \`runs.jsonl\` | One JSON object per line, one per run (fields below) |
@@ -50,6 +59,11 @@ servers, MCP servers, etc.) help the agent finish the task more often, faster, o
 - \`runId\`, \`taskId\`, \`configId\`, \`repeat\`: which task × config × repeat this is.
 - \`promptVersion\`, \`judgePromptVersion\`: first 8 hex chars of the prompt's sha256. Runs with different versions
   got different prompts, so compare like with like.
+- \`timeline\` (ISO-8601 UTC): \`startedAt\` (agent session started), \`testingStartedAt\` (the agent's first
+  chrome-validate call, \`start_build\` / \`wait_build\` / \`run_chrome\`; null when it never built or tested),
+  \`firstBuildStartedAt\`, \`lastBuildFinishedAt\`, \`finishedAt\` (the agent session stopped), \`judgeFinishedAt\`, and
+  \`minutesBeforeTesting\` / \`minutesTesting\` (start → testing, testing → stop). Also in the compact runs of
+  \`bench-export.md\`.
 - \`agent\`: the agent session. \`status\` is \`done\`, \`crashed\` (error or timeout), \`cancelled\`, or \`running\`.
   \`durationMs\`, \`numTurns\`, \`costUsd\` (USD), tokens (\`totalTokens\` = fresh input + cache write + cache read +
   output), \`permissionDenials\`, and \`finalMessage\` (the agent's own closing summary; it may overclaim, trust the
@@ -63,7 +77,7 @@ servers, MCP servers, etc.) help the agent finish the task more often, faster, o
 - \`phases\`: \`discovery\` (finding the code and writing the change) and \`validation\` (from the first
   chrome-validate call to the end, fix loops included), each with turns, time, tokens, and cost.
 - \`builds\`: each Chromium build the agent asked for, in order: \`status\` (\`ok\`, \`failed\`, \`cancelled\`,
-  \`abandoned\`), \`failedStep\`, \`durationMs\`, and the first part of the compiler \`error\`.
+  \`abandoned\`), \`failedStep\`, \`startedAt\`, \`finishedAt\`, \`durationMs\`, and the first part of the compiler \`error\`.
 - \`toolUsage\`: calls per tool (and per program for Bash, e.g. \`git\`, \`grep\`). \`notRan\` were denied or blocked,
   \`failed\` ran and returned an error. MCP tools are named \`mcp__<server>__<tool>\`.
 - \`toolTrouble\`: up to 40 of the denied or failed calls, with the command cut to 400 characters.

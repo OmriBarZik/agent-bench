@@ -2,7 +2,7 @@ import type { Selection } from "../runner/bench-config/bench-config.types";
 import type { PickerDefaults, PickerResult } from "./picker/picker-state.types";
 
 /** The tab the TUI opens on. */
-export type StartTab = "start" | "runs" | "setups" | "build";
+export type StartTab = "start" | "runs" | "setups" | "build" | "export";
 
 /** Options for the long-lived start TUI. Jobs run inside it; it only resolves on quit. */
 export type OpenStartTuiOptions = {

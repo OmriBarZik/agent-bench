@@ -1,4 +1,5 @@
 import process from "node:process";
+import { createExportScreen } from "../export/tab/export-screen";
 import type { BuildFinish } from "../inspect/build/build-session.types";
 import { loadChoices } from "../inspect/list/load-choices";
 import { createRunsScreen } from "../inspect/list/runs-screen";
@@ -14,7 +15,7 @@ import type { PickerChoices, PickerStartRequest } from "./picker/picker-state.ty
 import { createQuitGuard } from "./quit-guard";
 import { createSetupsScreen } from "./setups/setups-screen";
 
-const TAB_ORDER: StartTab[] = ["start", "runs", "build", "setups"];
+const TAB_ORDER: StartTab[] = ["start", "runs", "build", "setups", "export"];
 
 /**
  * Opens the long-lived `bun run start` TUI. Start, builds, and checkout run as one-at-a-time
@@ -137,6 +138,10 @@ export async function openStartTui(options: OpenStartTuiOptions): Promise<null> 
               })),
             }),
           ),
+        },
+        {
+          label: "Export",
+          screen: withJobInterrupt(createExportScreen({ controls: host })),
         },
       ];
     },

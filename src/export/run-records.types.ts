@@ -19,6 +19,8 @@ export type BuildRecord = {
   buildNumber: number;
   status: string;
   failedStep: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
   durationMs: number | null;
   error: string | null;
 };
@@ -55,6 +57,21 @@ export type JudgeRecord = {
   durationMs: number | null;
 };
 
+/**
+ * When a run moved between stages (ISO-8601 UTC). testingStartedAt is the agent's first chrome-validate call; null
+ * when it never built or tested. finishedAt is when the agent session stopped, before the judge.
+ */
+export type TimelineRecord = {
+  startedAt: string | null;
+  testingStartedAt: string | null;
+  firstBuildStartedAt: string | null;
+  lastBuildFinishedAt: string | null;
+  finishedAt: string | null;
+  judgeFinishedAt: string | null;
+  minutesBeforeTesting: number | null;
+  minutesTesting: number | null;
+};
+
 /** Agent metrics for one run. */
 export type AgentRecord = {
   model: string | null;
@@ -83,6 +100,7 @@ export type RunRecord = {
   repeat: number;
   promptVersion: string | null;
   judgePromptVersion: string | null;
+  timeline: TimelineRecord;
   agent: AgentRecord;
   judge: JudgeRecord;
   benchChecks: BenchCheck[] | null;

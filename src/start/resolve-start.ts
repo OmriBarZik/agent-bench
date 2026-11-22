@@ -25,19 +25,19 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
   const timeoutMin = positiveNumber({ value: flags.timeoutMin, flag: "--timeout-min" });
   const buildTimeoutMin = positiveNumber({ value: flags.buildTimeoutMin, flag: "--build-timeout-min" });
   const terminal = process.stdin.isTTY === true && process.stdout.isTTY === true;
-  const wantsTui = flags.interactive || flags.runs || flags.setups;
+  const wantsTui = flags.interactive || flags.runs || flags.setups || flags.export;
 
-  if (flags.runs && flags.setups) {
-    throw new Error("pass only one of --runs and --setups");
+  if ([flags.runs, flags.setups, flags.export].filter(Boolean).length > 1) {
+    throw new Error("pass only one of --runs, --setups, and --export");
   }
 
   if (wantsTui && flags.cli) {
-    throw new Error("--cli never opens the TUI; drop --interactive / --runs / --setups");
+    throw new Error("--cli never opens the TUI; drop --interactive / --runs / --setups / --export");
   }
 
   if (wantsTui && !terminal) {
     throw new Error(
-      "--interactive, --runs, and --setups need a terminal; pass --only-task / --only-config / --repeats instead",
+      "--interactive, --runs, --setups, and --export need a terminal; pass --only-task / --only-config / --repeats instead",
     );
   }
 
@@ -84,10 +84,14 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
   return { kind: "quit" };
 }
 
-/** Which tab opens. --setups and --runs each name one; otherwise the Start tab. */
+/** Which tab opens. --setups, --runs, and --export each name one; otherwise the Start tab. */
 function openingTab(flags: RunPlanFlags): StartTab {
   if (flags.setups) {
     return "setups";
+  }
+
+  if (flags.export) {
+    return "export";
   }
 
   if (flags.runs) {

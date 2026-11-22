@@ -25,6 +25,8 @@ export type RunPlanFlags = {
   runs: boolean;
   /** --setups: open the TUI on the Setups tab. */
   setups: boolean;
+  /** --export: open the TUI on the Export tab. */
+  export: boolean;
   /** --cli: never open the TUI. */
   cli: boolean;
   /** Model for the read-only judge session. */

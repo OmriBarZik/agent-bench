@@ -1,3 +1,5 @@
+import type { TimelineRecord } from "../run-records.types";
+
 /** Builds in one run: how many, how they ended, and which step failed. */
 export type CompactBuilds = {
   count: number;
@@ -20,6 +22,7 @@ export type CompactRun = {
   repeat: number;
   promptVersion: string | null;
   status: string | null;
+  timeline: TimelineRecord;
   model: string | null;
   minutes: number | null;
   turns: number | null;

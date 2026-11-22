@@ -32,6 +32,7 @@ export type ExportRunRow = {
   model: string | null;
   startedAt: string | null;
   finishedAt: string | null;
+  testingStartedAt: string | null;
   status: string | null;
   durationMs: number | null;
   numTurns: number | null;
@@ -51,6 +52,7 @@ export type ExportRunRow = {
   judgeModel: string | null;
   judgeCostUsd: number | null;
   judgeDurationMs: number | null;
+  judgeFinishedAt: string | null;
   decision: string | null;
   success: number | null;
   reason: string | null;
@@ -75,6 +77,8 @@ export type ExportBuildRow = {
   buildNumber: number;
   status: string;
   failedStep: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
   durationMs: number | null;
   error: string | null;
 };

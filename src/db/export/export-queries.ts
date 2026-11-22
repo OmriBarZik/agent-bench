@@ -29,13 +29,19 @@ export function listExportConfigs(db: Database): ExportConfigRow[] {
     .all() as ExportConfigRow[];
 }
 
-/** Every run with its judge session; the agent's final message comes from raw_result. */
+/**
+ * Every run with its judge session; the agent's final message comes from raw_result. testingStartedAt is the first
+ * chrome-validate call (start_build, wait_build, run_chrome), the same point where run_phases starts validation.
+ */
 export function listExportRuns(db: Database): ExportRunRow[] {
   return db
     .query(
       `SELECT r.run_id AS runId, r.task_id AS taskId, r.config_id AS configId, r.repeat,
               r.prompt_version AS promptVersion, r.judge_prompt_version AS judgePromptVersion,
               r.claude_version AS claudeVersion, r.model, r.started_at AS startedAt, r.finished_at AS finishedAt,
+              (SELECT MIN(t.ts) FROM tool_calls t
+               WHERE t.run_id = r.run_id AND t.phase = 'pre' AND t.tool GLOB 'mcp__chrome-validate__*')
+                AS testingStartedAt,
               r.status, r.duration_ms AS durationMs, r.num_turns AS numTurns, r.cost_usd AS costUsd,
               r.input_tokens AS inputTokens, r.output_tokens AS outputTokens,
               r.cache_creation_tokens AS cacheCreationTokens, r.cache_read_tokens AS cacheReadTokens,
@@ -43,7 +49,7 @@ export function listExportRuns(db: Database): ExportRunRow[] {
               r.auto_review AS autoReview, r.branch, r.commit_sha AS commitSha, r.changed_files AS changedFiles,
               json_extract(r.raw_result, '$.result') AS finalMessage,
               j.status AS judgeStatus, j.model AS judgeModel, j.cost_usd AS judgeCostUsd,
-              j.duration_ms AS judgeDurationMs, j.decision, j.success, j.reason, j.error AS judgeError,
+              j.duration_ms AS judgeDurationMs, j.finished_at AS judgeFinishedAt, j.decision, j.success, j.reason, j.error AS judgeError,
               j.blocked, j.blockers
        FROM runs r LEFT JOIN judge_runs j ON j.run_id = r.run_id
        ORDER BY r.task_id, r.config_id, r.started_at`,
@@ -65,6 +71,7 @@ export function listExportBuilds(db: Database): ExportBuildRow[] {
   return db
     .query(
       `SELECT run_id AS runId, build_number AS buildNumber, status, failed_step AS failedStep,
+              started_at AS startedAt, finished_at AS finishedAt,
               duration_ms AS durationMs, substr(error, 1, 1500) AS error
        FROM builds ORDER BY run_id, build_number`,
     )

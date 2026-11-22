@@ -1,4 +1,4 @@
-import type { RunRecord } from "./run-records.types";
+import type { RunRecord } from "../run-records.types";
 import type { DecisionCounts, SummaryRow } from "./summary.types";
 
 /** Only finished runs count, the same as the dashboard. */
@@ -18,30 +18,6 @@ export function summarizeRuns(runs: RunRecord[]): SummaryRow[] {
   );
 }
 
-/** The summary as markdown, one table per task. */
-export function summaryMarkdown(rows: SummaryRow[]): string {
-  const lines: string[] = [];
-
-  for (const [taskId, taskRows] of Map.groupBy(rows, (row) => row.taskId)) {
-    lines.push(`### ${taskId}`, "");
-    lines.push(
-      "| config | runs | success | pass / p-pass / p-fail / fail | blocked | avg cost $ | avg tokens | avg min | avg turns | avg builds |",
-    );
-    lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
-
-    for (const row of taskRows) {
-      const decisions = row.decisions;
-      lines.push(
-        `| ${row.configId} | ${row.runs} | ${percent(row.successRate)} | ${decisions.pass} / ${decisions.partiallyPass} / ${decisions.partiallyFailed} / ${decisions.failed} | ${row.blockedRuns} | ${fixed(row.avgCostUsd, 2)} | ${fixed(row.avgTotalTokens, 0)} | ${fixed(row.avgDurationMin, 1)} | ${fixed(row.avgTurns, 0)} | ${fixed(row.avgBuilds, 1)} |`,
-      );
-    }
-
-    lines.push("");
-  }
-
-  return lines.join("\n");
-}
-
 function summarizeGroup(runs: RunRecord[]): SummaryRow {
   const decisions = countDecisions(runs);
   const judged = runs.length - decisions.unjudged;
@@ -58,6 +34,9 @@ function summarizeGroup(runs: RunRecord[]): SummaryRow {
     avgDurationMin: average(runs.map((run) => (run.agent.durationMs == null ? null : run.agent.durationMs / 60000))),
     avgTurns: average(runs.map((run) => run.agent.numTurns)),
     avgBuilds: average(runs.map((run) => run.builds.length)),
+    avgMinutesBeforeTesting: average(runs.map((run) => run.timeline.minutesBeforeTesting)),
+    avgMinutesTesting: average(runs.map((run) => run.timeline.minutesTesting)),
+    comparison: null,
   };
 }
 
@@ -87,12 +66,4 @@ function average(values: (number | null)[]): number | null {
   const present = values.filter((value): value is number => value != null);
 
   return present.length === 0 ? null : present.reduce((sum, value) => sum + value, 0) / present.length;
-}
-
-function percent(value: number | null): string {
-  return value == null ? "–" : `${Math.round(value * 100)}%`;
-}
-
-function fixed(value: number | null, digits: number): string {
-  return value == null ? "–" : value.toFixed(digits);
 }

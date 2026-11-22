@@ -24,6 +24,7 @@ const { values: args } = parseArgs({
     interactive: { type: "boolean", short: "i", default: false }, // open the TUI even with selection flags
     runs: { type: "boolean", default: false }, // open the TUI on the Runs tab
     setups: { type: "boolean", default: false }, // open the TUI on the Setups tab
+    export: { type: "boolean", default: false }, // open the TUI on the Export tab
     checkout: { type: "string" }, // check this run's branch out and exit, no TUI
     cli: { type: "boolean", default: false }, // never open the TUI
     "prune-apps": { type: "boolean", default: false }, // delete finished runs' Chromium.app copies and exit
@@ -42,7 +43,7 @@ const { values: args } = parseArgs({
  *   bun run start --checkout <branch or run id> [--force]
  *   bun run start --prune-apps [--only-task id[,id]] [--only-config id[,id]] [--min-free-gb 60] [--dry-run]
  *
- * On a terminal with none of --only-task, --only-config, or --repeats, it opens a long-lived TUI with four tabs;
+ * On a terminal with none of --only-task, --only-config, or --repeats, it opens a long-lived TUI with five tabs;
  * tab and shift-tab switch between them, and esc quits. Starting a matrix, a Runs-tab build, or a checkout
  * keeps the TUI open so you can navigate other tabs. Only one Chromium-touching job runs at a time.
  *   Start: check the tasks and configs to run, set repeats, agent timeout, build timeout, sync, and auto review, then enter starts
@@ -60,6 +61,8 @@ const { values: args } = parseArgs({
  *   Build: a list of past and present agent builds (plus a live inspect-build log when one is running). Enter opens a log;
  *     esc returns to the list; ←→ steps between builds. Up and down scroll the log; end follows the tail. Tab still switches tabs.
  *   Setups: every config, the checks in its setup.json, and how many runs it has. r reloads.
+ *   Export: the dashboard's filters (task, config, compare against, prompt, judge prompt, judge decision, run) with a live
+ *     count of matching runs. Enter writes exports/<time>/, c copies its bench-export.md to the clipboard, o opens it.
  * Ctrl-C cancels the active job; when idle, it quits the TUI. A second Ctrl-C force-exits.
  * --interactive opens the TUI with the flags as the Start tab's values, --runs opens it on the Runs tab
  * (`bun run start:inspect`), --setups opens it on the Setups tab (`bun run start:setups`), and --cli (or no terminal)
@@ -134,6 +137,7 @@ async function main() {
     interactive: args.interactive,
     runs: args.runs,
     setups: args.setups,
+    export: args.export,
     cli: args.cli,
     judgeModel: args["judge-model"] ?? "claude-sonnet-5-5",
   });

@@ -1,9 +1,11 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ConfigRecord, TaskRecord } from "../catalog.types";
+import type { ExportFilter } from "../filter/export-filter.types";
+import { describeFilter } from "../filter/filter-runs";
 import type { RunRecord } from "../run-records.types";
-import { summaryMarkdown } from "../summary";
-import type { SummaryRow } from "../summary.types";
+import { summaryMarkdown } from "../summary/summary-markdown";
+import type { SummaryRow } from "../summary/summary.types";
 import { compactRun } from "./compact-run";
 import { readmeMarkdown } from "./readme";
 
@@ -17,12 +19,14 @@ export function writeExport({
   configs,
   runs,
   summary,
+  filter,
 }: {
   outDir: string;
   tasks: TaskRecord[];
   configs: ConfigRecord[];
   runs: RunRecord[];
   summary: SummaryRow[];
+  filter: ExportFilter;
 }): string {
   mkdirSync(outDir, { recursive: true });
   const readme = readmeMarkdown({
@@ -30,8 +34,9 @@ export function writeExport({
     taskCount: tasks.length,
     configCount: configs.length,
     runCount: runs.length,
+    filterLines: describeFilter(filter),
   });
-  const summaryText = `# Summary by task and config\n\n${summaryMarkdown(summary)}`;
+  const summaryText = `# Summary by task and config\n\n${summaryMarkdown({ rows: summary, compareAgainst: filter.compareAgainst })}`;
   const runLines = runs.map((run) => JSON.stringify(run)).join("\n");
 
   writeFileSync(join(outDir, "README.md"), readme);

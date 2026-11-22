@@ -9,7 +9,7 @@ import {
   listExportToolUsage,
 } from "../db/export/export-queries";
 import type { ExportRunRow } from "../db/export/export-queries.types";
-import type { BenchCheck, JudgeRecord, RunRecord } from "./run-records.types";
+import type { BenchCheck, BuildRecord, JudgeRecord, RunRecord, TimelineRecord } from "./run-records.types";
 
 /** Most denied or failed calls kept per run, so one noisy run does not swamp the export. */
 const MAX_TROUBLE_PER_RUN = 40;
@@ -28,6 +28,7 @@ export function buildRunRecords({ db, runsDir }: { db: Database; runsDir: string
     repeat: run.repeat,
     promptVersion: run.promptVersion,
     judgePromptVersion: run.judgePromptVersion,
+    timeline: toTimeline({ run, builds: builds.get(run.runId) ?? [] }),
     agent: {
       model: run.model,
       claudeVersion: run.claudeVersion,
@@ -77,6 +78,29 @@ function toJudgeRecord(run: ExportRunRow): JudgeRecord {
     costUsd: run.judgeCostUsd,
     durationMs: run.judgeDurationMs,
   };
+}
+
+function toTimeline({ run, builds }: { run: ExportRunRow; builds: BuildRecord[] }): TimelineRecord {
+  const buildEnds = builds.flatMap((build) => (build.finishedAt ? [build.finishedAt] : [])).sort();
+
+  return {
+    startedAt: run.startedAt,
+    testingStartedAt: run.testingStartedAt,
+    firstBuildStartedAt: builds[0]?.startedAt ?? null,
+    lastBuildFinishedAt: buildEnds.at(-1) ?? null,
+    finishedAt: run.finishedAt,
+    judgeFinishedAt: run.judgeFinishedAt,
+    minutesBeforeTesting: minutesBetween({ from: run.startedAt, to: run.testingStartedAt }),
+    minutesTesting: minutesBetween({ from: run.testingStartedAt, to: run.finishedAt }),
+  };
+}
+
+function minutesBetween({ from, to }: { from: string | null; to: string | null }): number | null {
+  if (!from || !to) {
+    return null;
+  }
+
+  return Math.round((Date.parse(to) - Date.parse(from)) / 6000) / 10;
 }
 
 function toBoolean(value: number | null): boolean | null {

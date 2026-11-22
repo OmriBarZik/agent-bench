@@ -18,6 +18,7 @@ export function compactRun(run: RunRecord): CompactRun {
     repeat: run.repeat,
     promptVersion: run.promptVersion,
     status: run.agent.status,
+    timeline: run.timeline,
     model: run.agent.model,
     minutes: run.agent.durationMs == null ? null : Math.round(run.agent.durationMs / 6000) / 10,
     turns: run.agent.numTurns,

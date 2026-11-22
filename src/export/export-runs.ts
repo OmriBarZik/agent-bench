@@ -1,34 +1,37 @@
 #!/usr/bin/env bun
-import { join } from "node:path";
 import { parseArgs } from "node:util";
-import { openDb } from "../db/db";
-import { BENCH_DIR, RUNS_DIR } from "../paths";
-import { buildConfigRecords, buildTaskRecords } from "./catalog";
-import { buildRunRecords } from "./run-records";
-import { summarizeRuns } from "./summary";
-import { writeExport } from "./write/write-export";
+import { parseFilter } from "./filter/parse-filter";
+import { loadExportData, writeFilteredExport } from "./run-export";
 
 /**
- * Exports every task, config, and run in a form an AI agent can read: a README that explains the benchmark and
- * each field, a per task × config summary, tasks.json, configs.json, runs.jsonl, and bench-export.md with all of
- * it in one file to copy. Reads only; the database and runs/ are left as they are.
+ * Exports tasks, configs, and runs in a form an AI agent can read: a README that explains the benchmark and each
+ * field, a per task × config summary compared against one config, tasks.json, configs.json, runs.jsonl, and
+ * bench-export.md with all of it in one file to copy. Reads only; the database and runs/ are left as they are.
  *
- *   bun run export [--out exports/<timestamp>]   # BENCH_DB_PATH picks another database
+ * The filters match the dashboard's and default to what it shows: every task, config, decision, and run, the
+ * latest prompt and judge prompt, compared against baseline. Lists are comma-separated.
+ *
+ *   bun run export [--out dir] [--task id,id] [--config id,id] [--compare baseline]
+ *                  [--prompt latest|all|<task>|<hash>|<hash>] [--judge-prompt latest|all|...]
+ *                  [--decision pass,partially-pass,partially-failed,failed,unjudged] [--run run_id,run_id]
  */
 function main() {
-  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const { values: args } = parseArgs({
-    options: { out: { type: "string", default: join(BENCH_DIR, "exports", stamp) } },
+    options: {
+      out: { type: "string" },
+      task: { type: "string" },
+      config: { type: "string" },
+      compare: { type: "string" },
+      prompt: { type: "string" },
+      "judge-prompt": { type: "string" },
+      decision: { type: "string" },
+      run: { type: "string" },
+    },
   });
-  const db = openDb();
-  const tasks = buildTaskRecords(db);
-  const configs = buildConfigRecords(db);
-  const runs = buildRunRecords({ db, runsDir: RUNS_DIR });
-  db.close();
-
-  const bundlePath = writeExport({ outDir: args.out, tasks, configs, runs, summary: summarizeRuns(runs) });
-  console.log(`exported ${runs.length} runs to ${args.out}`);
-  console.log(`one-file copy: ${bundlePath}`);
+  const filter = parseFilter(args);
+  const result = writeFilteredExport({ data: loadExportData(), filter, outDir: args.out });
+  console.log(`exported ${result.exported} of ${result.total} runs to ${result.outDir}`);
+  console.log(`one-file copy: ${result.bundlePath}`);
 }
 
 if (import.meta.main) {

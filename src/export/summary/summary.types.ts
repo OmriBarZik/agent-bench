@@ -20,4 +20,18 @@ export type SummaryRow = {
   avgDurationMin: number | null;
   avgTurns: number | null;
   avgBuilds: number | null;
+  avgMinutesBeforeTesting: number | null;
+  avgMinutesTesting: number | null;
+  /** Null for the Compare against config itself, or when it has no runs on this task. */
+  comparison: SummaryComparison | null;
+};
+
+/** One task × config against the Compare against config on the same task. Ratios are this ÷ that. */
+export type SummaryComparison = {
+  against: string;
+  againstRuns: number;
+  successRateDelta: number | null;
+  costRatio: number | null;
+  tokensRatio: number | null;
+  durationRatio: number | null;
 };
