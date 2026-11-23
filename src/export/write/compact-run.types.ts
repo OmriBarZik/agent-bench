@@ -1,4 +1,4 @@
-import type { TimelineRecord } from "../run-records.types";
+import type { FindingsRecord, TimelineRecord } from "../run-records.types";
 
 /** Builds in one run: how many, how they ended, and which step failed. */
 export type CompactBuilds = {
@@ -12,6 +12,13 @@ export type CompactTools = {
   top: string[];
   notRan: number;
   failed: number;
+};
+
+/** One judge verdict as stored in judge_runs.checks. */
+export type JudgeCheckLine = {
+  check: string;
+  verdict: string;
+  evidence: string;
 };
 
 /** A smaller run record for the one-file bundle; runs.jsonl keeps the full one. */
@@ -33,6 +40,8 @@ export type CompactRun = {
   success: boolean | null;
   judgeReason: string | null;
   blockers: unknown;
+  judgeChecks: string[] | null;
+  findings: FindingsRecord | null;
   benchChecks: string[] | null;
   changedFiles: number;
   builds: CompactBuilds;

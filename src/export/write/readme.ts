@@ -70,7 +70,11 @@ servers, MCP servers, etc.) help the agent finish the task more often, faster, o
   judge).
 - \`judge\`: \`decision\`, \`success\`, \`reason\` (the judge's explanation; the best place to learn what went right or
   wrong), \`blocked\` and \`blockers\` (\`[{ kind, tool, detail }]\`, kind is \`missing-tool\`, \`denied\`, or
-  \`exec-failed\`), plus the judge's own cost and duration.
+  \`exec-failed\`), \`checks\` (\`[{ check, verdict, evidence }]\`, one pass/fail per task requirement; empty for
+  older judge prompts), plus the judge's own cost and duration. The judge is not told which tools the agent had.
+- \`findings\`: measured in code from the transcript. \`setupToolCalls\` counts calls to the config's own tools (null
+  for baseline; 0 means the agent ignored them). \`firstGameSource\` and \`firstPanelRegistration\` give the turn and
+  context tokens when the agent first opened the dino game sources and a DevTools panel registration (null if never).
 - \`benchChecks\`: deterministic checks the runner ran on the final tree, \`[{ name, status, detail }]\`, status
   \`pass\` / \`fail\` / \`not-run\`. Null for tasks or runs without them.
 - \`changedFiles\`: \`[{ status, path, previousPath? }]\` vs the task commit. \`commitSha\` is null when nothing changed.
@@ -86,7 +90,8 @@ servers, MCP servers, etc.) help the agent finish the task more often, faster, o
 
 - Compare configs **within one task**; tasks differ a lot in difficulty (\`simple\`, \`medium\`, \`complex\`).
 - Weigh success rate first, then cost, tokens, and time. With few repeats per cell, treat small differences as noise.
-- Read \`judge.reason\` and \`judge.blockers\` to see *why* a config did better or worse, and \`toolUsage\` to check the
-  agent actually used the config's tools (the tool prompt in \`configs.json\` says which ones it should use).
+- Read \`judge.reason\` and \`judge.blockers\` to see *why* a config did better or worse, and \`toolUsage\` and
+  \`findings.setupToolCalls\` to check the agent actually used the config's tools (the tool prompt in
+  \`configs.json\` says which ones it should use).
 `;
 }

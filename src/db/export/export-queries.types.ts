@@ -20,7 +20,7 @@ export type ExportConfigRow = {
   permissions: string | null;
 };
 
-/** One run joined with its judge session and build stats. JSON columns stay text. */
+/** One run joined with its judge session and run_findings. JSON columns stay text. */
 export type ExportRunRow = {
   runId: string;
   taskId: string;
@@ -59,6 +59,12 @@ export type ExportRunRow = {
   judgeError: string | null;
   blocked: number | null;
   blockers: string | null;
+  judgeChecks: string | null;
+  setupToolCalls: number | null;
+  firstGameSourceTurn: number | null;
+  firstGameSourceTokens: number | null;
+  firstPanelRegTurn: number | null;
+  firstPanelRegTokens: number | null;
 };
 
 /** One run_phases row. */

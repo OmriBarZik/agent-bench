@@ -1,5 +1,5 @@
 import type { RunRecord } from "../run-records.types";
-import type { CompactRun } from "./compact-run.types";
+import type { CompactRun, JudgeCheckLine } from "./compact-run.types";
 
 /** Characters of the agent's closing message kept in the bundle. */
 const AGENT_SUMMARY_CHARS = 600;
@@ -29,6 +29,10 @@ export function compactRun(run: RunRecord): CompactRun {
     success: run.judge.success,
     judgeReason: run.judge.reason,
     blockers: run.judge.blockers,
+    judgeChecks: Array.isArray(run.judge.checks)
+      ? run.judge.checks.map((check: JudgeCheckLine) => `${check.check}: ${check.verdict} (${check.evidence})`)
+      : null,
+    findings: run.findings,
     benchChecks: run.benchChecks?.map((check) => `${check.name}: ${check.status}`) ?? null,
     changedFiles: Array.isArray(run.changedFiles) ? run.changedFiles.length : 0,
     builds: {

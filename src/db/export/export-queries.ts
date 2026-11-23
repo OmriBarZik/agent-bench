@@ -30,7 +30,7 @@ export function listExportConfigs(db: Database): ExportConfigRow[] {
 }
 
 /**
- * Every run with its judge session; the agent's final message comes from raw_result. testingStartedAt is the first
+ * Every run with its judge session and run_findings; the agent's final message comes from raw_result. testingStartedAt is the first
  * chrome-validate call (start_build, wait_build, run_chrome), the same point where run_phases starts validation.
  */
 export function listExportRuns(db: Database): ExportRunRow[] {
@@ -50,8 +50,12 @@ export function listExportRuns(db: Database): ExportRunRow[] {
               json_extract(r.raw_result, '$.result') AS finalMessage,
               j.status AS judgeStatus, j.model AS judgeModel, j.cost_usd AS judgeCostUsd,
               j.duration_ms AS judgeDurationMs, j.finished_at AS judgeFinishedAt, j.decision, j.success, j.reason, j.error AS judgeError,
-              j.blocked, j.blockers
+              j.blocked, j.blockers, j.checks AS judgeChecks,
+              f.setup_tool_calls AS setupToolCalls, f.first_game_source_turn AS firstGameSourceTurn,
+              f.first_game_source_tokens AS firstGameSourceTokens, f.first_panel_reg_turn AS firstPanelRegTurn,
+              f.first_panel_reg_tokens AS firstPanelRegTokens
        FROM runs r LEFT JOIN judge_runs j ON j.run_id = r.run_id
+       LEFT JOIN run_findings f ON f.run_id = r.run_id
        WHERE r.batch IS NULL
        ORDER BY r.task_id, r.config_id, r.started_at`,
     )

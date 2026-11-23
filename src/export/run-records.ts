@@ -9,7 +9,14 @@ import {
   listExportToolUsage,
 } from "../db/export/export-queries";
 import type { ExportRunRow } from "../db/export/export-queries.types";
-import type { BenchCheck, BuildRecord, JudgeRecord, RunRecord, TimelineRecord } from "./run-records.types";
+import type {
+  BenchCheck,
+  BuildRecord,
+  FindingsRecord,
+  JudgeRecord,
+  RunRecord,
+  TimelineRecord,
+} from "./run-records.types";
 
 /** Most denied or failed calls kept per run, so one noisy run does not swamp the export. */
 const MAX_TROUBLE_PER_RUN = 40;
@@ -48,6 +55,7 @@ export function buildRunRecords({ db, runsDir }: { db: Database; runsDir: string
       finalMessage: run.finalMessage,
     },
     judge: toJudgeRecord(run),
+    findings: toFindingsRecord(run),
     benchChecks: readBenchChecks(join(runsDir, run.runId, "bench-checks.json")),
     branch: run.branch,
     commitSha: run.commitSha,
@@ -75,8 +83,22 @@ function toJudgeRecord(run: ExportRunRow): JudgeRecord {
     error: run.judgeError,
     blocked: toBoolean(run.blocked),
     blockers: parseJson(run.blockers),
+    checks: parseJson(run.judgeChecks),
     costUsd: run.judgeCostUsd,
     durationMs: run.judgeDurationMs,
+  };
+}
+
+function toFindingsRecord(run: ExportRunRow): FindingsRecord | null {
+  const measured = [run.setupToolCalls, run.firstGameSourceTurn, run.firstPanelRegTurn].some((value) => value != null);
+  if (!measured) {
+    return null;
+  }
+
+  return {
+    setupToolCalls: run.setupToolCalls,
+    firstGameSource: { turn: run.firstGameSourceTurn, tokens: run.firstGameSourceTokens },
+    firstPanelRegistration: { turn: run.firstPanelRegTurn, tokens: run.firstPanelRegTokens },
   };
 }
 

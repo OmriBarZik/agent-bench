@@ -53,8 +53,25 @@ export type JudgeRecord = {
   error: string | null;
   blocked: boolean | null;
   blockers: unknown;
+  checks: unknown;
   costUsd: number | null;
   durationMs: number | null;
+};
+
+/** The turn and context tokens at the agent's first look at a kind of file; null fields when it never did. */
+export type FindingPointRecord = {
+  turn: number | null;
+  tokens: number | null;
+};
+
+/**
+ * Code-measured findings (run_findings): calls to the config's own setup tools (null for baseline or no setupTools)
+ * and when the agent first opened the dino game sources and a DevTools panel registration. Null when not measured.
+ */
+export type FindingsRecord = {
+  setupToolCalls: number | null;
+  firstGameSource: FindingPointRecord;
+  firstPanelRegistration: FindingPointRecord;
 };
 
 /**
@@ -103,6 +120,7 @@ export type RunRecord = {
   timeline: TimelineRecord;
   agent: AgentRecord;
   judge: JudgeRecord;
+  findings: FindingsRecord | null;
   benchChecks: BenchCheck[] | null;
   branch: string | null;
   commitSha: string | null;
