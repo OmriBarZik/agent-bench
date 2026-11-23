@@ -29,6 +29,11 @@ export type BenchConfigEntry = {
    */
   toolPromptFile?: string;
   extraFiles?: string[];
+  /**
+   * What counts as a call to this config's own tools: a Bash program name (`rg`), or a tool-name prefix
+   * (`mcp__serena__`, `LSP`). Used to count how often the agent really used the setup. Not part of config_hash.
+   */
+  setupTools?: string[];
 };
 
 /** A benchmark-setup.json entry with its tool prompt loaded. */

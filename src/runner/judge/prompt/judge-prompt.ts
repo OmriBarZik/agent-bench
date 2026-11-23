@@ -21,6 +21,7 @@ export function buildJudgePrompt({
   return [
     "You are judging a finished coding agent. The checkout is the agent's final tree.",
     "Do not edit files or finish the task yourself.",
+    "You do not know which tools the agent had. Judge only the diff, the build results and the bench checks.",
     "",
     "## Task",
     taskPrompt.trim(),
@@ -43,6 +44,7 @@ export function buildJudgePrompt({
     ...benchChecksSection(benchChecks),
     "If the diff is truncated, read the changed files.",
     "Judge the checkout, not what the agent claims.",
+    "Give one pass or fail verdict per requirement, each with a single line of evidence.",
     "Also report whether a missing, denied, or failing tool or program stopped the agent from doing part of the task.",
     "A call the agent worked around is not a blocker.",
   ].join("\n");

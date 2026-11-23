@@ -13,6 +13,7 @@ import { runBenchChecks } from "../judge/checks/bench-checks";
 import type { BenchCheck } from "../judge/checks/bench-checks.types";
 import { judgeRun } from "../judge/judge";
 import { cancelledJudgeMetrics, failedJudgeMetrics } from "../judge/result/judge-result";
+import { storeRunFindings } from "../findings/store-findings";
 import { storeRunPhases } from "../phases/store-phases";
 import type { RunOneResult, RunOptions } from "./run-one.types";
 import { commitAgentWork, restoreTree, saveTranscript } from "./run-tree";
@@ -69,6 +70,7 @@ export async function runAndCommitAgent({
     status: signal.aborted ? "cancelled" : undefined,
   });
   storeRunPhases({ db, runId, outDir, costUsd: committed.result.total_cost_usd ?? null });
+  storeRunFindings({ db, runId, outDir, setupTools: config.setupTools });
 
   return committed;
 }

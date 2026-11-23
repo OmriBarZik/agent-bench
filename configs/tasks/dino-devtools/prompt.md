@@ -1,4 +1,4 @@
-You are working in a Chromium source checkout. Chrome's offline dinosaur game normally only runs on the network error page. Make it playable inside Chrome DevTools (the DevTools frontend, e.g. as a panel or drawer tab), so a user can open DevTools, pick the game, and play it with the keyboard while online.
+You are working in a Chromium source checkout. Chrome's offline dinosaur game normally only runs on the network error page. Make it playable inside Chrome DevTools (the DevTools frontend, for example as a panel or drawer tab), so a user can open DevTools, pick the game, and play it with the keyboard while online.
 
 It must be the real dinosaur game, not a recreation. Do not rewrite the game logic, redraw or regenerate the sprites, or synthesize replacement sounds. Use the game's actual code and its actual assets (the sprite sheets at both display scales and the sound effects). Copying the real files into DevTools is fine, but every copy must be the original file or its build output, unchanged except for what is needed to load it.
 

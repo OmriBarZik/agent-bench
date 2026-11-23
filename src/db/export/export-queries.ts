@@ -52,6 +52,7 @@ export function listExportRuns(db: Database): ExportRunRow[] {
               j.duration_ms AS judgeDurationMs, j.finished_at AS judgeFinishedAt, j.decision, j.success, j.reason, j.error AS judgeError,
               j.blocked, j.blockers
        FROM runs r LEFT JOIN judge_runs j ON j.run_id = r.run_id
+       WHERE r.batch IS NULL
        ORDER BY r.task_id, r.config_id, r.started_at`,
     )
     .all() as ExportRunRow[];

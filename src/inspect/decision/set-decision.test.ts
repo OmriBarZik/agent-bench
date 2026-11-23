@@ -122,4 +122,5 @@ const passed: JudgeMetrics = {
   error: null,
   blocked: false,
   blockers: [],
+  checks: [],
 };

@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS runs (
     branch             TEXT,       -- git branch in the Chromium checkout, named after run_id
     commit_sha         TEXT,       -- tip of that branch; NULL when the tree still matches the task SHA
     changed_files      TEXT,       -- JSON: [{ "status", "path", "previousPath"? }] vs the task SHA; submodule paths are prefixed
-    auto_review        INTEGER     -- 1 when this run attached chrome-validate; NULL on runs from before the toggle
+    auto_review        INTEGER,    -- 1 when this run attached chrome-validate; NULL on runs from before the toggle
+    batch              TEXT        -- NULL for runs that count; 'pilot' for archived history kept out of charts and exports
 );
 
 -- One judge session per agent run. These metrics are the judge's; the agent's stay on runs.
@@ -86,7 +87,8 @@ CREATE TABLE IF NOT EXISTS judge_runs (
     reason                 TEXT,
     error                  TEXT,
     blocked                INTEGER,         -- 1 when a missing, denied, or failing tool stopped the agent
-    blockers               TEXT             -- JSON: [{ "kind", "tool", "detail" }]; kind is missing-tool / denied / exec-failed
+    blockers               TEXT,            -- JSON: [{ "kind", "tool", "detail" }]; kind is missing-tool / denied / exec-failed
+    checks                 TEXT             -- JSON: [{ "check", "verdict", "evidence" }]; one per task scoring check, verdict pass / fail
 );
 
 CREATE TABLE IF NOT EXISTS tool_calls (
@@ -209,4 +211,17 @@ CREATE TABLE IF NOT EXISTS run_phases (
     total_tokens           INTEGER,
     cost_usd               REAL,
     PRIMARY KEY (run_id, phase)
+);
+
+-- What the agent's transcript and tool calls say about finding the code, one row per run. setup_tool_calls counts
+-- calls to the config's own tools (configs setupTools), NULL for a config that adds none. The first_* columns are
+-- the API response (1-based turn) and the tokens used up to it when the agent first opened a file in that area,
+-- NULL when it never did.
+CREATE TABLE IF NOT EXISTS run_findings (
+    run_id                     TEXT PRIMARY KEY REFERENCES runs,
+    setup_tool_calls           INTEGER,
+    first_game_source_turn     INTEGER,   -- components/neterror/resources (the dino game)
+    first_game_source_tokens   INTEGER,
+    first_panel_reg_turn       INTEGER,   -- a DevTools panel registration (*-meta.ts, devtools_app entrypoint)
+    first_panel_reg_tokens     INTEGER
 );

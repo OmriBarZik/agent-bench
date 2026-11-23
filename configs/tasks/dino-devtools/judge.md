@@ -5,3 +5,5 @@ Judge whether the real offline dinosaur game can be played from Chrome DevTools.
 - The change shows the agent understood how the game is built: it consumes the game's build output (the compiled and bundled game script, plus the 1x and 2x sprite sheets and the sounds) or runs the same sources through equivalent build steps. It does not hand-write a parallel copy of the game.
 - Keyboard input for jump, duck, and restart reaches the game while it is open in DevTools.
 - BUILD.gn and resource or grd lists are updated so the game and its assets are part of the existing DevTools frontend build. A full Chromium build is not required; validating with `--custom-devtools-frontend` against that frontend build is enough.
+
+Return one pass or fail verdict per requirement above, each with one line of evidence.

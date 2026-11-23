@@ -1,6 +1,7 @@
 import type { ClaudeResult, ClaudeUsage, JudgeMetrics } from "../../../db/db.types";
 import { decisionSucceeds, isJudgeDecision } from "../../../db/judge-decision";
 import { readBlockers } from "./judge-blockers";
+import { readChecks } from "./judge-checks";
 import type { JudgeVerdict } from "./judge-result.types";
 
 /** Turns a finished judge session into the judge_runs row. A missing decision leaves decision and success null. */
@@ -26,6 +27,7 @@ export function judgeMetrics({ result, judgeModel }: { result: ClaudeResult; jud
     error: verdict ? null : judgeError(result),
     blocked: verdict?.blocked ?? null,
     blockers: verdict?.blockers ?? [],
+    checks: verdict?.checks ?? [],
   };
 }
 
@@ -57,6 +59,7 @@ export function cancelledJudgeMetrics({
     error: "cancelled",
     blocked: null,
     blockers: [],
+    checks: [],
   };
 }
 
@@ -79,6 +82,7 @@ export function failedJudgeMetrics({ judgeModel, error }: { judgeModel: string; 
     error,
     blocked: null,
     blockers: [],
+    checks: [],
   };
 }
 
@@ -170,7 +174,13 @@ function verdictFromUnknown(value: unknown): JudgeVerdict | null {
     return null;
   }
 
-  const record = value as { decision?: unknown; reason?: unknown; blocked?: unknown; blockers?: unknown };
+  const record = value as {
+    decision?: unknown;
+    reason?: unknown;
+    blocked?: unknown;
+    blockers?: unknown;
+    checks?: unknown;
+  };
 
   if (!isJudgeDecision(record.decision)) {
     return null;
@@ -179,7 +189,13 @@ function verdictFromUnknown(value: unknown): JudgeVerdict | null {
   const reason = typeof record.reason === "string" ? record.reason.trim() : "";
   const blockers = readBlockers(record.blockers);
 
-  return { decision: record.decision, reason, blocked: record.blocked === true || blockers.length > 0, blockers };
+  return {
+    decision: record.decision,
+    reason,
+    blocked: record.blocked === true || blockers.length > 0,
+    blockers,
+    checks: readChecks(record.checks),
+  };
 }
 
 function judgeError(result: ClaudeResult): string {

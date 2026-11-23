@@ -130,7 +130,23 @@ export type PhaseUsage = {
   costUsd: number | null;
 };
 
-/** A finished run that has no run_phases rows yet. */
+/** A run's prompt versions and archive batch, for deciding which runs are pilot history. */
+export type RunVersions = {
+  runId: string;
+  taskId: string;
+  configId: string;
+  promptVersion: string | null;
+  judgePromptVersion: string | null;
+  batch: string | null;
+};
+
+/** A run and its config, for backfilling run_findings. */
+export type RunConfigRow = {
+  runId: string;
+  configId: string;
+};
+
+/** A finished run with no run_phases rows yet, and the cost to split between its phases. */
 export type RunWithoutPhases = {
   runId: string;
   costUsd: number | null;
@@ -190,6 +206,29 @@ export type JudgeMetrics = {
   blocked: boolean | null;
   /** What stopped the agent. Empty when nothing did. */
   blockers: JudgeBlocker[];
+  /** One verdict per scoring check of the task. Empty when the judge returned none. */
+  checks: JudgeCheckVerdict[];
+};
+
+/** The judge's verdict on one scoring check of the task, with one line of evidence. */
+export type JudgeCheckVerdict = {
+  check: string;
+  verdict: "pass" | "fail";
+  evidence: string;
+};
+
+/** How fast the agent found the code and whether it used its setup's tools. Stored in run_findings. */
+export type RunFindings = {
+  /** Calls to the config's own tools. Null when the config adds none. */
+  setupToolCalls: number | null;
+  firstGameSource: FindingPoint | null;
+  firstPanelRegistration: FindingPoint | null;
+};
+
+/** The API response (1-based turn) and the tokens used up to and including it. */
+export type FindingPoint = {
+  turn: number;
+  tokens: number;
 };
 
 /** One blocked or failed tool call of the agent, as the judge is shown it. */

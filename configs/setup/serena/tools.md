@@ -11,4 +11,4 @@ Use these tools for symbols:
 
 The baseline rule about Edit and Write applies to the shell: do not create or edit files from Bash. Serena's symbol edits are allowed. Use Edit or Write when the change is not a whole symbol, or when Serena has no symbols for that file.
 
-Use `grep` through Bash, and Glob, only after a Serena tool returns nothing useful, or for text that is not a symbol. Follow a hit on a code file with Serena instead of reading the whole file. If a Serena tool is still indexing or returns nothing useful, use Read and continue. Do not wait out the session for the language server.
+Use Serena for every symbol lookup (definition, references, what a file defines). Use grep only for plain text: strings, comments, file names. Follow a hit on a code file with Serena instead of reading the whole file. If a Serena tool is still indexing or returns nothing useful, use Read and continue. Do not wait out the session for the language server.

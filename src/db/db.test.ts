@@ -845,6 +845,7 @@ const judged: JudgeMetrics = {
   error: null,
   blocked: false,
   blockers: [],
+  checks: [],
 };
 
 test("builds rows record every build, close open ones as abandoned, and roll up per run", () => {

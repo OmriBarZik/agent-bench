@@ -12,6 +12,8 @@
     "start:dashboard": "(nohup sh dashboard/snapshot.sh >/dev/null 2>&1 &) ; sleep 2 ; docker compose -f dashboard/docker-compose.yml up -d && open http://localhost:8080",
     "start:dashboard:stop": "pkill -f dashboard/snapshot.sh ; docker compose -f dashboard/docker-compose.yml down",
     "phases:backfill": "bun src/runner/phases/backfill-phases.ts",
+    "findings:backfill": "bun src/runner/findings/backfill-findings.ts",
+    "runs:archive": "bun src/archive/archive-pilot.ts",
     "export": "bun src/export/export-runs.ts",
     "start": "bun src/main.ts",
     "lint:ts": "bun check",

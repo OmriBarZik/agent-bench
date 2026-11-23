@@ -1,63 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { ClaudeResult, JudgeMetrics, RunArtifact, Task, ToolTrouble } from "../../db/db.types";
-import { JUDGE_BLOCKER_KINDS, JUDGE_BLOCKER_MEANING } from "../../db/judge-blocker";
-import { JUDGE_DECISION_MEANING, JUDGE_DECISIONS } from "../../db/judge-decision";
 import { CHROMIUM_SRC, JUDGE_TRANSCRIPT_FILE } from "../../paths";
 import { copyTranscript } from "../claude/claude";
 import type { BenchCheck } from "./checks/bench-checks.types";
 import { captureClaude } from "../claude/claude-process";
 import { buildJudgePrompt } from "./prompt/judge-prompt";
 import { judgeMetrics } from "./result/judge-result";
+import { judgeSchema } from "./judge-schema";
 import { diffAgainst } from "./worktree-diff";
-
-/** Structured output the session must return. The schema is enforced; the prompt does not describe it. */
-const JUDGE_SCHEMA = JSON.stringify({
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    decision: {
-      type: "string",
-      enum: [...JUDGE_DECISIONS],
-      description: JUDGE_DECISIONS.map((decision) => `${decision}: ${JUDGE_DECISION_MEANING[decision]}`).join(" "),
-    },
-    reason: {
-      type: "string",
-      description: "What is present and what is missing.",
-    },
-    blocked: {
-      type: "boolean",
-      description:
-        "True when the agent got stuck or gave up on part of the task because a tool, MCP tool, or program it needed was missing, denied, or kept failing. False when there was no such problem or it worked around every one.",
-    },
-    blockers: {
-      type: "array",
-      description: "One entry per tool problem that stopped the agent. Empty when blocked is false.",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          kind: {
-            type: "string",
-            enum: [...JUDGE_BLOCKER_KINDS],
-            description: JUDGE_BLOCKER_KINDS.map((kind) => `${kind}: ${JUDGE_BLOCKER_MEANING[kind]}`).join(" "),
-          },
-          tool: {
-            type: "string",
-            description: "The tool, MCP tool, or program, e.g. 'Bash: autoninja' or 'mcp__serena__find_symbol'.",
-          },
-          detail: {
-            type: "string",
-            description:
-              "One or two plain sentences for a human: what the agent tried, what happened, and what part of the task it could not do because of it.",
-          },
-        },
-        required: ["kind", "tool", "detail"],
-      },
-    },
-  },
-  required: ["decision", "reason", "blocked", "blockers"],
-});
 
 /**
  * Scores one finished run with a second, read-only claude session, and asks it whether a tool problem blocked the agent.
@@ -99,7 +50,7 @@ export async function judgeRun({
     benchChecks,
   });
   const sessionId = randomUUID();
-  const command = judgeCommand({ prompt, judgeModel, sessionId });
+  const command = judgeCommand({ prompt, judgeModel, sessionId, checkNames: scoringChecks(task) });
   const judged = await runJudgeClaude({ command, outDir, timeoutMs, signal });
   saveJudgeTranscript({ sessionId: judged.session_id ?? sessionId, outDir });
 
@@ -128,6 +79,17 @@ function saveJudgeTranscript({ sessionId, outDir }: { sessionId: string; outDir:
   }
 }
 
+/** The `scoring.checks` strings of a task, or none when it has no such list. */
+function scoringChecks(task: Task): string[] {
+  const checks = (task.scoring as { checks?: unknown } | undefined)?.checks;
+
+  if (!Array.isArray(checks)) {
+    return [];
+  }
+
+  return checks.filter((check): check is string => typeof check === "string");
+}
+
 function reportedText(result: ClaudeResult): string {
   if (typeof result.result !== "string") {
     return "";
@@ -141,10 +103,13 @@ export function judgeCommand({
   prompt,
   judgeModel,
   sessionId,
+  checkNames = [],
 }: {
   prompt: string;
   judgeModel: string;
   sessionId: string;
+  /** The task's scoring checks; the judge returns one verdict for each. */
+  checkNames?: string[];
 }): string[] {
   return [
     "claude",
@@ -153,7 +118,7 @@ export function judgeCommand({
     "--output-format",
     "json",
     "--json-schema",
-    JUDGE_SCHEMA,
+    judgeSchema(checkNames),
     "--model",
     judgeModel,
     "--session-id",

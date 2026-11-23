@@ -118,8 +118,8 @@ test("the shipped configs load their tool prompts", async () => {
   expect(toolPromptByConfig.get("serena")).toContain(
     "You must use Serena's language-server tools, named `mcp__serena__*`",
   );
-  expect(toolPromptByConfig.get("codesearch")).toContain("You must search this checkout with Code Search");
-  expect(toolPromptByConfig.get("codesearch")).toContain("Code Search is not an MCP server");
+  expect(toolPromptByConfig.get("codesearch")).toContain("You have Code Search (`csearch`)");
+  expect(toolPromptByConfig.get("codesearch")).toContain("Use it for every code search.");
   expect(allowedToolsByConfig.get("codesearch")).toEqual(
     expect.arrayContaining(["Bash(grep *)", "Bash(csearch *)", "Bash(cgrep *)"]),
   );
@@ -128,15 +128,15 @@ test("the shipped configs load their tool prompts", async () => {
     expect(allowedTools).toContain("Bash(grep *)");
   }
   expect(toolPromptByConfig.get("sift")).toContain("You must search with `sift`");
-  expect(toolPromptByConfig.get("ripgrep")).toContain("You must search with `rg` (ripgrep)");
+  expect(toolPromptByConfig.get("ripgrep")).toContain("You have `rg` (ripgrep)");
   expect(allowedToolsByConfig.get("ripgrep")).toContain("Bash(rg *)");
-  expect(toolPromptByConfig.get("ugrep")).toContain("You must search with `ugrep`");
+  expect(toolPromptByConfig.get("ugrep")).toContain("search again with -Z2");
   expect(allowedToolsByConfig.get("ugrep")).toContain("Bash(ugrep *)");
   expect(toolPromptByConfig.get("tre-agrep")).toContain("You have `agrep`");
   expect(allowedToolsByConfig.get("tre-agrep")).toContain("Bash(agrep *)");
   expect(toolPromptByConfig.get("ast-grep")).toContain("You have `ast-grep`");
   expect(allowedToolsByConfig.get("ast-grep")).toContain("Bash(ast-grep *)");
-  expect(toolPromptByConfig.get("zoekt")).toContain("You must search this checkout with Zoekt");
+  expect(toolPromptByConfig.get("zoekt")).toContain("You have Zoekt (`zoekt`)");
   expect(allowedToolsByConfig.get("zoekt")).toContain("Bash(zoekt *)");
   expect(toolPromptByConfig.get("clangd")).toContain("You have clangd, a C and C++ language server");
   expect(toolPromptByConfig.get("typescript")).toContain("You have a TypeScript language server");

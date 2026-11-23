@@ -23,6 +23,9 @@ import type {
   RunBranchRow,
   RunDiskState,
   RunBranchSql,
+  RunConfigRow,
+  RunFindings,
+  RunVersions,
   RunStart,
   RunWithoutPhases,
   Task,
@@ -120,6 +123,7 @@ function ensureJudgeColumns(db: Database) {
     ["decision", "TEXT"],
     ["blocked", "INTEGER"],
     ["blockers", "TEXT"],
+    ["checks", "TEXT"],
   ] as const;
 
   for (const [name, definition] of added) {
@@ -143,6 +147,7 @@ function ensureRunColumns(db: Database) {
     ["prompt_version", "TEXT"],
     ["judge_prompt_version", "TEXT"],
     ["auto_review", "INTEGER"],
+    ["batch", "TEXT"],
   ] as const;
   for (const [name, definition] of added) {
     if (present.has(name)) {
@@ -429,17 +434,81 @@ export function cancelRun({ db, runId }: { db: Database; runId: string }) {
   ).run({ runId });
 }
 
+/** Stores what the transcript says about finding the code. A second call for the same run replaces the first. */
+export function saveRunFindings({ db, runId, findings }: { db: Database; runId: string; findings: RunFindings }) {
+  db.query(
+    `INSERT OR REPLACE INTO run_findings (
+       run_id, setup_tool_calls, first_game_source_turn, first_game_source_tokens, first_panel_reg_turn, first_panel_reg_tokens
+     ) VALUES ($runId, $setupToolCalls, $gameTurn, $gameTokens, $panelTurn, $panelTokens)`,
+  ).run({
+    runId,
+    setupToolCalls: findings.setupToolCalls,
+    gameTurn: findings.firstGameSource?.turn ?? null,
+    gameTokens: findings.firstGameSource?.tokens ?? null,
+    panelTurn: findings.firstPanelRegistration?.turn ?? null,
+    panelTokens: findings.firstPanelRegistration?.tokens ?? null,
+  });
+}
+
+/** Calls the agent made to tools matching any of these: a Bash program name, or a tool-name prefix. Pre rows only. */
+export function countSetupToolCalls({ db, runId, setupTools }: { db: Database; runId: string; setupTools: string[] }) {
+  const rows = db
+    .query(`SELECT tool, program FROM tool_calls WHERE run_id = $runId AND phase = 'pre'`)
+    .all({ runId }) as { tool: string | null; program: string | null }[];
+
+  return rows.filter((row) =>
+    setupTools.some((setupTool) => row.program === setupTool || (row.tool ?? "").startsWith(setupTool)),
+  ).length;
+}
+
+/** Every run's task, config, prompt versions, and archive batch. */
+export function listRunVersions(db: Database): RunVersions[] {
+  return db
+    .query(
+      `SELECT run_id AS runId, task_id AS taskId, config_id AS configId, prompt_version AS promptVersion,
+              judge_prompt_version AS judgePromptVersion, batch
+       FROM runs ORDER BY started_at`,
+    )
+    .all() as RunVersions[];
+}
+
+/** Finished runs with no run_findings row yet. */
+export function listRunsWithoutFindings(db: Database): RunConfigRow[] {
+  return db
+    .query(
+      `SELECT run_id AS runId, config_id AS configId FROM runs
+       WHERE status IN ('done', 'crashed', 'cancelled')
+         AND run_id NOT IN (SELECT run_id FROM run_findings)`,
+    )
+    .all() as RunConfigRow[];
+}
+
+/** Tags runs as archived pilot history, kept out of charts and exports. Returns how many changed. */
+export function archiveRuns({ db, runIds, batch }: { db: Database; runIds: string[]; batch: string }): number {
+  const archive = db.transaction(() => {
+    let changed = 0;
+
+    for (const runId of runIds) {
+      changed += db.query(`UPDATE runs SET batch = $batch WHERE run_id = $runId`).run({ runId, batch }).changes;
+    }
+
+    return changed;
+  });
+
+  return archive();
+}
+
 /** Writes one judge session for a run that finishRun already closed. A second judge of the same run replaces the first. */
 export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string; judge: JudgeMetrics }) {
   db.query(
     `INSERT INTO judge_runs (
        run_id, model, status, duration_ms, num_turns, cost_usd,
        input_tokens, output_tokens, cache_creation_tokens, cache_read_tokens, total_tokens,
-       decision, success, reason, error, blocked, blockers
+       decision, success, reason, error, blocked, blockers, checks
      ) VALUES (
        $runId, $model, $status, $durationMs, $numTurns, $costUsd,
        $inputTokens, $outputTokens, $cacheCreationTokens, $cacheReadTokens, $totalTokens,
-       $decision, $success, $reason, $error, $blocked, $blockers
+       $decision, $success, $reason, $error, $blocked, $blockers, $checks
      )
      ON CONFLICT (run_id) DO UPDATE SET
        model = excluded.model,
@@ -460,7 +529,8 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
        reason = excluded.reason,
        error = excluded.error,
        blocked = excluded.blocked,
-       blockers = excluded.blockers`,
+       blockers = excluded.blockers,
+       checks = excluded.checks`,
   ).run({
     runId,
     model: judge.model,
@@ -479,6 +549,7 @@ export function saveJudgeRun({ db, runId, judge }: { db: Database; runId: string
     error: judge.error,
     blocked: judge.blocked == null ? null : Number(judge.blocked),
     blockers: judge.blockers.length === 0 ? null : toJson(judge.blockers),
+    checks: judge.checks.length === 0 ? null : toJson(judge.checks),
   });
 }
 

@@ -1,3 +1,4 @@
+import type { JudgeCheckVerdict } from "../../../db/db.types";
 import type { JudgeBlocker } from "../../../db/judge-blocker.types";
 import type { JudgeDecision } from "../../../db/judge-decision.types";
 
@@ -7,4 +8,5 @@ export type JudgeVerdict = {
   reason: string;
   blocked: boolean;
   blockers: JudgeBlocker[];
+  checks: JudgeCheckVerdict[];
 };

@@ -77,6 +77,7 @@ test("cancelledJudgeMetrics drops the decision and keeps the usage already captu
       error: "killed",
       blocked: true,
       blockers: [{ kind: "denied", tool: "Bash: cd", detail: "guard" }],
+      checks: [],
     },
   });
 
