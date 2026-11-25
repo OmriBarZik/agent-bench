@@ -4,8 +4,10 @@ import { join } from "node:path";
 import { cancelRun, promptVersion, startRun } from "../../db/db";
 import type { Task } from "../../db/db.types";
 import { AGENT_LIVE_LOG_FILE, RUNS_DIR } from "../../paths";
+import { toConfigRow } from "../bench-config/bench-config";
 import type { BenchConfig } from "../bench-config/bench-config.types";
 import { watchAgentBuildLog } from "../build-log/screen/watch-build-log";
+import { currentSetupHash } from "../setup-hash/setup-hash";
 import type { AgentLog, RunOneResult, RunOptions, RunPhase } from "./run-one.types";
 import { judgeAndStore, runAndCommitAgent, storeInterruptedRun } from "./run-session";
 import { prepareCheckout } from "./run-tree";
@@ -58,6 +60,8 @@ export async function runOne({
       artifactsPath: outDir,
       branch: runId,
       autoReview: options.autoReview,
+      configHash: (await toConfigRow(config)).configHash,
+      setupHash: currentSetupHash({ task, config, autoReview: options.autoReview }),
     },
   });
 

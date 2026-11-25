@@ -20,6 +20,7 @@ import type {
   PassedChromiumApps,
   PhaseUsage,
   RunArtifact,
+  RunArtifactsPath,
   RunBranchRow,
   RunDiskState,
   RunBranchSql,
@@ -148,6 +149,8 @@ function ensureRunColumns(db: Database) {
     ["judge_prompt_version", "TEXT"],
     ["auto_review", "INTEGER"],
     ["batch", "TEXT"],
+    ["config_hash", "TEXT"],
+    ["setup_hash", "TEXT"],
   ] as const;
   for (const [name, definition] of added) {
     if (present.has(name)) {
@@ -326,9 +329,9 @@ export async function hashFiles(paths: string[]): Promise<string> {
 export function startRun({ db, run }: { db: Database; run: RunStart }) {
   db.query(
     `INSERT INTO runs (run_id, task_id, config_id, repeat, prompt_version, judge_prompt_version,
-                       claude_version, model, machine, artifacts_path, branch, auto_review)
+                       claude_version, model, machine, artifacts_path, branch, auto_review, config_hash, setup_hash)
      VALUES ($runId, $taskId, $configId, $repeat, $promptVersion, $judgePromptVersion,
-             $claudeVersion, $model, $machine, $artifactsPath, $branch, $autoReview)`,
+             $claudeVersion, $model, $machine, $artifactsPath, $branch, $autoReview, $configHash, $setupHash)`,
   ).run({
     runId: run.runId,
     taskId: run.taskId,
@@ -342,6 +345,8 @@ export function startRun({ db, run }: { db: Database; run: RunStart }) {
     artifactsPath: run.artifactsPath ?? null,
     branch: run.branch,
     autoReview: run.autoReview == null ? null : run.autoReview ? 1 : 0,
+    configHash: run.configHash ?? null,
+    setupHash: run.setupHash ?? null,
   });
 }
 
@@ -461,12 +466,13 @@ export function countSetupToolCalls({ db, runId, setupTools }: { db: Database; r
   ).length;
 }
 
-/** Every run's task, config, prompt versions, and archive batch. */
+/** Every run's task, config, prompt versions, setup hashes, and archive batch. */
 export function listRunVersions(db: Database): RunVersions[] {
   return db
     .query(
       `SELECT run_id AS runId, task_id AS taskId, config_id AS configId, prompt_version AS promptVersion,
-              judge_prompt_version AS judgePromptVersion, batch
+              judge_prompt_version AS judgePromptVersion, auto_review AS autoReview,
+              config_hash AS configHash, setup_hash AS setupHash, batch
        FROM runs ORDER BY started_at`,
     )
     .all() as RunVersions[];
@@ -481,6 +487,23 @@ export function listRunsWithoutFindings(db: Database): RunConfigRow[] {
          AND run_id NOT IN (SELECT run_id FROM run_findings)`,
     )
     .all() as RunConfigRow[];
+}
+
+/** Runs with no setup_hash yet and the folder that may hold their command.json. */
+export function listRunsWithoutSetupHash(db: Database): RunArtifactsPath[] {
+  return db
+    .query(`SELECT run_id AS runId, artifacts_path AS artifactsPath FROM runs WHERE setup_hash IS NULL`)
+    .all() as RunArtifactsPath[];
+}
+
+/** Stores setup hashes filled from command.json, keyed by run id, in one transaction. */
+export function setRunSetupHashes({ db, hashes }: { db: Database; hashes: Map<string, string> }) {
+  const store = db.transaction(() => {
+    for (const [runId, setupHash] of hashes) {
+      db.query(`UPDATE runs SET setup_hash = $setupHash WHERE run_id = $runId`).run({ runId, setupHash });
+    }
+  });
+  store();
 }
 
 /** Tags runs as archived pilot history, kept out of charts and exports. Returns how many changed. */

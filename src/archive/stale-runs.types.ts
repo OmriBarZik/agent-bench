@@ -7,20 +7,30 @@ export type CurrentVersions = {
   judgePromptVersion: string;
 };
 
-/** What to archive: the run ids, and a count per task and prompt version for the log. */
+/** The setup one config would run one task with today, with or without chrome-validate. */
+export type CurrentSetup = {
+  taskId: string;
+  configId: string;
+  autoReview: boolean;
+  configHash: string;
+  setupHash: string;
+};
+
+/** What to archive: the run ids, and a count per reason for the log. */
 export type StaleRuns = {
   runIds: string[];
   groups: StaleGroup[];
 };
 
-/** How many runs of one task and prompt pair will be archived. */
+/** How many runs will be archived for one reason (an old prompt pair, config hash or setup hash). */
 export type StaleGroup = {
   label: string;
   count: number;
 };
 
-/** The runs to consider and each task's current versions. */
+/** The runs to consider, each task's current versions, and each task × config's current setup. */
 export type StaleRunsInput = {
   runs: RunVersions[];
   current: CurrentVersions[];
+  setups: CurrentSetup[];
 };

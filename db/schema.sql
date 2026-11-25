@@ -63,7 +63,9 @@ CREATE TABLE IF NOT EXISTS runs (
     commit_sha         TEXT,       -- tip of that branch; NULL when the tree still matches the task SHA
     changed_files      TEXT,       -- JSON: [{ "status", "path", "previousPath"? }] vs the task SHA; submodule paths are prefixed
     auto_review        INTEGER,    -- 1 when this run attached chrome-validate; NULL on runs from before the toggle
-    batch              TEXT        -- NULL for runs that count; 'pilot' for archived history kept out of charts and exports
+    batch              TEXT,       -- NULL for runs that count; 'pilot' for archived history kept out of charts and exports
+    config_hash        TEXT,       -- configs.config_hash when the run started; NULL on runs from before 2026-11-24
+    setup_hash         TEXT        -- hash of the claude command minus prompt and session (src/runner/setup-hash/)
 );
 
 -- One judge session per agent run. These metrics are the judge's; the agent's stay on runs.

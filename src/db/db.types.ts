@@ -102,6 +102,10 @@ export type RunStart = {
   branch: string;
   /** True when this run attached chrome-validate. Omitted on rows written before the toggle. */
   autoReview?: boolean;
+  /** The config's config_hash when the run started. */
+  configHash?: string;
+  /** setupHash of the claude command line this run is given. */
+  setupHash?: string;
 };
 
 /** One path that differs between the task SHA and the run branch. */
@@ -137,7 +141,17 @@ export type RunVersions = {
   configId: string;
   promptVersion: string | null;
   judgePromptVersion: string | null;
+  /** 1 when the run attached chrome-validate, NULL on runs from before the toggle. */
+  autoReview: number | null;
+  configHash: string | null;
+  setupHash: string | null;
   batch: string | null;
+};
+
+/** A run and its artifacts folder, for filling setup_hash from command.json. */
+export type RunArtifactsPath = {
+  runId: string;
+  artifactsPath: string | null;
 };
 
 /** A run and its config, for backfilling run_findings. */
