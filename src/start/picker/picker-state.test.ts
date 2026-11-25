@@ -15,7 +15,14 @@ const CHOICES: PickerChoices = {
 const DOWN = "\x1b[B";
 const LEFT = "\x1b[D";
 const RIGHT = "\x1b[C";
-const DEFAULTS: PickerDefaults = { repeats: 1, timeoutMin: 60, buildTimeoutMin: 90, sync: false, autoReview: true };
+const DEFAULTS: PickerDefaults = {
+  repeats: 1,
+  timeoutMin: 60,
+  buildTimeoutMin: 90,
+  sync: false,
+  autoReview: true,
+  buildLocation: "remote",
+};
 
 function press({ state, keys }: { state: PickerState; keys: string[] }): PickerState {
   return keys.reduce(
@@ -42,6 +49,7 @@ describe("picker state", () => {
         buildTimeoutMin: 90,
         sync: false,
         autoReview: true,
+        buildLocation: "remote",
       },
     });
 
@@ -102,6 +110,17 @@ describe("picker state", () => {
     expect(press({ state: onReview, keys: [LEFT] }).autoReview).toBe(false);
     expect(press({ state: onReview, keys: [" "] }).autoReview).toBe(false);
     expect(pickerResult({ state: press({ state: onReview, keys: [" "] }), choices: CHOICES }).autoReview).toBe(false);
+  });
+
+  test("space and arrows switch the build location", () => {
+    const onLocation = press({ state: fresh, keys: [DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN, DOWN] });
+
+    expect(onLocation.buildLocation).toBe("remote");
+    expect(press({ state: onLocation, keys: [" "] }).buildLocation).toBe("local");
+    expect(press({ state: onLocation, keys: [" ", " "] }).buildLocation).toBe("remote");
+    expect(pickerResult({ state: press({ state: onLocation, keys: [RIGHT] }), choices: CHOICES }).buildLocation).toBe(
+      "local",
+    );
   });
 
   test("enter starts and esc quits", () => {

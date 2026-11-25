@@ -1,23 +1,23 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { BuildStep } from "../../db/db.types";
-import type { BuilderConfig } from "../../inspect/build/builder-config.types";
-import { withRemoteBuildLock } from "../../inspect/remote/guard/remote-build-lock";
 import { warmUpChrome } from "../chrome/warm-up";
 import { stockChromiumApp, validateBuildPlan } from "../mode/validate-mode";
 import { snapshotTree } from "../snapshot/snapshot";
 import type {
   BuildJob,
   BuildOutcome,
-  BuildStamp,
   BuildState,
+  BuiltOutput,
   StartedBuild,
   StepTimes,
   ValidateContext,
 } from "./build-job.types";
 import { recordBuildFinish, recordBuildStart } from "./build-record";
 import { armBuildLimit, readBuildTimeoutMs } from "./limit/build-limit";
-import { BuildStepError, buildOnBuilder, copyBack, sendSnapshot } from "./remote-steps";
+import { BuildStepError } from "./remote-steps";
+import { runLocalSteps } from "./steps/run-local";
+import { runRemoteSteps } from "./steps/run-remote";
+import type { StepProgress } from "./steps/steps.types";
 
 /** The log file for one build of this session. */
 export function buildLogPath({ logDir, buildNumber }: { logDir: string; buildNumber: number }): string {
@@ -25,8 +25,8 @@ export function buildLogPath({ logDir, buildNumber }: { logDir: string; buildNum
 }
 
 /** The folder on this Mac that receives the session's build output. The same folder for every build of a run. */
-export function appDirectory({ context, builder }: { context: ValidateContext; builder: BuilderConfig }): string {
-  return join(builder.buildDirectory, context.runId ?? "manual-validate");
+export function appDirectory(context: ValidateContext): string {
+  return join(context.buildDirectory, context.runId ?? "manual-validate");
 }
 
 /**
@@ -36,11 +36,9 @@ export function appDirectory({ context, builder }: { context: ValidateContext; b
 export async function startBuildJob({
   state,
   context,
-  builder,
 }: {
   state: BuildState;
   context: ValidateContext;
-  builder: BuilderConfig;
 }): Promise<StartedBuild> {
   const running = state.jobs.find((job) => job.outcome == null);
 
@@ -66,7 +64,7 @@ export async function startBuildJob({
     outcome: null,
   };
   state.jobs.push(job);
-  void runJob({ job, context, builder }).then((outcome) => {
+  void runJob({ job, context }).then((outcome) => {
     job.outcome = outcome;
     finished.resolve(outcome);
   });
@@ -84,15 +82,7 @@ export function cancelBuildJobs(state: BuildState) {
 }
 
 /** Never rejects: every failure becomes a `failed` or `cancelled` outcome. */
-async function runJob({
-  job,
-  context,
-  builder,
-}: {
-  job: BuildJob;
-  context: ValidateContext;
-  builder: BuilderConfig;
-}): Promise<BuildOutcome> {
+async function runJob({ job, context }: { job: BuildJob; context: ValidateContext }): Promise<BuildOutcome> {
   mkdirSync(context.logDir, { recursive: true });
   const logPath = buildLogPath({ logDir: context.logDir, buildNumber: job.number });
   writeFileSync(logPath, `build ${job.number} of ${job.snapshotSha} (${context.mode})\n`);
@@ -104,7 +94,7 @@ async function runJob({
   let outcome: BuildOutcome;
 
   try {
-    const built = await runSteps({ job, context, builder, logPath, times });
+    const built = await runSteps({ job, context, logPath, times });
     outcome = {
       status: "ok",
       appPath: built.appPath,
@@ -136,57 +126,27 @@ async function runJob({
   return outcome;
 }
 
-/** Send, build, copy back, stamp. Fills `times` as each step finishes. */
+/** Builds on this Mac or the build Mac, then checks the app run_chrome will launch. Fills `times` as each step finishes. */
 async function runSteps({
   job,
   context,
-  builder,
   logPath,
   times,
 }: {
   job: BuildJob;
   context: ValidateContext;
-  builder: BuilderConfig;
   logPath: string;
   times: StepTimes;
-}): Promise<{ appPath: string; artifactPath: string | null; outputDir: string }> {
+}): Promise<BuiltOutput> {
   const plan = validateBuildPlan(context.mode);
   const signal = job.controller.signal;
-  const destination = appDirectory({ context, builder });
-  let mark = Date.now();
-  let step: BuildStep = "send";
+  const destination = appDirectory(context);
+  const local = context.buildLocation === "local";
+  const progress: StepProgress = { step: local ? "build" : "send" };
 
   try {
-    const commits = await sendSnapshot({
-      builder,
-      chromiumSrc: context.chromiumSrc,
-      taskSha: context.taskSha,
-      snapshotSha: job.snapshotSha,
-      logPath,
-      signal,
-    });
-    times.sendMs = Date.now() - mark;
-    await withRemoteBuildLock({
-      directory: builder.buildDirectory,
-      signal,
-      body: async () => {
-        step = "build";
-        mark = Date.now();
-        await buildOnBuilder({ builder, snapshotSha: job.snapshotSha, commits, plan, logPath, signal });
-        times.buildMs = Date.now() - mark;
-        step = "copy";
-        mark = Date.now();
-        await copyBack({ builder, destination, plan, logPath, signal });
-        times.copyMs = Date.now() - mark;
-        // Written last, so a stamp that names this build means its output is fully copied.
-        const stamp: BuildStamp = {
-          build: job.number,
-          snapshotSha: job.snapshotSha,
-          finishedAt: new Date().toISOString(),
-        };
-        writeFileSync(join(destination, "bench-build.json"), `${JSON.stringify(stamp, null, 2)}\n`);
-      },
-    });
+    const run = { job, context, plan, destination, logPath, times, progress };
+    await (local ? runLocalSteps(run) : runRemoteSteps(run));
   } catch (error) {
     if (error instanceof BuildStepError || signal.aborted) {
       throw error;
@@ -194,19 +154,19 @@ async function runSteps({
 
     const message = error instanceof Error ? error.message : String(error);
 
-    throw new BuildStepError({ step, excerpt: message });
+    throw new BuildStepError({ step: progress.step, excerpt: message });
   }
 
   const artifactPath = plan.artifactRelativePath == null ? null : join(destination, plan.artifactRelativePath);
-  const appPath = plan.copyPaths == null ? join(destination, "Chromium.app") : stockChromiumApp(context.chromiumSrc);
+  const fullApp = plan.copyPaths == null && !local;
+  const appPath = fullApp ? join(destination, "Chromium.app") : stockChromiumApp(context.chromiumSrc);
 
   if (!existsSync(join(appPath, "Contents/MacOS/Chromium"))) {
     throw new BuildStepError({
       step: "copy",
-      excerpt:
-        plan.copyPaths == null
-          ? `${appPath} is missing after the copy`
-          : `${appPath} is missing; light validate modes need a prior chrome build at out/Default/Chromium.app on this Mac`,
+      excerpt: fullApp
+        ? `${appPath} is missing after the copy`
+        : `${appPath} is missing; this mode needs a chrome build at out/Default/Chromium.app on this Mac`,
     });
   }
 

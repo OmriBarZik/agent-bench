@@ -6,7 +6,7 @@ import type { CapturedStep, StepCommand } from "./captured-step.types";
  * Runs one command of a build and appends everything it prints to the build log.
  * Output never reaches this process's stdout, which is the MCP channel. Aborting kills the command.
  */
-export async function runCaptured({ command, cwd, stdin, logPath, signal }: StepCommand): Promise<CapturedStep> {
+export async function runCaptured({ command, cwd, env, stdin, logPath, signal }: StepCommand): Promise<CapturedStep> {
   appendFileSync(logPath, `\n$ ${command.join(" ")}\n`);
   const subprocess = Bun.spawn(command, {
     cwd,
@@ -15,7 +15,7 @@ export async function runCaptured({ command, cwd, stdin, logPath, signal }: Step
     stderr: "pipe",
     signal,
     // A password prompt cannot be answered here, so SSH must fail instead of waiting.
-    env: { ...process.env, GIT_SSH_COMMAND: RSYNC_SSH },
+    env: { ...process.env, GIT_SSH_COMMAND: RSYNC_SSH, ...env },
   });
 
   if (stdin != null && typeof subprocess.stdin !== "number" && subprocess.stdin != null) {

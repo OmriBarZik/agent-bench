@@ -1,5 +1,6 @@
 import type { Task } from "../db/db.types";
 import type { BenchConfig } from "../runner/bench-config/bench-config.types";
+import type { BuildLocation } from "../validate/build/steps/steps.types";
 
 /** The `bun run start` flags that decide what happens. Number flags stay strings until they are checked. */
 export type RunPlanFlags = {
@@ -17,6 +18,8 @@ export type RunPlanFlags = {
   sync: boolean;
   /** --auto-review: the agent builds its change and checks it in Chromium. Default on. */
   autoReview: boolean;
+  /** --build-location: `remote` (default) or `local`. Stays a string until it is checked. */
+  buildLocation: string;
   /** --force: discard uncommitted changes in the Chromium checkout when a build or checkout needs it. */
   force: boolean;
   /** --interactive: open the TUI even when selection flags were passed; they become the Start tab's values. */
@@ -44,6 +47,8 @@ export type RunPlan = {
   sync: boolean;
   /** Attach chrome-validate for every run in this plan. */
   autoReview: boolean;
+  /** Where chrome-validate builds: the build Mac (`remote`) or this Mac's out/Default (`local`). */
+  buildLocation: BuildLocation;
 };
 
 /** Run the benchmark with this plan (CLI / non-TTY path). */

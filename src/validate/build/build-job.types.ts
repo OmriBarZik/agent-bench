@@ -1,6 +1,7 @@
 import type { BuildStatus, BuildStep } from "../../db/db.types";
 import type { BuilderConfig } from "../../inspect/build/builder-config.types";
 import type { ValidateMode } from "../mode/validate-mode.types";
+import type { BuildLocation } from "./steps/steps.types";
 
 /** What the chrome-validate server knows about the session it serves. */
 export type ValidateContext = {
@@ -11,8 +12,12 @@ export type ValidateContext = {
   chromiumSrc: string;
   /** How this task builds and checks its change. */
   mode: ValidateMode;
-  /** The build Mac from configs/builder/remote.yaml, or null when it is not set up. */
+  /** The build Mac from configs/builder/remote.yaml, or null when it is not set up. Unused for local builds. */
   builder: BuilderConfig | null;
+  /** `remote` builds on the build Mac; `local` builds in this Mac's `out/Default`. */
+  buildLocation: BuildLocation;
+  /** Folder on this Mac that receives one output folder per run. */
+  buildDirectory: string;
   /** Where build logs go on this Mac. */
   logDir: string;
 };
@@ -76,4 +81,11 @@ export type BuildStamp = {
   build: number;
   snapshotSha: string;
   finishedAt: string;
+};
+
+/** Where a finished build left what run_chrome needs. */
+export type BuiltOutput = {
+  appPath: string;
+  artifactPath: string | null;
+  outputDir: string;
 };

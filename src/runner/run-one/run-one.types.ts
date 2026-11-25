@@ -1,3 +1,4 @@
+import type { BuildLocation } from "../../validate/build/steps/steps.types";
 import type { ClaudeResult, JudgeMetrics, RunArtifact } from "../../db/db.types";
 
 /** Options shared by every run in a benchmark. */
@@ -12,6 +13,8 @@ export type RunOptions = {
   judgeModel: string;
   /** Attach chrome-validate so the agent builds its change and checks it in Chromium. */
   autoReview: boolean;
+  /** Where chrome-validate builds: the build Mac (`remote`) or this Mac's out/Default (`local`). */
+  buildLocation: BuildLocation;
   /**
    * When false, skip the exclusive agent-build log terminal so a host TUI can show the Build tab instead.
    * Defaults to true.

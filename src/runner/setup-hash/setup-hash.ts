@@ -4,8 +4,11 @@ import type { BenchConfig } from "../bench-config/bench-config.types";
 import { claudeArgs } from "../claude/claude";
 import type { McpConfigJson } from "./setup-hash.types";
 
-/** chrome-validate env values that change per run or per --build-timeout-min, not with the setup. */
-const PER_RUN_ENV = ["BENCH_RUN_ID", "BENCH_TASK_SHA", "BENCH_BUILD_TIMEOUT_MS"];
+/**
+ * chrome-validate env values that change per run, per --build-timeout-min, or per --build-location, not with
+ * the setup. Where the build runs does not change the tools or prompt the agent gets.
+ */
+const PER_RUN_ENV = ["BENCH_RUN_ID", "BENCH_TASK_SHA", "BENCH_BUILD_TIMEOUT_MS", "BENCH_BUILD_LOCATION"];
 
 /** Arguments whose next value is the task prompt or the session, which say nothing about the setup. */
 const PER_RUN_FLAGS = ["-p", "--session-id"];

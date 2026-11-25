@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import type { BuilderConfig } from "../../inspect/build/builder-config.types";
 import { buildLogPath, startBuildJob } from "../build/build-job";
 import type { BuildJob, BuildOutcome } from "../build/build-job.types";
 import { runChromeCheck } from "../chrome/chrome-check";
@@ -25,16 +24,14 @@ export async function callTool({
   args: ToolArguments;
 }): Promise<ToolResult> {
   try {
-    const builder = session.context.builder;
-
-    if (builder == null) {
+    if (session.context.buildLocation === "remote" && session.context.builder == null) {
       return failure(
         "The build Mac is not set up (configs/builder/remote.yaml is missing), so builds are unavailable.",
       );
     }
 
     if (name === "start_build") {
-      return await startBuild({ session, builder });
+      return await startBuild(session);
     }
 
     if (name === "wait_build") {
@@ -51,9 +48,9 @@ export async function callTool({
   }
 }
 
-async function startBuild({ session, builder }: { session: ToolSession; builder: BuilderConfig }): Promise<ToolResult> {
+async function startBuild(session: ToolSession): Promise<ToolResult> {
   const plan = validateBuildPlan(session.context.mode);
-  const started = await startBuildJob({ state: session.state, context: session.context, builder });
+  const started = await startBuildJob({ state: session.state, context: session.context });
   const snapshot = short(started.job.snapshotSha);
 
   if (started.kind === "unchanged") {

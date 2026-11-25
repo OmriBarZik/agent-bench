@@ -10,7 +10,10 @@ import type {
   PickerState,
 } from "./picker-state.types";
 
-/** The rows the cursor moves over: every task, every config, then repeats, the two timeouts, sync, and auto review. */
+/**
+ * The rows the cursor moves over: every task, every config, then repeats, the two timeouts, sync, auto review,
+ * and build location.
+ */
 export function pickerRows(choices: PickerChoices): PickerRow[] {
   return [
     ...indexRows({ kind: "task", count: choices.tasks.length }),
@@ -20,6 +23,7 @@ export function pickerRows(choices: PickerChoices): PickerRow[] {
     { kind: "buildTimeoutMin", index: 0 },
     { kind: "sync", index: 0 },
     { kind: "autoReview", index: 0 },
+    { kind: "buildLocation", index: 0 },
   ];
 }
 
@@ -42,6 +46,7 @@ export function initialPickerState({
     buildTimeoutMin: defaults.buildTimeoutMin,
     sync: defaults.sync,
     autoReview: defaults.autoReview,
+    buildLocation: defaults.buildLocation,
     cursor: Math.min(Math.max(defaults.cursor ?? 0, 0), Math.max(rowCount - 1, 0)),
     editing: false,
     notice: "",
@@ -63,6 +68,7 @@ export function pickerResult({ state, choices }: { state: PickerState; choices: 
     buildTimeoutMin: state.buildTimeoutMin,
     sync: state.sync,
     autoReview: state.autoReview,
+    buildLocation: state.buildLocation,
   };
 }
 

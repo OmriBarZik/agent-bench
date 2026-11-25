@@ -13,6 +13,7 @@ import {
   VALIDATE_SERVER,
 } from "../../paths";
 import type { BenchConfig } from "../bench-config/bench-config.types";
+import type { BuildLocation } from "../../validate/build/steps/steps.types";
 import { captureClaude } from "./claude-process";
 import { sessionPath } from "./language-server-path";
 import { DEFAULT_BUILD_TIMEOUT_MIN, agentPausePath } from "./session/agent-pause";
@@ -35,6 +36,7 @@ export function claudeArgs({
   runId,
   autoReview = true,
   buildTimeoutMs = DEFAULT_BUILD_TIMEOUT_MIN * 60_000,
+  buildLocation = "remote",
 }: {
   task: Task;
   config: BenchConfig;
@@ -45,6 +47,8 @@ export function claudeArgs({
   autoReview?: boolean;
   /** How long one remote build may run. Passed to chrome-validate. */
   buildTimeoutMs?: number;
+  /** Where chrome-validate builds: the build Mac (`remote`, the default) or this Mac's out/Default (`local`). */
+  buildLocation?: BuildLocation;
 }): string[] {
   const args = [
     "claude",
@@ -64,7 +68,7 @@ export function claudeArgs({
     args.push("--model", config.model);
   }
 
-  appendSessionTools({ args, task, config, runId, autoReview, buildTimeoutMs });
+  appendSessionTools({ args, task, config, runId, autoReview, buildTimeoutMs, buildLocation });
 
   return args;
 }
@@ -77,6 +81,7 @@ function appendSessionTools({
   runId,
   autoReview,
   buildTimeoutMs,
+  buildLocation,
 }: {
   args: string[];
   task: Task;
@@ -84,6 +89,7 @@ function appendSessionTools({
   runId: string;
   autoReview: boolean;
   buildTimeoutMs: number;
+  buildLocation: BuildLocation;
 }) {
   const mcpConfigs = (config.mcpConfig ?? []).map((path) => resolve(BENCH_DIR, path));
   const pluginDirs = [
@@ -99,6 +105,7 @@ function appendSessionTools({
         taskSha: task.chromiumSha,
         validateMode: task.validate ?? "chrome",
         buildTimeoutMs,
+        buildLocation,
       }),
       ...mcpConfigs,
     );
@@ -135,12 +142,15 @@ export function validateMcpConfig({
   taskSha,
   validateMode,
   buildTimeoutMs,
+  buildLocation = "remote",
 }: {
   runId: string;
   taskSha: string;
   /** Per-task build/check style from benchmark-tasks.json. */
   validateMode: string;
   buildTimeoutMs: number;
+  /** Where chrome-validate builds. The agent sees the same tools either way. */
+  buildLocation?: BuildLocation;
 }): string {
   return JSON.stringify({
     mcpServers: {
@@ -152,6 +162,7 @@ export function validateMcpConfig({
           BENCH_TASK_SHA: taskSha,
           BENCH_VALIDATE_MODE: validateMode,
           BENCH_BUILD_TIMEOUT_MS: String(buildTimeoutMs),
+          BENCH_BUILD_LOCATION: buildLocation,
           CHROMIUM_SRC,
         },
       },

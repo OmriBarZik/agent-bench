@@ -1,3 +1,5 @@
+import type { BuildLocation } from "../../validate/build/steps/steps.types";
+
 /** One task or config the picker can check, with the text shown next to its box. */
 export type PickerItem = {
   id: string;
@@ -12,7 +14,8 @@ export type PickerChoices = {
 };
 
 /** What a picker row edits. `task` and `config` rows are checkboxes; the rest are settings. */
-export type PickerRowKind = "task" | "config" | "repeats" | "timeoutMin" | "buildTimeoutMin" | "sync" | "autoReview";
+export type PickerRowKind =
+  "task" | "config" | "repeats" | "timeoutMin" | "buildTimeoutMin" | "sync" | "autoReview" | "buildLocation";
 
 /** One row the cursor can stop on. `index` is the task or config position, and 0 for settings. */
 export type PickerRow = {
@@ -30,6 +33,8 @@ export type PickerDefaults = {
   sync: boolean;
   /** Attach chrome-validate so the agent builds its change and checks it in Chromium. */
   autoReview: boolean;
+  /** Where chrome-validate builds: the build Mac (`remote`) or this Mac's out/Default (`local`). */
+  buildLocation: BuildLocation;
   /** Index into `pickerRows` to start on. Omitted means the first row. */
   cursor?: number;
 };
@@ -45,6 +50,7 @@ export type PickerState = {
   buildTimeoutMin: number;
   sync: boolean;
   autoReview: boolean;
+  buildLocation: BuildLocation;
   /** Index into `pickerRows(choices)`. */
   cursor: number;
   /** True once a digit was typed on the current number row, so the next digit appends instead of replacing. */
@@ -70,6 +76,7 @@ export type PickerResult = {
   buildTimeoutMin: number;
   sync: boolean;
   autoReview: boolean;
+  buildLocation: BuildLocation;
 };
 
 /** Whether Enter on the Start tab began a matrix job. */
