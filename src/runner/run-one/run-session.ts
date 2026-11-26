@@ -260,6 +260,7 @@ async function runAgent({
         runId,
         autoReview: options.autoReview,
         buildTimeoutMs: options.buildTimeoutMs,
+        buildLocation: options.buildLocation,
       }),
       runId,
       outDir,

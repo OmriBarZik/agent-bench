@@ -20,6 +20,7 @@ const { values: args } = parseArgs({
     "judge-model": { type: "string", default: "claude-sonnet-5-5" },
     sync: { type: "boolean", default: false }, // run `gclient sync -D` after each checkout
     "auto-review": { type: "boolean", default: true }, // chrome-validate: the agent builds and checks its change
+    "build-location": { type: "string", default: "remote" }, // where chrome-validate builds: remote (build Mac) or local
     force: { type: "boolean", default: false }, // wipe uncommitted changes in src/ without asking
     interactive: { type: "boolean", short: "i", default: false }, // open the TUI even with selection flags
     runs: { type: "boolean", default: false }, // open the TUI on the Runs tab
@@ -39,14 +40,14 @@ const { values: args } = parseArgs({
  *   bun run start [--tasks configs/benchmark-tasks.json] [--configs configs/benchmark-setup.json] [--repeats 3]
  *                     [--only-task id[,id]] [--only-config id[,id]] [--timeout-min 60] [--build-timeout-min 90]
  *                     [--judge-model claude-sonnet-5-5]
- *                     [--sync] [--auto-review | --no-auto-review] [--force] [--interactive | --runs | --setups | --cli]
+ *                     [--sync] [--auto-review | --no-auto-review] [--build-location remote|local] [--force] [--interactive | --runs | --setups | --cli]
  *   bun run start --checkout <branch or run id> [--force]
  *   bun run start --prune-apps [--only-task id[,id]] [--only-config id[,id]] [--min-free-gb 60] [--dry-run]
  *
  * On a terminal with none of --only-task, --only-config, or --repeats, it opens a long-lived TUI with five tabs;
  * tab and shift-tab switch between them, and esc quits. Starting a matrix, a Runs-tab build, or a checkout
  * keeps the TUI open so you can navigate other tabs. Only one Chromium-touching job runs at a time.
- *   Start: check the tasks and configs to run, set repeats, agent timeout, build timeout, sync, and auto review, then enter starts
+ *   Start: check the tasks and configs to run, set repeats, agent timeout, build timeout, sync, auto review, and build location, then enter starts
  *     the matrix as a background job. It shows the equivalent --cli command. Left and right change a number or a checkbox,
  *     digits type a number, and r resets to the defaults. The selection is saved in data/start-picker.json.
  *     --only-task, --only-config, and --repeats skip that file.
@@ -133,6 +134,7 @@ async function main() {
     buildTimeoutMin: args["build-timeout-min"],
     sync: args.sync,
     autoReview: args["auto-review"],
+    buildLocation: args["build-location"] ?? "remote",
     force: args.force,
     interactive: args.interactive,
     runs: args.runs,

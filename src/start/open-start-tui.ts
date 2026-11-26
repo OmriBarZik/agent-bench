@@ -82,6 +82,7 @@ export async function openStartTui(options: OpenStartTuiOptions): Promise<null> 
             buildTimeoutMin: picked.buildTimeoutMin,
             sync: picked.sync,
             autoReview: picked.autoReview,
+            buildLocation: picked.buildLocation,
           },
           force: startForce ?? options.force,
           judgeModel: options.judgeModel,

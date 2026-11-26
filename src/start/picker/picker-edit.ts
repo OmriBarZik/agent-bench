@@ -1,3 +1,4 @@
+import type { BuildLocation } from "../../validate/build/steps/steps.types";
 import type { PickerRow, PickerRowKind, PickerState } from "./picker-state.types";
 
 const MAX_NUMBER = 999;
@@ -20,6 +21,10 @@ export function toggleRow({ state, row }: { state: PickerState; row: PickerRow }
     return { ...state, autoReview: !state.autoReview };
   }
 
+  if (row.kind === "buildLocation") {
+    return { ...state, buildLocation: otherLocation(state.buildLocation) };
+  }
+
   return state;
 }
 
@@ -38,7 +43,7 @@ export function toggleSection({ state, kind }: { state: PickerState; kind: Picke
 
 /**
  * Moves a number row by `delta`, staying within 1–999.
- * A positive delta checks sync or auto review; a negative one unchecks it.
+ * A positive delta checks sync or auto review; a negative one unchecks it. Either delta flips the build location.
  */
 export function adjust({
   state,
@@ -67,6 +72,10 @@ export function adjust({
 
   if (kind === "autoReview") {
     return { ...state, autoReview: delta > 0 };
+  }
+
+  if (kind === "buildLocation") {
+    return { ...state, buildLocation: otherLocation(state.buildLocation) };
   }
 
   return state;
@@ -103,6 +112,10 @@ export function eraseDigit({ state, kind }: { state: PickerState; kind: PickerRo
 
 function isNumberRow(kind: PickerRowKind): kind is "repeats" | "timeoutMin" | "buildTimeoutMin" {
   return kind === "repeats" || kind === "timeoutMin" || kind === "buildTimeoutMin";
+}
+
+function otherLocation(location: BuildLocation): BuildLocation {
+  return location === "remote" ? "local" : "remote";
 }
 
 function flipAt({ checked, index }: { checked: boolean[]; index: number }): boolean[] {

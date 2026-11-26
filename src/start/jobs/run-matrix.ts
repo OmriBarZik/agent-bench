@@ -78,6 +78,7 @@ export async function runMatrix({
       buildTimeoutMs: plan.buildTimeoutMin * 60_000,
       sync: plan.sync,
       autoReview: plan.autoReview,
+      buildLocation: plan.buildLocation,
       judgeModel,
       watchBuildLog,
     };

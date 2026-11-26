@@ -22,6 +22,7 @@ const SAVED: SavedPicker = {
   buildTimeoutMin: 20,
   sync: true,
   autoReview: false,
+  buildLocation: "local",
   cursor: 4,
 };
 
@@ -74,6 +75,7 @@ describe("saved picker", () => {
       buildTimeoutMin: 90,
       sync: false,
       autoReview: true,
+      buildLocation: "remote",
       cursor: 1,
       editing: false,
       notice: "",

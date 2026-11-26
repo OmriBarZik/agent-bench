@@ -147,7 +147,13 @@ function rowText({
     return `${"gclient sync".padEnd(14)}${box(state.sync)}  run gclient sync -D after each checkout`;
   }
 
-  return `${"auto review".padEnd(14)}${box(state.autoReview)}  build the change and check it in Chromium`;
+  if (row.kind === "autoReview") {
+    return `${"auto review".padEnd(14)}${box(state.autoReview)}  build the change and check it in Chromium`;
+  }
+
+  const where = state.buildLocation === "remote" ? "the build Mac" : "this Mac's out/Default";
+
+  return `${"Build location".padEnd(14)}‹ ${state.buildLocation} ›  auto review builds on ${where}`;
 }
 
 function itemText({

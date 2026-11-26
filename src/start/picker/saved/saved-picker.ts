@@ -30,6 +30,7 @@ export function defaultsFromSaved({ saved, choices }: { saved: SavedPicker; choi
     buildTimeoutMin: saved.buildTimeoutMin,
     sync: saved.sync,
     autoReview: saved.autoReview,
+    buildLocation: saved.buildLocation,
     cursor: saved.cursor,
   };
 }
@@ -90,6 +91,7 @@ function parseSavedPicker(value: unknown): SavedPicker | null {
     buildTimeoutMin,
     sync: record.sync,
     autoReview: record.autoReview,
+    buildLocation: record.buildLocation === "local" ? "local" : "remote",
     cursor,
   };
 }

@@ -3,6 +3,7 @@ import process from "node:process";
 import { BENCH_DIR, START_PICKER_FILE } from "../paths";
 import { loadSelection } from "../runner/bench-config/bench-config";
 import { narrowSelection } from "../runner/bench-config/narrow-selection";
+import { parseBuildLocation } from "../validate/build/steps/build-location";
 import { openStartTui } from "./open-start-tui";
 import type { StartTab } from "./open-start-tui.types";
 import type { PickerResult } from "./picker/picker-state.types";
@@ -24,6 +25,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
   const repeats = positiveNumber({ value: flags.repeats ?? "1", flag: "--repeats" });
   const timeoutMin = positiveNumber({ value: flags.timeoutMin, flag: "--timeout-min" });
   const buildTimeoutMin = positiveNumber({ value: flags.buildTimeoutMin, flag: "--build-timeout-min" });
+  const buildLocation = parseBuildLocation({ value: flags.buildLocation, source: "--build-location" });
   const terminal = process.stdin.isTTY === true && process.stdout.isTTY === true;
   const wantsTui = flags.interactive || flags.runs || flags.setups || flags.export;
 
@@ -56,6 +58,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
         buildTimeoutMin,
         sync: flags.sync,
         autoReview: flags.autoReview,
+        buildLocation,
       },
     };
   }
@@ -73,6 +76,7 @@ export async function resolveStart(flags: RunPlanFlags): Promise<StartDecision> 
       buildTimeoutMin,
       sync: flags.sync,
       autoReview: flags.autoReview,
+      buildLocation,
     },
     initialTab: openingTab(flags),
     force: flags.force,
@@ -123,6 +127,10 @@ function equivalentCommand({ picked, flags }: { picked: PickerResult; flags: Run
 
   if (!picked.autoReview) {
     parts.push("--no-auto-review");
+  }
+
+  if (picked.buildLocation !== "remote") {
+    parts.push("--build-location", picked.buildLocation);
   }
 
   return parts.join(" ");
