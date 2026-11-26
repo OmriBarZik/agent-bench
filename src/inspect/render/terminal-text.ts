@@ -52,6 +52,18 @@ export function colorLine({ text, kind }: { text: string; kind: LineKind }): str
     return `\x1b[1;30;43m${text}\x1b[0m\x1b[K`;
   }
 
+  if (kind === "added") {
+    return `\x1b[32m${text}\x1b[0m\x1b[K`;
+  }
+
+  if (kind === "removed") {
+    return `\x1b[31m${text}\x1b[0m\x1b[K`;
+  }
+
+  if (kind === "hunk") {
+    return `\x1b[36m${text}\x1b[0m\x1b[K`;
+  }
+
   if (kind === "title") {
     return `\x1b[1m${text}\x1b[0m\x1b[K`;
   }

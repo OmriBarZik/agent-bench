@@ -13,6 +13,7 @@ export type MenuCommand =
   | "live-log"
   | "transcript"
   | "judge"
+  | "diff"
   | "checkout"
   | "decide"
   | "build-local"

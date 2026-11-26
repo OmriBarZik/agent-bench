@@ -137,6 +137,13 @@ function actionItems(choices: RunChoice[]): MenuItem[] {
       scope: "one",
       target: { kind: "screen", screen: "remove" },
     },
+    {
+      label: "View diff",
+      shortcut: "^D",
+      unavailable: choice.commitSha ? null : "no changes committed",
+      scope: "one",
+      target: { kind: "command", command: "diff" },
+    },
   ];
 }
 

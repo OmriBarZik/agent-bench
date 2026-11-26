@@ -51,6 +51,10 @@ export function applyKey({
     return { state, action: matchCount === 0 ? "stay" : "judge" };
   }
 
+  if (key === "\x04") {
+    return { state, action: matchCount === 0 ? "stay" : "diff" };
+  }
+
   if (key === "\x07") {
     return { state, action: matchCount === 0 ? "stay" : "checkout" };
   }

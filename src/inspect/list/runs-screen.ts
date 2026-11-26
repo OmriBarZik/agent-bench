@@ -10,6 +10,10 @@ import { applyMarkFailedKey, openMarkFailedPrompt } from "../decision/mark-faile
 import type { MarkFailedPrompt } from "../decision/mark-failed-prompt.types";
 import { setListedDecision } from "../decision/set-decision";
 import { deleteIntent, removeListedRun } from "../delete/delete-run";
+import { applyDiffKey, diffViewerBack } from "../diff/diff-viewer";
+import { openRunDiff } from "../diff/load-run-diff";
+import { renderDiff } from "../diff/render-diff";
+import type { DiffViewer } from "../diff/run-diff.types";
 import { liveRun, markLiveRun, openLiveLog, syncLiveLog } from "../live/live-log";
 import type { LiveLogViewer } from "../live/live-log.types";
 import { renderLiveLog } from "../live/render-live-log";
@@ -40,6 +44,8 @@ import type { RunChoice, SelectAction, SelectState } from "./select-state.types"
  * Ctrl-r reloads the runs from the database and the branches from Chromium. The list also refreshes on its own
  * while a matrix job is running, and while this tab is on screen, so a `running` row appears once startRun writes it.
  * Ctrl-g checks the highlighted run's branch out without leaving the TUI.
+ * Ctrl-d shows the highlighted run's changed files and their patches, read from git with nothing checked out.
+ * Enter opens a file's patch, n and p step through files, and esc goes back to the files, then the runs.
  * While a run's agent is working, its Enter menu offers its live agent log. The row goes away, and an open log
  * closes, once that agent finishes.
  * Esc closes the build question, the failed-build question, the decision dialog, or a menu page; otherwise it is left to the TUI, which quits.
@@ -70,6 +76,7 @@ export function createRunsScreen({
   let actionMenu: ActionMenu | null = null;
   let choosingBuild = false;
   let liveLog: LiveLogViewer | null = null;
+  let diffViewer: DiffViewer | null = null;
   let refreshing = false;
   /** Last time the Runs tab was painted; quiet polls only while this is recent or a matrix is running. */
   let shownAt = 0;
@@ -147,6 +154,27 @@ export function createRunsScreen({
       })
       .catch((error: unknown) => {
         notice = error instanceof Error ? error.message : `could not open the ${label}`;
+      })
+      .finally(() => {
+        if (!controls.isClosed()) {
+          controls.repaint();
+        }
+      });
+  };
+
+  const openDiffChoice = (choice: RunChoice | undefined) => {
+    if (!choice) {
+      return;
+    }
+
+    notice = "loading the diff…";
+    void openRunDiff({ choice, repo: chromiumSrc })
+      .then((viewer) => {
+        diffViewer = viewer;
+        notice = "";
+      })
+      .catch((error: unknown) => {
+        notice = error instanceof Error ? error.message : "could not load the diff";
       })
       .finally(() => {
         if (!controls.isClosed()) {
@@ -442,6 +470,12 @@ export function createRunsScreen({
       return;
     }
 
+    if (command === "diff") {
+      openDiffChoice(first);
+
+      return;
+    }
+
     if (command === "open-chromium") {
       launchChromium(first);
 
@@ -571,6 +605,13 @@ export function createRunsScreen({
       return;
     }
 
+    if (action === "diff") {
+      armedRunId = null;
+      openDiffChoice(highlighted());
+
+      return;
+    }
+
     if (action === "chromium") {
       armedRunId = null;
       launchChromium(highlighted());
@@ -631,6 +672,10 @@ export function createRunsScreen({
         return renderLiveLog({ viewer: liveLog, rows, columns });
       }
 
+      if (diffViewer) {
+        return renderDiff({ viewer: diffViewer, rows, columns });
+      }
+
       const job = jobs.status();
       const line = job.kind !== "idle" ? `${job.kind}: ${job.label}` : notice || job.label;
 
@@ -671,6 +716,12 @@ export function createRunsScreen({
         return;
       }
 
+      if (diffViewer) {
+        diffViewer = applyDiffKey({ viewer: diffViewer, key, rows: controls.size().rows });
+
+        return;
+      }
+
       if (decisionDialog) {
         onDialogKey({ dialog: decisionDialog, key });
 
@@ -707,6 +758,12 @@ export function createRunsScreen({
     onEscape: () => {
       if (liveLog) {
         liveLog = null;
+
+        return true;
+      }
+
+      if (diffViewer) {
+        diffViewer = diffViewerBack(diffViewer);
 
         return true;
       }

@@ -36,6 +36,7 @@ export type SelectAction =
   | "menu"
   | "transcript"
   | "judge"
+  | "diff"
   | "checkout"
   | "build"
   | "chromium"
