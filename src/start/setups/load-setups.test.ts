@@ -48,7 +48,7 @@ test("a missing setup.json is undeclared and a stored run is counted", () => {
       runs: 0,
       detail: join("configs/setup", "not-real", "setup.json"),
     });
-    expect(report.shared.map((check) => check.label)).toEqual(["delta", "bun", "claude", "checkout"]);
+    expect(report.shared.map((check) => check.label)).toEqual(["bun", "claude", "checkout"]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

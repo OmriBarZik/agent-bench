@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { RUNS_DIR } from "../../../paths";
 import type { RunChoice } from "../../list/select-state.types";
 import { readRunPatch, runDiffRange } from "../load-run-diff";
+import { splitPatch } from "../split-patch";
 import { diffPageHtml } from "./diff-page";
 
 /** File name of the browser diff page inside `runs/<run_id>/`. */
@@ -21,9 +22,13 @@ export async function openDiffPage({ choice, repo }: { choice: RunChoice; repo: 
   await Bun.write(
     pagePath,
     diffPageHtml({
-      title: `${choice.taskId} × ${choice.configId} · ${choice.runId}`,
-      subtitle: `${range.baseSha.slice(0, 12)}..${range.tipSha.slice(0, 12)}`,
-      patch,
+      input: {
+        title: `${choice.taskId} × ${choice.configId} · ${choice.runId}`,
+        subtitle: `${range.baseSha.slice(0, 12)}..${range.tipSha.slice(0, 12)}`,
+        patch,
+        files: splitPatch(patch),
+        storageKey: `${choice.runId}:${range.tipSha}`,
+      },
     }),
   );
   // Ignore stdio so the TUI keeps its alt screen while the browser opens.

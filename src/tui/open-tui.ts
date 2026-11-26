@@ -64,8 +64,6 @@ function runTui<Result>({
     let active = initialTab;
     let settled = false;
     let escapeTimer: ReturnType<typeof setTimeout> | null = null;
-    /** True while an external program owns the terminal. */
-    let handedOver = false;
 
     const size = (): TuiSize => ({
       rows: Math.max((process.stdout.rows ?? 24) - TAB_BAR_HEIGHT, 1),
@@ -97,29 +95,8 @@ function runTui<Result>({
       size,
       isClosed: () => settled,
       finish,
-      handOver: async (work) => {
-        if (settled || handedOver) {
-          return;
-        }
-
-        handedOver = true;
-        clearEscape();
-        process.stdout.write(LEAVE_SCREEN);
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
-
-        try {
-          await work();
-        } finally {
-          process.stdin.setRawMode(true);
-          process.stdin.resume();
-          process.stdout.write(ENTER_SCREEN);
-          handedOver = false;
-          paint();
-        }
-      },
       setActiveTab: (index: number) => {
-        if (settled || handedOver || index < 0 || index >= tabList.length || current().isBusy()) {
+        if (settled || index < 0 || index >= tabList.length || current().isBusy()) {
           return;
         }
 
@@ -130,7 +107,7 @@ function runTui<Result>({
     tabList = tabs(host);
 
     const paint = () => {
-      if (settled || handedOver) {
+      if (settled) {
         return;
       }
 
@@ -141,7 +118,7 @@ function runTui<Result>({
     };
 
     const onData = (input: string) => {
-      if (handedOver || current().isBusy()) {
+      if (current().isBusy()) {
         return;
       }
 
@@ -179,7 +156,7 @@ function runTui<Result>({
     };
 
     const onResize = () => {
-      if (settled || handedOver || current().isBusy()) {
+      if (settled || current().isBusy()) {
         return;
       }
 
@@ -188,8 +165,7 @@ function runTui<Result>({
     };
 
     const onSigint = () => {
-      // Ctrl+C in an external pager reaches this process too; the pager handles it.
-      if (handedOver || current().onInterrupt()) {
+      if (current().onInterrupt()) {
         return;
       }
 

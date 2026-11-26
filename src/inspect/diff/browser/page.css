@@ -1,0 +1,302 @@
+/* The browser diff page's look: GitHub's colours, a sticky bar, and the file tree on the left. */
+:root {
+  --bg: #ffffff;
+  --bg-muted: #f6f8fa;
+  --bg-hover: #eaeef2;
+  --bg-active: #ddf4ff;
+  --border: #d0d7de;
+  --text: #1f2328;
+  --text-muted: #59636e;
+  --accent: #0969da;
+  --added: #1a7f37;
+  --removed: #d1242f;
+  --renamed: #9a6700;
+  --bar-height: 56px;
+  --tree-width: 320px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117;
+    --bg-muted: #151b23;
+    --bg-hover: #212830;
+    --bg-active: #1f2b3a;
+    --border: #3d444d;
+    --text: #f0f6fc;
+    --text-muted: #9198a1;
+    --accent: #4493f8;
+    --added: #3fb950;
+    --removed: #f85149;
+    --renamed: #d29922;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px/1.5 -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans",
+    Helvetica,
+    Arial,
+    sans-serif;
+}
+
+.bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: var(--bar-height);
+  padding: 0 16px;
+  background: var(--bg-muted);
+  border-bottom: 1px solid var(--border);
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.heading h1 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.range {
+  color: var(--text-muted);
+  font:
+    12px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+.stats {
+  display: flex;
+  gap: 8px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.progress {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.added {
+  color: var(--added);
+}
+
+.removed {
+  color: var(--removed);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+.icon {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.segmented {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.segmented button {
+  padding: 4px 12px;
+  border: 0;
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.segmented button + button {
+  border-left: 1px solid var(--border);
+}
+
+.segmented button[aria-pressed="true"] {
+  background: var(--accent);
+  color: #ffffff;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: var(--tree-width) minmax(0, 1fr);
+}
+
+.tree-hidden .layout {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.tree-hidden .tree {
+  visibility: hidden;
+}
+
+.tree {
+  position: sticky;
+  top: var(--bar-height);
+  height: calc(100vh - var(--bar-height));
+  overflow: auto;
+  padding: 12px 8px 24px;
+  border-right: 1px solid var(--border);
+}
+
+.tree input {
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 3px 8px 3px calc(8px + var(--depth) * 14px);
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.row:hover {
+  background: var(--bg-hover);
+}
+
+.row .name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dir-row {
+  color: var(--text-muted);
+}
+
+.chevron {
+  display: inline-block;
+  width: 10px;
+  font-size: 10px;
+  transition: transform 0.1s;
+}
+
+.folder {
+  display: none;
+}
+
+.dir.collapsed > .children {
+  display: none;
+}
+
+.dir.collapsed > .dir-row .chevron {
+  transform: rotate(-90deg);
+}
+
+.file-row.active {
+  background: var(--bg-active);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.file-row.viewed .name {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.badge {
+  width: 16px;
+  height: 16px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  flex: none;
+}
+
+.status-A .badge {
+  color: var(--added);
+}
+
+.status-D .badge {
+  color: var(--removed);
+}
+
+.status-M .badge,
+.status-T .badge,
+.status-B .badge {
+  color: var(--renamed);
+}
+
+.status-R .badge,
+.status-C .badge {
+  color: var(--text-muted);
+}
+
+.counts {
+  display: flex;
+  gap: 4px;
+  font:
+    11px ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    monospace;
+}
+
+.empty {
+  color: var(--text-muted);
+  padding: 8px;
+}
+
+main {
+  padding: 16px 24px 40vh;
+  min-width: 0;
+}
+
+.d2h-file-wrapper {
+  scroll-margin-top: calc(var(--bar-height) + 12px);
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.d2h-file-header.d2h-sticky-header {
+  top: var(--bar-height);
+}

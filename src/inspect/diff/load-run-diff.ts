@@ -1,9 +1,7 @@
 import { $ } from "bun";
 import { openDb, taskChromiumSha } from "../../db/db";
 import type { RunChoice } from "../list/select-state.types";
-import type { DiffRange, DiffViewer } from "./run-diff.types";
-import { splitPatch } from "./split-patch";
-import { openDiffViewer } from "./viewer/diff-viewer";
+import type { DiffRange } from "./run-diff.types";
 
 /**
  * The task's pinned revision and the run's committed tip. Throws with a message for the notice line
@@ -52,14 +50,6 @@ export async function readRunPatch({ repo, range }: { repo: string; range: DiffR
   }
 
   return result.stdout.toString();
-}
-
-/** Loads `choice`'s diff into a viewer on its file list. Throws with a message for the notice line. */
-export async function openRunDiff({ choice, repo }: { choice: RunChoice; repo: string }): Promise<DiffViewer> {
-  const range = runDiffRange(choice);
-  const patch = await readRunPatch({ repo, range });
-
-  return openDiffViewer({ choice, range, files: splitPatch(patch) });
 }
 
 function pinnedSha(taskId: string): string | null {
