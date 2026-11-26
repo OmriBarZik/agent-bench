@@ -13,10 +13,12 @@ export type TranscriptUsage = {
   cache_creation?: TranscriptCacheCreation;
 };
 
-/** One content block of an assistant message; only tool_use names matter here. */
+/** One content block of a transcript message: a tool_use (id, name) or a tool_result (tool_use_id). */
 export type TranscriptContentBlock = {
   type?: string;
   name?: string;
+  id?: string;
+  tool_use_id?: string;
 };
 
 /** The assistant message inside a transcript entry. */

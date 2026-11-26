@@ -135,6 +135,8 @@ export type PhaseUsage = {
   phase: RunPhase;
   turns: number;
   durationMs: number;
+  /** durationMs minus the time spent waiting on chrome-validate tools (builds and Chrome runs). */
+  workMs: number;
   inputTokens: number;
   outputTokens: number;
   cacheCreationTokens: number;

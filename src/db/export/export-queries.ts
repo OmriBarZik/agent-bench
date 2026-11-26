@@ -42,7 +42,7 @@ export function listExportRuns(db: Database): ExportRunRow[] {
               (SELECT MIN(t.ts) FROM tool_calls t
                WHERE t.run_id = r.run_id AND t.phase = 'pre' AND t.tool GLOB 'mcp__chrome-validate__*')
                 AS testingStartedAt,
-              r.status, r.duration_ms AS durationMs, r.num_turns AS numTurns, r.cost_usd AS costUsd,
+              r.status, (SELECT sum(p.work_ms) FROM run_phases p WHERE p.run_id = r.run_id) AS durationMs, r.num_turns AS numTurns, r.cost_usd AS costUsd,
               r.input_tokens AS inputTokens, r.output_tokens AS outputTokens,
               r.cache_creation_tokens AS cacheCreationTokens, r.cache_read_tokens AS cacheReadTokens,
               r.total_tokens AS totalTokens, r.permission_denials AS permissionDenials,
@@ -66,7 +66,7 @@ export function listExportRuns(db: Database): ExportRunRow[] {
 export function listExportPhases(db: Database): ExportPhaseRow[] {
   return db
     .query(
-      `SELECT run_id AS runId, phase, turns, duration_ms AS durationMs, total_tokens AS totalTokens,
+      `SELECT run_id AS runId, phase, turns, work_ms AS durationMs, total_tokens AS totalTokens,
               cost_usd AS costUsd
        FROM run_phases ORDER BY run_id, phase`,
     )

@@ -40,3 +40,26 @@ describe("splitPhases", () => {
     expect(validation).toMatchObject({ turns: 0, totalTokens: 0, durationMs: 0 });
   });
 });
+
+describe("splitPhases work time", () => {
+  test("leaves chrome-validate waits out of workMs", () => {
+    const entry = ({ type, time, block }: { type: string; time: string; block: object }) =>
+      JSON.stringify({ type, timestamp: `2026-11-11T10:${time}Z`, message: { id: time, content: [block] } });
+    const lines = [
+      entry({ type: "assistant", time: "00:00", block: { type: "tool_use", id: "e", name: "Edit" } }),
+      entry({ type: "user", time: "00:05", block: { type: "tool_result", tool_use_id: "e" } }),
+      entry({
+        type: "assistant",
+        time: "01:00",
+        block: { type: "tool_use", id: "w", name: "mcp__chrome-validate__wait_build" },
+      }),
+      entry({ type: "user", time: "11:00", block: { type: "tool_result", tool_use_id: "w" } }),
+      entry({ type: "assistant", time: "12:00", block: { type: "tool_use", id: "x", name: "Edit" } }),
+    ];
+
+    const [discovery, validation] = splitPhases({ lines, costUsd: null });
+
+    expect(discovery).toMatchObject({ durationMs: 60_000, workMs: 60_000 });
+    expect(validation).toMatchObject({ durationMs: 660_000, workMs: 60_000 });
+  });
+});

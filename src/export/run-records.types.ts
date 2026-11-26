@@ -9,6 +9,7 @@ export type BenchCheck = {
 export type PhaseRecord = {
   phase: string;
   turns: number | null;
+  /** Work time: wall clock minus waits on chrome-validate tools (builds and Chrome runs). */
   durationMs: number | null;
   totalTokens: number | null;
   costUsd: number | null;

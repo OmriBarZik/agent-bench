@@ -206,6 +206,7 @@ CREATE TABLE IF NOT EXISTS run_phases (
     phase                  TEXT NOT NULL,     -- discovery / validation
     turns                  INTEGER,           -- API responses in this phase
     duration_ms            INTEGER,           -- wall clock, build waits included
+    work_ms                INTEGER,           -- duration_ms minus waits on chrome-validate tools (builds, Chrome runs)
     input_tokens           INTEGER,
     output_tokens          INTEGER,
     cache_creation_tokens  INTEGER,

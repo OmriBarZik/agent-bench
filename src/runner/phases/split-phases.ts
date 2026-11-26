@@ -1,8 +1,6 @@
 import type { PhaseUsage, RunPhase } from "../../db/db.types";
 import type { PhaseMessage, PhaseTranscriptEntry, TranscriptContentBlock, TranscriptUsage } from "./split-phases.types";
-
-/** Tool names from the chrome-validate MCP server start with this. */
-const VALIDATE_TOOL_PREFIX = "mcp__chrome-validate__";
+import { VALIDATE_TOOL_PREFIX, validateWaitMs } from "./validate-waits";
 
 /** Price of each token kind relative to fresh input. The same ratios hold for every Claude model. */
 const PRICE_WEIGHT = { input: 1, cacheWrite5m: 1.25, cacheWrite1h: 2, cacheRead: 0.1, output: 5 };
@@ -11,15 +9,22 @@ const PRICE_WEIGHT = { input: 1, cacheWrite5m: 1.25, cacheWrite1h: 2, cacheRead:
  * Splits one agent transcript into discovery (finding the code and writing the change) and validation, which
  * starts with the API response that first calls a chrome-validate tool and runs to the end of the session, fix
  * loops included. Usage is read once per API response, since the transcript repeats it on every content block.
- * The run's cost is shared out by price-weighted tokens, so the two phases add up to cost_usd.
+ * The run's cost is shared out by price-weighted tokens, so the two phases add up to cost_usd. Each phase's workMs
+ * leaves out the time spent waiting on chrome-validate tools, which all fall in validation.
  */
 export function splitPhases({ lines, costUsd }: { lines: string[]; costUsd: number | null }): PhaseUsage[] {
   const messages = new Map<string, PhaseMessage>();
   const timestamps: number[] = [];
+  const entries: PhaseTranscriptEntry[] = [];
   let validationStart: number | null = null;
 
   for (const line of lines) {
     const entry = parseEntry(line);
+
+    if (entry) {
+      entries.push(entry);
+    }
+
     const time = entry?.timestamp ? Date.parse(entry.timestamp) : Number.NaN;
 
     if (!Number.isNaN(time)) {
@@ -53,10 +58,25 @@ export function splitPhases({ lines, costUsd }: { lines: string[]; costUsd: numb
   const discovery = all.filter((message) => !message.validation);
   const validation = all.filter((message) => message.validation);
   const totalWeight = weightOf(all);
+  const waitMs = validateWaitMs(entries);
 
   return [
-    phaseUsage({ phase: "discovery", messages: discovery, durationMs: split - sessionStart, costUsd, totalWeight }),
-    phaseUsage({ phase: "validation", messages: validation, durationMs: sessionEnd - split, costUsd, totalWeight }),
+    phaseUsage({
+      phase: "discovery",
+      messages: discovery,
+      durationMs: split - sessionStart,
+      waitMs: 0,
+      costUsd,
+      totalWeight,
+    }),
+    phaseUsage({
+      phase: "validation",
+      messages: validation,
+      durationMs: sessionEnd - split,
+      waitMs,
+      costUsd,
+      totalWeight,
+    }),
   ];
 }
 
@@ -85,12 +105,14 @@ function phaseUsage({
   phase,
   messages,
   durationMs,
+  waitMs,
   costUsd,
   totalWeight,
 }: {
   phase: RunPhase;
   messages: PhaseMessage[];
   durationMs: number;
+  waitMs: number;
   costUsd: number | null;
   totalWeight: number;
 }): PhaseUsage {
@@ -106,6 +128,7 @@ function phaseUsage({
     phase,
     turns: messages.length,
     durationMs: Math.max(0, durationMs),
+    workMs: Math.max(0, durationMs - waitMs),
     inputTokens,
     outputTokens,
     cacheCreationTokens,

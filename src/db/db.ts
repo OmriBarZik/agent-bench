@@ -67,6 +67,7 @@ export function openDb(path = DB_PATH): Database {
   // CREATE TABLE IF NOT EXISTS will not add columns to a database that already exists.
   ensureTaskColumns(db);
   ensureRunColumns(db);
+  ensurePhaseColumns(db);
   ensureJudgeColumns(db);
   ensureFindingsColumns(db);
   retireRunScoreColumns(db);
@@ -184,6 +185,17 @@ function ensureRunColumns(db: Database) {
     if (name === "cache_creation_tokens") {
       backfillCacheCreationTokens(db);
     }
+  }
+}
+
+/** run_phases.work_ms came after the table. Idempotent; the phases backfill fills it for older runs. */
+function ensurePhaseColumns(db: Database) {
+  const present = new Set(
+    (db.query("PRAGMA table_info(run_phases)").all() as { name: string }[]).map((row) => row.name),
+  );
+
+  if (!present.has("work_ms")) {
+    db.run("ALTER TABLE run_phases ADD COLUMN work_ms INTEGER");
   }
 }
 
@@ -425,9 +437,9 @@ export function saveRunPhases({ db, runId, phases }: { db: Database; runId: stri
 
     for (const phase of phases) {
       db.query(
-        `INSERT INTO run_phases (run_id, phase, turns, duration_ms, input_tokens, output_tokens,
+        `INSERT INTO run_phases (run_id, phase, turns, duration_ms, work_ms, input_tokens, output_tokens,
            cache_creation_tokens, cache_read_tokens, total_tokens, cost_usd)
-         VALUES ($runId, $phase, $turns, $durationMs, $inputTokens, $outputTokens,
+         VALUES ($runId, $phase, $turns, $durationMs, $workMs, $inputTokens, $outputTokens,
            $cacheCreationTokens, $cacheReadTokens, $totalTokens, $costUsd)`,
       ).run({ runId, ...phase });
     }
@@ -436,12 +448,13 @@ export function saveRunPhases({ db, runId, phases }: { db: Database; runId: stri
   save();
 }
 
-/** Finished runs with no run_phases rows yet, for the backfill. */
+/** Finished runs with no run_phases rows yet, or rows from before work_ms, for the backfill. */
 export function listRunsWithoutPhases(db: Database): RunWithoutPhases[] {
   return db
     .query(
       `SELECT run_id AS runId, cost_usd AS costUsd FROM runs
-       WHERE status != 'running' AND NOT EXISTS (SELECT 1 FROM run_phases WHERE run_phases.run_id = runs.run_id)
+       WHERE status != 'running'
+         AND NOT EXISTS (SELECT 1 FROM run_phases WHERE run_phases.run_id = runs.run_id AND work_ms IS NOT NULL)
        ORDER BY started_at`,
     )
     .all() as RunWithoutPhases[];
