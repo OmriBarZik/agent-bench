@@ -7,7 +7,8 @@ const BLOCK_START = "# agent-bench task inputs: start";
 const BLOCK_END = "# agent-bench task inputs: end";
 
 /**
- * Copies the task's supplied files (such as a trained model) into the freshly reset checkout and lists them in the
+ * Copies the task's supplied files (such as a trained model) and the config's checkoutFiles (such as an editor
+ * tsconfig.json) into the freshly reset checkout and lists them in the
  * checkout's `info/exclude`, so the runner's commit, the build snapshots and the changed-file list never include
  * them. Runs for every task: inputs listed by the previous run are deleted first, because `git clean` keeps ignored
  * files. Throws when a source is missing or a destination would leave the checkout, since the run would otherwise

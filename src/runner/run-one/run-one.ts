@@ -45,7 +45,7 @@ export async function runOne({
     sha: task.chromiumSha,
     sync: options.sync,
     runId,
-    inputFiles: task.inputFiles,
+    inputFiles: [...(task.inputFiles ?? []), ...(config.checkoutFiles ?? [])],
     signal,
   });
   const outDir = join(RUNS_DIR, runId);

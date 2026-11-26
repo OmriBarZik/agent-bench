@@ -1,0 +1,17 @@
+{
+  "extends": "./tools/typescript/tsconfig_base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "skipLibCheck": true,
+    "paths": {
+      "chrome://resources/lit/v3_0/lit.rollup.js": ["./third_party/lit/v3_0/lit.ts"],
+      "//resources/lit/v3_0/lit.rollup.js": ["./third_party/lit/v3_0/lit.ts"],
+      "chrome://resources/*": ["./ui/webui/resources/*"],
+      "//resources/*": ["./ui/webui/resources/*"],
+      "/strings.m.js": ["./tools/typescript/definitions/strings.d.ts"],
+      "/tools/typescript/definitions/*": ["./tools/typescript/definitions/*"]
+    }
+  },
+  "include": ["components/*/resources/**/*.ts"],
+  "exclude": ["out", "**/node_modules"]
+}

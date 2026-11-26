@@ -394,6 +394,12 @@
       "hooks/tool-reminder/tool-reminder.ts",
       "hooks/tool-reminder/reminder-policy.ts",
       "plugins/tool-reminder/hooks/hooks.json"
+    ],
+    "checkoutFiles": [
+      {
+        "from": "configs/setup/typescript/checkout/tsconfig.json",
+        "to": "tsconfig.json"
+      }
     ]
   },
   {
@@ -427,6 +433,12 @@
       "hooks/tool-reminder/tool-reminder.ts",
       "hooks/tool-reminder/reminder-policy.ts",
       "plugins/tool-reminder/hooks/hooks.json"
+    ],
+    "checkoutFiles": [
+      {
+        "from": "configs/setup/typescript/checkout/tsconfig.json",
+        "to": "tsconfig.json"
+      }
     ]
   }
 ]

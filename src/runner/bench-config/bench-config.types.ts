@@ -1,4 +1,4 @@
-import type { Task } from "../../db/db.types";
+import type { Task, TaskInputFile } from "../../db/db.types";
 
 /** One entry in benchmark-tasks.json: a Task whose prompts live in markdown files instead of inline. */
 export type TaskEntry = Omit<Task, "prompt" | "judgePrompt"> & {
@@ -29,6 +29,12 @@ export type BenchConfigEntry = {
    */
   toolPromptFile?: string;
   extraFiles?: string[];
+  /**
+   * Files copied into the checkout before every run of this config, the way a task's inputFiles are (such as an
+   * editor tsconfig.json for a language server). `from` is relative to the repo root, `to` to the checkout root.
+   * Git-ignored through info/exclude, so the run never commits them. Hashed into config_hash.
+   */
+  checkoutFiles?: TaskInputFile[];
   /**
    * What counts as a call to this config's own tools: a Bash program name (`rg`), or a tool-name prefix
    * (`mcp__serena__`, `LSP`). Used to count how often the agent really used the setup. Not part of config_hash.

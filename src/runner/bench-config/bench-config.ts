@@ -56,8 +56,13 @@ async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: strin
   };
 }
 
-/** Reads toolPromptFile from the repo root and attaches the trimmed text. */
-async function loadConfig(entry: BenchConfigEntry): Promise<BenchConfig> {
+/** Reads toolPromptFile from the repo root and attaches the trimmed text. Resolves checkoutFiles against the repo root. */
+async function loadConfig(configEntry: BenchConfigEntry): Promise<BenchConfig> {
+  const entry = {
+    ...configEntry,
+    checkoutFiles: configEntry.checkoutFiles?.map((file) => ({ from: resolve(BENCH_DIR, file.from), to: file.to })),
+  };
+
   for (const pluginDir of entry.pluginDirs ?? []) {
     const manifest = resolve(BENCH_DIR, pluginDir, ".claude-plugin/plugin.json");
 
@@ -95,7 +100,7 @@ async function readTrimmed({ path, owner, label }: { path: string; owner: string
   return text;
 }
 
-/** The configs row: config_hash covers the shared baseline, MCP configs, plugins, the tool prompt, and extraFiles. */
+/** The configs row: config_hash covers the shared baseline, MCP configs, plugins, the tool prompt, extraFiles and checkoutFiles. */
 export async function toConfigRow(config: BenchConfig): Promise<Config> {
   const files = [
     ...BASELINE_HASH_FILES,
@@ -103,6 +108,7 @@ export async function toConfigRow(config: BenchConfig): Promise<Config> {
     ...(config.pluginDirs ?? []).map((pluginDir) => `${pluginDir}/.claude-plugin/plugin.json`),
     ...(config.toolPromptFile ? [config.toolPromptFile] : []),
     ...(config.extraFiles ?? []),
+    ...(config.checkoutFiles ?? []).map((file) => file.from),
   ].map((path) => resolve(BENCH_DIR, path));
 
   return {
