@@ -144,6 +144,23 @@ export type PhaseUsage = {
   costUsd: number | null;
 };
 
+/** How many current runs one task × config cell has. */
+export type CellRunCount = {
+  taskId: string;
+  configId: string;
+  runs: number;
+};
+
+/** One run's end state, as the matrix logs it. */
+export type RunOutcome = {
+  runId: string;
+  status: string | null;
+  costUsd: number | null;
+  durationMs: number | null;
+  /** The judge's decision, or null when the judge gave none. */
+  decision: string | null;
+};
+
 /** A run's prompt versions and archive batch, for deciding which runs are pilot history. */
 export type RunVersions = {
   runId: string;

@@ -14,6 +14,7 @@
     "phases:backfill": "bun src/runner/phases/backfill-phases.ts",
     "findings:backfill": "bun src/runner/findings/backfill-findings.ts",
     "runs:archive": "bun src/archive/archive-pilot.ts",
+    "matrix": "bun src/matrix/run-matrix.ts",
     "export": "bun src/export/export-runs.ts",
     "start": "bun src/main.ts",
     "lint:ts": "bun check",

@@ -7,6 +7,7 @@ import type {
   BuildFinish,
   BuildRow,
   BuildStart,
+  CellRunCount,
   ChangedFile,
   ChromiumBuildFinish,
   ChromiumBuildStart,
@@ -26,6 +27,7 @@ import type {
   RunBranchSql,
   RunConfigRow,
   RunFindings,
+  RunOutcome,
   RunVersions,
   RunStart,
   RunWithoutPhases,
@@ -485,6 +487,26 @@ export function countSetupToolCalls({ db, runId, setupTools }: { db: Database; r
   ).length;
 }
 
+/** How many runs of each task and config are current (not archived) and finished or crashed, never cancelled. */
+export function countCurrentRuns(db: Database): CellRunCount[] {
+  return db
+    .query(
+      `SELECT task_id AS taskId, config_id AS configId, COUNT(*) AS runs
+       FROM runs WHERE batch IS NULL AND status IN ('done', 'crashed') GROUP BY task_id, config_id`,
+    )
+    .all() as CellRunCount[];
+}
+
+/** One run's status, cost, duration and judge decision, or null when the run is not in the DB. */
+export function runOutcome({ db, runId }: { db: Database; runId: string }): RunOutcome | null {
+  return db
+    .query(
+      `SELECT r.run_id AS runId, r.status, r.cost_usd AS costUsd, r.duration_ms AS durationMs, j.decision
+       FROM runs r LEFT JOIN judge_runs j ON j.run_id = r.run_id WHERE r.run_id = $runId`,
+    )
+    .get({ runId }) as RunOutcome | null;
+}
+
 /** Every run's task, config, prompt versions, setup hashes, and archive batch. */
 export function listRunVersions(db: Database): RunVersions[] {
   return db
@@ -885,6 +907,7 @@ export function deleteRun({ db, runId }: { db: Database; runId: string }) {
     db.query(`DELETE FROM tool_calls WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM judge_runs WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM run_phases WHERE run_id = $runId`).run({ runId });
+    db.query(`DELETE FROM run_findings WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM chromium_builds WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM runs WHERE run_id = $runId`).run({ runId });
   });

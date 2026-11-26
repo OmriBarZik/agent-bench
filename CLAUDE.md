@@ -24,6 +24,7 @@ bun run apps:prune [--only-task id,id] [--only-config id,id] [--min-free-gb 60] 
 bun run phases:backfill [--runs-dir path]   # fill run_phases (discovery vs validation tokens/cost) for runs that have none, from their transcripts
 bun run findings:backfill [--runs-dir path] # fill run_findings (setup tool calls, turn/tokens to the first game source and DevTools panel registration) for runs that have none
 bun run runs:archive [--dry-run]            # tag runs whose prompt, judge prompt or setup (config_hash / setup_hash) is not the current one as batch 'pilot': kept in the DB and Runs tab, left out of the dashboard snapshot and bun run export
+bun run matrix [--repeats 2] [--only-task id,id] [--only-config id,id] [--dry-run]   # destructive and billed like start: archives stale runs, then runs every task × config until each has --repeats current runs, one at a time; waits for the build Mac and a working claude, prunes apps, deletes and retries Cloudflare-403 / $0-crash runs. Run it under caffeinate -i; log in runs/matrix/
 bun run export [--out dir] [--task] [--config] [--compare] [--prompt] [--judge-prompt] [--decision] [--run]   # read-only, dashboard filters (default: all, latest prompts, vs baseline): write exports/<timestamp>/ with README, summary, tasks.json, configs.json, runs.jsonl, and bench-export.md (one compact file to paste into an AI chat)
 ```
 
