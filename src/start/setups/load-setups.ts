@@ -30,6 +30,7 @@ export function loadSetups({ configs, dbPath }: { configs: SetupConfigRef[]; dbP
 
 function sharedChecks(): SetupReport["shared"] {
   return [
+    { label: "delta", ok: Bun.which("delta") !== null },
     { label: "bun", ok: Bun.which("bun") !== null },
     { label: "claude", ok: Bun.which("claude") !== null },
     { label: "checkout", ok: existsSync(CHROMIUM_SRC) },

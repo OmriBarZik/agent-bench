@@ -1,7 +1,7 @@
-import { colorLine, fit } from "../render/terminal-text";
-import type { LineKind } from "../render/terminal-text.types";
+import { colorLine, fit } from "../../render/terminal-text";
+import type { LineKind } from "../../render/terminal-text.types";
 import { DIFF_CHROME_ROWS, followSelection } from "./diff-viewer";
-import type { DiffViewer, FileDiff } from "./run-diff.types";
+import type { DiffViewer, FileDiff } from "../run-diff.types";
 
 /** The run diff over the Runs list: the changed files with their line counts, or one file's colored patch. */
 export function renderDiff({ viewer, rows, columns }: { viewer: DiffViewer; rows: number; columns: number }): string {
@@ -35,7 +35,7 @@ function filesScreen({ viewer, bodyRows, width }: { viewer: DiffViewer; bodyRows
     subtitle: `${viewer.range} · read from git, nothing checked out`,
     body,
     bodyRows,
-    footer: "↑↓ pgup/pgdn move · enter opens the file's patch · esc back to runs",
+    footer: "↑↓ pgup/pgdn move · enter opens the file's patch · b browser · d delta · esc back to runs",
     width,
   });
 }
@@ -54,7 +54,7 @@ function patchScreen({ viewer, bodyRows, width }: { viewer: DiffViewer; bodyRows
     subtitle: file ? `${file.status} ${countLabel(file)} · ${viewer.range}` : viewer.range,
     body,
     bodyRows,
-    footer: `lines ${lines.length === 0 ? 0 : top + 1}–${last} of ${lines.length} · ↑↓ pgup/pgdn scroll · n/p next/previous file · esc file list`,
+    footer: `lines ${lines.length === 0 ? 0 : top + 1}–${last} of ${lines.length} · ↑↓ pgup/pgdn scroll · n/p next/previous file · b browser · d delta · esc file list`,
     width,
   });
 }

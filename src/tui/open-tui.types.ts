@@ -14,6 +14,11 @@ export type TuiControls = {
   isClosed: () => boolean;
   /** Switch to this tab index (used when a build log starts). */
   setActiveTab: (index: number) => void;
+  /**
+   * Gives the real terminal to `work` (an external pager such as delta) and takes it back when `work` settles.
+   * The TUI leaves the alt screen and raw mode, ignores keys, resizes and Ctrl+C meanwhile, then repaints.
+   */
+  handOver: (work: () => Promise<void>) => Promise<void>;
 };
 
 /** The controls plus `finish`, which closes the TUI with a result (null means the user quit). */

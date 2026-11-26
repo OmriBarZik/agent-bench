@@ -1,5 +1,5 @@
-import type { RunChoice } from "../list/select-state.types";
-import type { DiffRange, DiffViewer, FileDiff } from "./run-diff.types";
+import type { RunChoice } from "../../list/select-state.types";
+import type { DiffRange, DiffViewer, FileDiff } from "../run-diff.types";
 
 /** Rows the viewer keeps for its title, range and footer lines. */
 export const DIFF_CHROME_ROWS = 3;

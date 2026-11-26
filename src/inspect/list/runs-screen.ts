@@ -10,9 +10,11 @@ import { applyMarkFailedKey, openMarkFailedPrompt } from "../decision/mark-faile
 import type { MarkFailedPrompt } from "../decision/mark-failed-prompt.types";
 import { setListedDecision } from "../decision/set-decision";
 import { deleteIntent, removeListedRun } from "../delete/delete-run";
-import { applyDiffKey, diffViewerBack } from "../diff/diff-viewer";
+import { applyDiffKey, diffViewerBack } from "../diff/viewer/diff-viewer";
+import { prepareDelta, runDelta } from "../diff/external/delta-diff";
+import { openDiffPage } from "../diff/external/open-diff-page";
 import { openRunDiff } from "../diff/load-run-diff";
-import { renderDiff } from "../diff/render-diff";
+import { renderDiff } from "../diff/viewer/render-diff";
 import type { DiffViewer } from "../diff/run-diff.types";
 import { liveRun, markLiveRun, openLiveLog, syncLiveLog } from "../live/live-log";
 import type { LiveLogViewer } from "../live/live-log.types";
@@ -46,6 +48,7 @@ import type { RunChoice, SelectAction, SelectState } from "./select-state.types"
  * Ctrl-g checks the highlighted run's branch out without leaving the TUI.
  * Ctrl-d shows the highlighted run's changed files and their patches, read from git with nothing checked out.
  * Enter opens a file's patch, n and p step through files, and esc goes back to the files, then the runs.
+ * In that viewer b opens the diff as a GitHub-style page in the browser, and d shows it in delta on the full terminal.
  * While a run's agent is working, its Enter menu offers its live agent log. The row goes away, and an open log
  * closes, once that agent finishes.
  * Esc closes the build question, the failed-build question, the decision dialog, or a menu page; otherwise it is left to the TUI, which quits.
@@ -181,6 +184,63 @@ export function createRunsScreen({
           controls.repaint();
         }
       });
+  };
+
+  const repaintLater = () => {
+    if (!controls.isClosed()) {
+      controls.repaint();
+    }
+  };
+
+  const openDiffInBrowser = (choice: RunChoice | undefined) => {
+    if (!choice) {
+      return;
+    }
+
+    notice = "writing the diff page…";
+    void openDiffPage({ choice, repo: chromiumSrc })
+      .then((pagePath) => {
+        notice = `opened ${pagePath} in the browser`;
+      })
+      .catch((error: unknown) => {
+        notice = error instanceof Error ? error.message : "could not open the diff page";
+      })
+      .finally(repaintLater);
+  };
+
+  const openDiffInDelta = (choice: RunChoice | undefined) => {
+    if (!choice) {
+      return;
+    }
+
+    notice = "loading the diff for delta…";
+    void prepareDelta({ choice, repo: chromiumSrc })
+      .then((run) => controls.handOver(() => runDelta(run)))
+      .then(() => {
+        notice = "closed delta";
+      })
+      .catch((error: unknown) => {
+        notice = error instanceof Error ? error.message : "could not run delta";
+      })
+      .finally(repaintLater);
+  };
+
+  const onDiffKey = ({ viewer, key }: { viewer: DiffViewer; key: string }) => {
+    const choice = choices.find((item) => item.runId === viewer.runId);
+
+    if (key === "b") {
+      openDiffInBrowser(choice);
+
+      return;
+    }
+
+    if (key === "d") {
+      openDiffInDelta(choice);
+
+      return;
+    }
+
+    diffViewer = applyDiffKey({ viewer, key, rows: controls.size().rows });
   };
 
   const beginSession = (session: BuildWork | string) => {
@@ -476,6 +536,18 @@ export function createRunsScreen({
       return;
     }
 
+    if (command === "diff-browser") {
+      openDiffInBrowser(first);
+
+      return;
+    }
+
+    if (command === "diff-delta") {
+      openDiffInDelta(first);
+
+      return;
+    }
+
     if (command === "open-chromium") {
       launchChromium(first);
 
@@ -717,7 +789,7 @@ export function createRunsScreen({
       }
 
       if (diffViewer) {
-        diffViewer = applyDiffKey({ viewer: diffViewer, key, rows: controls.size().rows });
+        onDiffKey({ viewer: diffViewer, key });
 
         return;
       }

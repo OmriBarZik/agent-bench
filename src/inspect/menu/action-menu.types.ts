@@ -14,6 +14,8 @@ export type MenuCommand =
   | "transcript"
   | "judge"
   | "diff"
+  | "diff-browser"
+  | "diff-delta"
   | "checkout"
   | "decide"
   | "build-local"

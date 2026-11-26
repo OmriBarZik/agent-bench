@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { applyDiffKey, diffViewerBack } from "./diff-viewer";
-import type { DiffViewer, FileDiff } from "./run-diff.types";
+import type { DiffViewer, FileDiff } from "../run-diff.types";
 
 const DOWN = "\x1b[B";
 

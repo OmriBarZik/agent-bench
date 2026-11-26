@@ -144,6 +144,20 @@ function actionItems(choices: RunChoice[]): MenuItem[] {
       scope: "one",
       target: { kind: "command", command: "diff" },
     },
+    {
+      label: "Open diff in the browser",
+      shortcut: "^D b",
+      unavailable: choice.commitSha ? null : "no changes committed",
+      scope: "one",
+      target: { kind: "command", command: "diff-browser" },
+    },
+    {
+      label: "Open diff in delta",
+      shortcut: "^D d",
+      unavailable: choice.commitSha ? null : "no changes committed",
+      scope: "one",
+      target: { kind: "command", command: "diff-delta" },
+    },
   ];
 }
 
