@@ -53,7 +53,14 @@
       "mcp__codebase-memory-mcp__delete_project"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["mcp__codebase-memory-mcp__"]
+    "setupTools": ["mcp__codebase-memory-mcp__"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/codebase-memory/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "serena",
@@ -80,7 +87,16 @@
       "mcp__serena__*"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["mcp__serena__"]
+    "setupTools": ["mcp__serena__"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/serena/context.yml",
+      "configs/setup/serena/project.yml",
+      "configs/setup/serena/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "codesearch",
@@ -107,7 +123,14 @@
       "Bash(cgrep *)"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["csearch", "cgrep"]
+    "setupTools": ["csearch", "cgrep"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/codesearch/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "sift",
@@ -133,7 +156,14 @@
       "Bash(sift *)"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["sift"]
+    "setupTools": ["sift"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/sift/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "ripgrep",
@@ -159,7 +189,14 @@
       "Bash(rg *)"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["rg"]
+    "setupTools": ["rg"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/ripgrep/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "ugrep",
@@ -185,7 +222,14 @@
       "Bash(ugrep *)"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["ugrep"]
+    "setupTools": ["ugrep"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/ugrep/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "tre-agrep",
@@ -211,7 +255,14 @@
       "Bash(agrep *)"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["agrep"]
+    "setupTools": ["agrep"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/tre-agrep/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "ast-grep",
@@ -237,7 +288,14 @@
       "Bash(ast-grep *)"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["ast-grep"]
+    "setupTools": ["ast-grep"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/ast-grep/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "zoekt",
@@ -263,13 +321,20 @@
       "Bash(zoekt *)"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["zoekt"]
+    "setupTools": ["zoekt"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/zoekt/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "clangd",
     "description": "clangd on C and C++ files the agent edits, so diagnostics say whether that file would compile",
     "model": "claude-sonnet-5-5",
-    "pluginDirs": ["plugins/clangd-lsp"],
+    "pluginDirs": ["plugins/clangd-lsp", "plugins/tool-reminder"],
     "toolPromptFile": "configs/setup/clangd/tools.md",
     "strictMcpConfig": true,
     "allowedTools": [
@@ -290,13 +355,19 @@
       "LSP"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["LSP"]
+    "setupTools": ["LSP"],
+    "extraFiles": [
+      "configs/setup/clangd/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "typescript",
     "description": "TypeScript language server on JavaScript and TypeScript files the agent edits",
     "model": "claude-sonnet-5-5",
-    "pluginDirs": ["plugins/typescript-lsp"],
+    "pluginDirs": ["plugins/typescript-lsp", "plugins/tool-reminder"],
     "toolPromptFile": "configs/setup/typescript/tools.md",
     "strictMcpConfig": true,
     "allowedTools": [
@@ -317,13 +388,19 @@
       "LSP"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["LSP"]
+    "setupTools": ["LSP"],
+    "extraFiles": [
+      "configs/setup/typescript/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   },
   {
     "configId": "clangd-typescript",
     "description": "clangd and the TypeScript language server, so C, C++, JavaScript, and TypeScript edits get diagnostics",
     "model": "claude-sonnet-5-5",
-    "pluginDirs": ["plugins/clangd-lsp", "plugins/typescript-lsp"],
+    "pluginDirs": ["plugins/clangd-lsp", "plugins/typescript-lsp", "plugins/tool-reminder"],
     "toolPromptFile": "configs/setup/clangd-typescript/tools.md",
     "strictMcpConfig": true,
     "allowedTools": [
@@ -344,6 +421,12 @@
       "LSP"
     ],
     "permissionMode": "acceptEdits",
-    "setupTools": ["LSP"]
+    "setupTools": ["LSP"],
+    "extraFiles": [
+      "configs/setup/clangd-typescript/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
   }
 ]

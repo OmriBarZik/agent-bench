@@ -14,6 +14,7 @@ export function buildJudgePrompt({
   agentReport,
   toolTrouble,
   benchChecks,
+  screenshots,
 }: JudgePromptInput): string {
   const files = changedFiles.length === 0 ? "(no files changed)" : changedFiles.map(changedFileText).join("\n");
   const patch = diff.trim() === "" ? "(no diff; the tree matches the task commit)" : diff.trim();
@@ -42,6 +43,7 @@ export function buildJudgePrompt({
     toolTroubleText(toolTrouble),
     "",
     ...benchChecksSection(benchChecks),
+    ...screenshotsSection(screenshots),
     "If the diff is truncated, read the changed files.",
     "Judge the checkout, not what the agent claims.",
     "Give one pass or fail verdict per requirement, each with a single line of evidence.",
@@ -65,6 +67,21 @@ function benchChecksSection(benchChecks: BenchCheck[]): string[] {
     ...benchChecks.map((check) => `- [${check.status}] ${check.name}: ${check.detail}`),
     "Read the code yourself for every requirement. A `fail` is a rule break unless the code shows the check is",
     "wrong. A `review` names code you must read. A `pass` does not prove a requirement. A `not-run` proves nothing.",
+    "",
+  ];
+}
+
+/** The agent's own screenshots of its newest build, for the judge to open instead of trusting the agent's words. */
+function screenshotsSection(screenshots: string[]): string[] {
+  if (screenshots.length === 0) {
+    return ["## Screenshots", "The agent took no screenshots on its newest build. Nothing visual is confirmed.", ""];
+  }
+
+  return [
+    "## Screenshots",
+    "The agent took these screenshots with run_chrome on its newest build, oldest first. Open each one with Read",
+    "and judge what you see. The agent's description of a screenshot is not evidence:",
+    ...screenshots.map((path) => `- ${path}`),
     "",
   ];
 }

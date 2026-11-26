@@ -12,4 +12,6 @@ export type JudgePromptInput = {
   toolTrouble: ToolTrouble[];
   /** The runner's own checks of the final tree. Empty for tasks that have none. */
   benchChecks: BenchCheck[];
+  /** PNG paths of the agent's screenshots on its newest build, oldest first. Empty when it took none. */
+  screenshots: string[];
 };

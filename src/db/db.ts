@@ -66,6 +66,7 @@ export function openDb(path = DB_PATH): Database {
   ensureTaskColumns(db);
   ensureRunColumns(db);
   ensureJudgeColumns(db);
+  ensureFindingsColumns(db);
   retireRunScoreColumns(db);
   backfillPromptVersions(db);
 
@@ -133,6 +134,21 @@ function ensureJudgeColumns(db: Database) {
     }
 
     db.run(`ALTER TABLE judge_runs ADD COLUMN ${name} ${definition}`);
+  }
+}
+
+/** Diagnostics columns added to run_findings later. Idempotent; old rows stay NULL until findings:backfill. */
+function ensureFindingsColumns(db: Database) {
+  const present = new Set(
+    (db.query("PRAGMA table_info(run_findings)").all() as { name: string }[]).map((row) => row.name),
+  );
+
+  for (const name of ["diagnostics_deliveries", "diagnostics_errors"]) {
+    if (present.has(name)) {
+      continue;
+    }
+
+    db.run(`ALTER TABLE run_findings ADD COLUMN ${name} INTEGER`);
   }
 }
 
@@ -443,8 +459,9 @@ export function cancelRun({ db, runId }: { db: Database; runId: string }) {
 export function saveRunFindings({ db, runId, findings }: { db: Database; runId: string; findings: RunFindings }) {
   db.query(
     `INSERT OR REPLACE INTO run_findings (
-       run_id, setup_tool_calls, first_game_source_turn, first_game_source_tokens, first_panel_reg_turn, first_panel_reg_tokens
-     ) VALUES ($runId, $setupToolCalls, $gameTurn, $gameTokens, $panelTurn, $panelTokens)`,
+       run_id, setup_tool_calls, first_game_source_turn, first_game_source_tokens, first_panel_reg_turn,
+       first_panel_reg_tokens, diagnostics_deliveries, diagnostics_errors
+     ) VALUES ($runId, $setupToolCalls, $gameTurn, $gameTokens, $panelTurn, $panelTokens, $deliveries, $errors)`,
   ).run({
     runId,
     setupToolCalls: findings.setupToolCalls,
@@ -452,6 +469,8 @@ export function saveRunFindings({ db, runId, findings }: { db: Database; runId: 
     gameTokens: findings.firstGameSource?.tokens ?? null,
     panelTurn: findings.firstPanelRegistration?.turn ?? null,
     panelTokens: findings.firstPanelRegistration?.tokens ?? null,
+    deliveries: findings.diagnosticsDeliveries,
+    errors: findings.diagnosticsErrors,
   });
 }
 
@@ -478,13 +497,13 @@ export function listRunVersions(db: Database): RunVersions[] {
     .all() as RunVersions[];
 }
 
-/** Finished runs with no run_findings row yet. */
+/** Finished runs with no run_findings row yet, or one stored before diagnostics were counted. */
 export function listRunsWithoutFindings(db: Database): RunConfigRow[] {
   return db
     .query(
       `SELECT run_id AS runId, config_id AS configId FROM runs
        WHERE status IN ('done', 'crashed', 'cancelled')
-         AND run_id NOT IN (SELECT run_id FROM run_findings)`,
+         AND run_id NOT IN (SELECT run_id FROM run_findings WHERE diagnostics_deliveries IS NOT NULL)`,
     )
     .all() as RunConfigRow[];
 }

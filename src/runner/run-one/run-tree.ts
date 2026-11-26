@@ -1,22 +1,26 @@
-import type { ClaudeResult } from "../../db/db.types";
+import type { ClaudeResult, TaskInputFile } from "../../db/db.types";
+import { CHROMIUM_SRC } from "../../paths";
 import { copyTranscript } from "../claude/claude";
 import { commitRunChanges, createRunBranch, resetChromium, restoreCommittedTree } from "../chromium/chromium";
 import { BenchmarkShutdown } from "../shutdown/shutdown";
 import type { CommittedWork } from "./run-tree.types";
+import { copyTaskInputs } from "./task-inputs";
 
 /**
- * Resets Chromium and creates the run branch.
+ * Resets Chromium, creates the run branch, and copies in the task's supplied files.
  * Ctrl+C here, before the runs row exists, stops the benchmark with nothing to update.
  */
 export async function prepareCheckout({
   sha,
   sync,
   runId,
+  inputFiles = [],
   signal,
 }: {
   sha: string;
   sync: boolean;
   runId: string;
+  inputFiles?: TaskInputFile[];
   signal: AbortSignal;
 }) {
   try {
@@ -27,6 +31,7 @@ export async function prepareCheckout({
     }
 
     await createRunBranch(runId);
+    await copyTaskInputs({ inputFiles, chromiumSrc: CHROMIUM_SRC });
   } catch (error) {
     if (signal.aborted) {
       throw new BenchmarkShutdown();

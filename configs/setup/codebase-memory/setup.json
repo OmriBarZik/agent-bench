@@ -12,6 +12,18 @@
       "target": "${CBM_CACHE_DIR}",
       "nonEmpty": true,
       "fix": "bun run setup:codebase-memory-mcp && bun run setup:codebase-memory-subrepos"
+    },
+    {
+      "label": "checkout graph at the task SHA",
+      "kind": "index-stamp",
+      "target": "${CBM_CACHE_DIR}/index-stamp.json",
+      "fix": "check the task SHA out clean, then bun run setup:codebase-memory-mcp"
+    },
+    {
+      "label": "subrepo graphs at the task SHA",
+      "kind": "index-stamp",
+      "target": "${CBM_CACHE_DIR}/index-stamp-subrepos.json",
+      "fix": "check the task SHA out clean, then bun run setup:codebase-memory-subrepos"
     }
   ]
 }

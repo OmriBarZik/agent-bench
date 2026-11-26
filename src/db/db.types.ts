@@ -20,6 +20,16 @@ export type Task = {
    */
   validate?: TaskValidateMode;
   scoring?: unknown;
+  /** Files the runner copies into the checkout after the reset, before the agent starts. */
+  inputFiles?: TaskInputFile[];
+};
+
+/** A file or folder the task supplies to the agent, such as a trained model. */
+export type TaskInputFile = {
+  /** Source path: relative to the tasks file in benchmark-tasks.json, absolute once the task is loaded. */
+  from: string;
+  /** Destination relative to the Chromium checkout root. */
+  to: string;
 };
 
 /** The configs table row for one benchmark-setup.json entry. */
@@ -237,6 +247,14 @@ export type RunFindings = {
   setupToolCalls: number | null;
   firstGameSource: FindingPoint | null;
   firstPanelRegistration: FindingPoint | null;
+} & DiagnosticsFinding;
+
+/** Language-server diagnostics Claude Code attached after the agent's edits (not tool calls). */
+export type DiagnosticsFinding = {
+  /** Times diagnostics arrived in the session. */
+  diagnosticsDeliveries: number;
+  /** Error-severity diagnostics across those deliveries. */
+  diagnosticsErrors: number;
 };
 
 /** The API response (1-based turn) and the tokens used up to and including it. */

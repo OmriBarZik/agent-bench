@@ -1,7 +1,9 @@
-import { existsSync, readdirSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { CHROMIUM_SRC } from "../../paths";
+import { BENCH_DIR, CHROMIUM_SRC } from "../../paths";
+import { indexStampProblem } from "../index-stamp/pristine-index";
+import { differentKeys } from "./same-keys";
 import type { SetupCheckResult, SetupCheckSpec } from "./status.types";
 
 const VARIABLES: Record<string, () => string> = {
@@ -27,13 +29,47 @@ export function expandTarget(target: string): string {
 /** Expands one setup.json check and reports whether it passes on this machine. */
 export function checkSetup(spec: SetupCheckSpec): SetupCheckResult {
   const target = expandTarget(spec.target);
+  const detail = checkProblem({ spec, target });
 
   return {
     label: spec.label,
-    ok: targetExists({ kind: spec.kind, target, nonEmpty: spec.nonEmpty }),
+    ok: detail === undefined,
     target,
     fix: spec.fix,
+    detail: detail === "" ? undefined : detail,
   };
+}
+
+/** Undefined when the check passes, "" when it fails for the plain reason (missing), otherwise why it fails. */
+function checkProblem({ spec, target }: { spec: SetupCheckSpec; target: string }): string | undefined {
+  if (spec.kind === "index-stamp") {
+    return indexStampProblem(target);
+  }
+
+  if (!targetExists({ kind: spec.kind, target, nonEmpty: spec.nonEmpty })) {
+    return "";
+  }
+
+  if (spec.sameAs) {
+    return sameAsProblem({ target, sameAs: spec.sameAs });
+  }
+
+  return undefined;
+}
+
+function sameAsProblem({ target, sameAs }: { target: string; sameAs: string }): string | undefined {
+  const expectedPath = join(BENCH_DIR, sameAs);
+
+  if (!existsSync(expectedPath)) {
+    return `${sameAs} is missing`;
+  }
+
+  const difference = differentKeys({
+    expected: readFileSync(expectedPath, "utf8"),
+    target: readFileSync(target, "utf8"),
+  });
+
+  return difference ? `${difference} from ${sameAs}` : undefined;
 }
 
 function targetExists({

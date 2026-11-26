@@ -1,0 +1,1 @@
+Reminder: this session has `agrep`, an approximate-match search, and that search used `grep`. When you search for a name inside a directory you have found, or `grep` found nothing, run `agrep -n -H -2 'pattern' path/to/dir/*.ts`. It finds names that are one or two characters off.

@@ -1,0 +1,1 @@
+Reminder: this session has the `LSP` tool (TypeScript) for TypeScript and JavaScript, and that search used `grep`. For a .ts or .js file you already have, call `documentSymbol` to list what it defines. Use `goToDefinition` or `findReferences` for a symbol's definition and uses, instead of grepping for its name.

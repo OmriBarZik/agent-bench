@@ -1,6 +1,8 @@
 # typescript
 
-[baseline](../baseline/readme.md) plus TypeScript 7's language server for JavaScript and TypeScript. The plugin is [`plugins/typescript-lsp`](../../../plugins/typescript-lsp/.claude-plugin/plugin.json). It runs `tsc --lsp --stdio`, the native server, not the TypeScript 6 `tsserver` wrapper. The runner passes it with `--plugin-dir`. Nothing is written to `~/.claude.json`.
+[baseline](../baseline/readme.md) plus a TypeScript language server for JavaScript and TypeScript. The plugin is [`plugins/typescript-lsp`](../../../plugins/typescript-lsp/.claude-plugin/plugin.json). It runs `typescript-language-server --stdio` on the TypeScript 6.0.2 `tsserver` the checkout ships in `third_party/devtools-frontend/src/node_modules/typescript` (the same version Chromium builds with; the copy in `third_party/node` has no `_tsserver.js`). The plugin passes that path in `initializationOptions`, relative to the checkout root. The runner passes the plugin with `--plugin-dir`. Nothing is written to `~/.claude.json`.
+
+TypeScript 7's `tsc --lsp` is not used. It only answers pull diagnostics (`textDocument/diagnostic`) and never sends `textDocument/publishDiagnostics`, and Claude Code only reads published diagnostics, so runs on that server got no diagnostics at all.
 
 After the agent edits a JavaScript or TypeScript file, Claude Code feeds it that file's diagnostics. [tools.md](tools.md) tells the agent to read those diagnostics and to use the `LSP` tool for definitions, references, and types. C and C++ files have no language server in this config. [`clangd-typescript`](../clangd-typescript/readme.md) loads both.
 
@@ -16,16 +18,13 @@ Commands in this page run from the agent-bench repo root.
 
 ## Install the language server
 
-macOS and Linux. Node.js is required, because the `tsc` command on `PATH` is a small launcher for the native binary:
+macOS and Linux. Node.js is required, because `typescript-language-server` is a Node.js script:
 
 ```sh
-bun install -g typescript
-```
-
-That installs TypeScript 7's `tsc`. The bench process inherits the `PATH` of the shell that launches `bun run start`. The plugin runs `tsc` with no directory prefix, so that command has to resolve there, and `tsc --version` has to report 7 or newer. A TypeScript 6 `tsc` has no `--lsp` flag. Open a new shell after installing, then check:
-
-```sh
+bun install -g typescript-language-server
 bun run setup:typescript
 ```
 
-`setup:typescript` only checks that `tsc` is on `PATH` and is TypeScript 7. It does not install it.
+The bench process inherits the `PATH` of the shell that launches `bun run start`. The plugin runs `typescript-language-server` with no directory prefix, so that command and `node` have to resolve there. `setup:typescript` checks both and the checkout's `tsserver`. It does not install anything.
+
+The dinosaur game's sources have no `tsconfig.json` (the build generates one under `out/`), so the server checks them as an inferred project without the build's path mappings. An import such as `chrome://resources/js/assert.js` is not found, and the narrowing that `assert` gives is lost, so a pristine `offline.ts` shows about 130 diagnostics. DevTools frontend files resolve their relative imports and come back clean. [tools.md](tools.md) tells the agent to read the diagnostics on the lines it changed.

@@ -1,11 +1,16 @@
 {
   "name": "typescript-lsp",
-  "version": "1.0.0",
-  "description": "TypeScript 7 language server. Diagnostics on the JavaScript and TypeScript files the agent edits.",
+  "version": "1.1.0",
+  "description": "typescript-language-server on the TypeScript 6 tsserver the checkout ships. Diagnostics on the JavaScript and TypeScript files the agent edits.",
   "lspServers": {
     "typescript": {
-      "command": "tsc",
-      "args": ["--lsp", "--stdio"],
+      "command": "typescript-language-server",
+      "args": ["--stdio"],
+      "initializationOptions": {
+        "tsserver": {
+          "path": "third_party/devtools-frontend/src/node_modules/typescript/lib"
+        }
+      },
       "extensionToLanguage": {
         ".ts": "typescript",
         ".tsx": "typescriptreact",

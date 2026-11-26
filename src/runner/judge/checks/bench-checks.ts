@@ -2,6 +2,8 @@ import { join } from "node:path";
 import type { BenchCheck, BenchCheckInput, BenchCheckRun, NamedBenchCheck } from "./bench-checks.types";
 import { checkFinalBuild } from "./build-check";
 import { checkAssetCopies, checkGameSources } from "./copies-check";
+import { checkNoGameFork } from "./fork-check";
+import { checkSuppliedModel } from "./model/model-check";
 import { checkAutoPlay } from "./play/auto-play-check";
 import { checkPlayInDevtools } from "./play/play-check";
 import { checkBuildWiring } from "./wiring-check";
@@ -9,15 +11,20 @@ import { checkBuildWiring } from "./wiring-check";
 const DEVTOOLS_CHECKS: NamedBenchCheck[] = [
   { name: "asset copies", run: checkAssetCopies },
   { name: "game sources", run: checkGameSources },
+  { name: "no game fork", run: checkNoGameFork },
   { name: "build wiring", run: checkBuildWiring },
   { name: "final build", run: checkFinalBuild },
   { name: "play in DevTools", run: checkPlayInDevtools },
 ];
 
-/** A full chrome task today is the built-in model that plays the dino game, so these check exactly that. */
+/**
+ * A full chrome task today is the built-in model that plays the dino game, so these check exactly that. The
+ * supplied-model check is `not-run` for a chrome task that supplies no SPEC.md.
+ */
 const CHROME_CHECKS: NamedBenchCheck[] = [
   { name: "final build", run: checkFinalBuild },
   { name: "plays by itself", run: checkAutoPlay },
+  { name: "supplied model runs", run: checkSuppliedModel },
 ];
 
 /**

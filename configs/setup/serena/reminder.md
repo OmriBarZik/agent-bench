@@ -1,0 +1,1 @@
+Reminder: this session has Serena's language-server tools (`mcp__serena__*`), and that search used `grep`. For a source file you already have, list what it defines with `mcp__serena__get_symbols_overview` (`relative_path`, `depth: 1`). Read one symbol with `mcp__serena__find_symbol` (`name_path_pattern: "Class/method"`, `relative_path`, `include_body: true`).

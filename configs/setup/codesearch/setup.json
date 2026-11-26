@@ -23,6 +23,12 @@
       "kind": "file",
       "target": "${CSEARCHINDEX}",
       "fix": "bun run setup:codesearch-index"
+    },
+    {
+      "label": "csearch index at the task SHA",
+      "kind": "index-stamp",
+      "target": "${CSEARCHINDEX}.stamp.json",
+      "fix": "check the task SHA out clean, then bun run setup:codesearch-index"
     }
   ]
 }

@@ -1,0 +1,5 @@
+{
+  "name": "tool-reminder",
+  "version": "1.0.0",
+  "description": "Reminds the agent of its config's tool when it searches with grep instead. Never blocks a tool."
+}

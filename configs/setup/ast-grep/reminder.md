@@ -1,0 +1,1 @@
+Reminder: this session has `ast-grep`, and that search used `grep`. To find calls, definitions or other code structure in TypeScript, JavaScript or C++, use `ast-grep run -p 'pattern' -l ts --color never --heading never path` (use `-l cpp` for C++). It does not match comments, strings or longer names. Keep `grep` for the file types `ast-grep` cannot parse and for plain text.

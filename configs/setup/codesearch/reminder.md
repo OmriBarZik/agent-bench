@@ -1,0 +1,1 @@
+Reminder: this session has `csearch` and `cgrep`, an index of the whole checkout, and that search used `grep`. Locate code with `csearch -n -f 'path/regex' 'pattern'`, and use `cgrep` instead of `grep` on files you already have.

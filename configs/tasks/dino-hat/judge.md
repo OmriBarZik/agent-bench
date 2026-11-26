@@ -1,7 +1,9 @@
-Judge only the offline dinosaur game (components/neterror/resources/dino_game).
+Judge only the offline dinosaur game (components/neterror/resources/dino_game). The task is visual, so the screenshots decide it. Open every PNG listed under "## Screenshots" with Read and look at it yourself. Those are the agent's screenshots of its final build. Use the agent's final message only to find which screenshot is meant to show which state; never accept its description of an image in place of the image. A state or scale with no screenshot that shows it is not proven, however correct the code looks: fail that requirement. If there is no "## Screenshots" section, or it lists nothing, fail the three screenshot requirements. A 2x screenshot is one taken with `--force-device-scale-factor=2`; its image is twice as many pixels wide as a 1x one.
 
-- A hat is drawn on the dinosaur in every state: waiting, running, jumping, ducking, and crashed.
-- The hat is visible at both sprite scales (1x and 2x).
-- During a jump the hat lifts off above the head and lands back on the head when the dinosaur lands. While running or ducking the hat stays still on the head.
-- Collision boxes and the rest of the game behavior are unchanged.
-- The change is in the existing dino game sources and would be picked up by the current build targets. A full Chromium build is not required; validating the TypeScript build and the harness is enough.
+- The hat is drawn by the dino game's own sources under components/neterror/resources/dino_game and is picked up by the existing build targets. A full Chromium build is not required; the TypeScript build and the harness are enough.
+- 1x screenshots of the final build show a hat that is recognizable as a hat, on the dinosaur's head, in all five states: waiting, running, jumping, ducking, and crashed. The ducking one must show the ducking sprite (the long, low dinosaur), which only appears while the down key is held; a running dinosaur in a screenshot labelled ducking is a fail. Name the screenshot you used for each state in the evidence.
+- 2x screenshots of the final build show the same five states with the hat, at the 2x scale, with the hat sized and placed as at 1x (not half size, not offset).
+- The hat bounces only in a jump: a jump screenshot shows it lifted off above the head, and the code brings it back onto the head on landing. In every screenshot, including the one nearest the top of the jump, the whole hat is inside the canvas: a hat that is cut off by the top edge or missing at the top of the jump is a fail. Also check the arithmetic in the code: with the dinosaur at its highest point, the y coordinate of the hat's top edge must not go below 0, the top of the canvas. While waiting, running or ducking the hat sits still on the head.
+- Collision boxes, timing and the rest of the game's behavior are unchanged: the diff only adds drawing.
+
+Return one pass or fail verdict per requirement above, each with one line of evidence.

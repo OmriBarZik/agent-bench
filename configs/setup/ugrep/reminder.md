@@ -1,0 +1,1 @@
+Reminder: this session has `ugrep` for code search, and that search used `grep`. Run your next code search with `ugrep -rnI --ignore-files --no-config 'pattern' path`. Add `-Z2` when you are not sure how a name is spelled.

@@ -1,48 +1,48 @@
 #!/usr/bin/env bun
+import { existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 
-const FIX = "bun install -g typescript";
+const REPO_ROOT = resolve(import.meta.dir, "../../..");
+const CHECKOUT = process.env.CHROMIUM_SRC ?? resolve(REPO_ROOT, "../src");
+const FIX = "bun install -g typescript-language-server";
+/** The tsserver plugins/typescript-lsp passes in initializationOptions. Chromium's third_party/node copy has no _tsserver.js. */
+const TSSERVER = "third_party/devtools-frontend/src/node_modules/typescript/lib/_tsserver.js";
 
 /**
- * Checks that TypeScript 7's tsc is on PATH.
+ * Checks what plugins/typescript-lsp needs.
  *
  *   bun run setup:typescript
  *
- * The language server is `tsc --lsp --stdio`. TypeScript 6's tsc does not
- * provide that flag. This command does not install it.
+ * typescript-language-server on PATH, node on PATH (it is a node script), and the TypeScript 6 tsserver the
+ * checkout ships under third_party/devtools-frontend. TypeScript 7's `tsc --lsp` is not used: it only answers
+ * pull diagnostics, and Claude Code only reads diagnostics the server publishes. This command installs nothing.
  */
 function main(): void {
-  const compiler = Bun.which("tsc");
+  const server = Bun.which("typescript-language-server");
 
-  if (compiler == null) {
+  if (server == null) {
     throw new Error(
-      `TypeScript 7's tsc is not on PATH. Install it, open a new shell, then run bun run setup:typescript again.\n${FIX}`,
+      `typescript-language-server is not on PATH. Install it, open a new shell, then run this again.\n${FIX}`,
     );
   }
 
-  const version = Bun.spawnSync([compiler, "--version"], { stdout: "pipe", stderr: "pipe" });
-  const versionText = version.stdout.toString().trim();
-  const major = typescriptMajor(versionText);
-
-  if (version.exitCode !== 0 || major == null || major < 7) {
-    const found = versionText === "" ? "no version" : versionText;
-
+  if (Bun.which("node") == null) {
     throw new Error(
-      `TypeScript 7's tsc is required for tsc --lsp (found ${found} at ${compiler}). TypeScript 6 does not ship that language server.\n${FIX}`,
+      "node is not on PATH. typescript-language-server runs on Node.js; install it, then run this again.",
     );
   }
 
-  console.log(`tsc: ${compiler}`);
-  console.log(versionText);
-}
+  const tsserver = join(CHECKOUT, TSSERVER);
 
-function typescriptMajor(versionText: string): number | null {
-  const match = /Version\s+(\d+)\./.exec(versionText);
-
-  if (match?.[1] == null) {
-    return null;
+  if (!existsSync(tsserver)) {
+    throw new Error(
+      `${tsserver} is missing. Check out third_party/devtools-frontend/src at its gitlink (gclient sync).`,
+    );
   }
 
-  return Number(match[1]);
+  const version = Bun.spawnSync([server, "--version"], { stdout: "pipe", stderr: "pipe" });
+  console.log(`typescript-language-server: ${server} ${version.stdout.toString().trim()}`);
+  console.log(`tsserver: ${tsserver}`);
 }
 
 if (import.meta.main) {

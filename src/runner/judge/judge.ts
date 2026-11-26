@@ -8,6 +8,7 @@ import { captureClaude } from "../claude/claude-process";
 import { buildJudgePrompt } from "./prompt/judge-prompt";
 import { judgeMetrics } from "./result/judge-result";
 import { judgeSchema } from "./judge-schema";
+import { JUDGE_SCREENSHOTS_DIR, saveFinalScreenshots } from "./screenshots/final-screenshots";
 import { diffAgainst } from "./worktree-diff";
 
 /**
@@ -40,6 +41,7 @@ export async function judgeRun({
   signal?: AbortSignal;
 }): Promise<JudgeMetrics> {
   const diff = await diffAgainst(task.chromiumSha);
+  const screenshots = await saveFinalScreenshots(outDir);
   const prompt = buildJudgePrompt({
     taskPrompt: task.prompt,
     judgePrompt: task.judgePrompt,
@@ -48,9 +50,16 @@ export async function judgeRun({
     agentReport: reportedText(result),
     toolTrouble,
     benchChecks,
+    screenshots,
   });
   const sessionId = randomUUID();
-  const command = judgeCommand({ prompt, judgeModel, sessionId, checkNames: scoringChecks(task) });
+  const command = judgeCommand({
+    prompt,
+    judgeModel,
+    sessionId,
+    checkNames: scoringChecks(task),
+    screenshotsDir: screenshots.length > 0 ? join(outDir, JUDGE_SCREENSHOTS_DIR) : undefined,
+  });
   const judged = await runJudgeClaude({ command, outDir, timeoutMs, signal });
   saveJudgeTranscript({ sessionId: judged.session_id ?? sessionId, outDir });
 
@@ -104,13 +113,18 @@ export function judgeCommand({
   judgeModel,
   sessionId,
   checkNames = [],
+  screenshotsDir,
 }: {
   prompt: string;
   judgeModel: string;
   sessionId: string;
   /** The task's scoring checks; the judge returns one verdict for each. */
   checkNames?: string[];
+  /** A folder of the agent's final screenshots the read-only judge may open, outside the checkout. */
+  screenshotsDir?: string;
 }): string[] {
+  const screenshotAccess = screenshotsDir ? ["--add-dir", screenshotsDir] : [];
+
   return [
     "claude",
     "-p",
@@ -131,6 +145,7 @@ export function judgeCommand({
     "dontAsk",
     "--permission-prompts",
     "none",
+    ...screenshotAccess,
   ];
 }
 

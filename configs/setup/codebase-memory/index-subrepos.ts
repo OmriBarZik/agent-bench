@@ -1,11 +1,13 @@
 #!/usr/bin/env bun
 import { $ } from "bun";
 import { existsSync, statSync } from "node:fs";
-import { totalmem } from "node:os";
-import { resolve } from "node:path";
+import { homedir, totalmem } from "node:os";
+import { join, resolve } from "node:path";
+import { requirePristineTree, writeIndexStamp } from "../../../src/setup/index-stamp/pristine-index";
 
 const REPO_ROOT = resolve(import.meta.dir, "../../..");
 const CHECKOUT = process.env.CHROMIUM_SRC ?? resolve(REPO_ROOT, "../src");
+const CACHE_DIR = process.env.CBM_CACHE_DIR || join(homedir(), ".cache", "codebase-memory-mcp");
 
 /**
  * Indexes each nested git checkout that the Chromium index leaves out.
@@ -15,13 +17,15 @@ const CHECKOUT = process.env.CHROMIUM_SRC ?? resolve(REPO_ROOT, "../src");
  * Reads directory lines from CHROMIUM_SRC/.cbmignore (default ../src). When that
  * file is missing, discovers nested .git directories instead. Each repo is indexed
  * on its own, with CBM_MEM_BUDGET_MB set to total RAM. A failure is reported and
- * the rest still run.
+ * the rest still run. Refuses to run unless the checkout is clean (submodules included) and at the tasks'
+ * chromiumSha. CBM_CACHE_DIR/index-stamp-subrepos.json records the SHA and tree state once every repo indexed.
  */
 async function main(): Promise<void> {
   if (!existsSync(CHECKOUT)) {
     throw new Error(`Chromium checkout not found at ${CHECKOUT}; set CHROMIUM_SRC`);
   }
 
+  const stamp = await requirePristineTree({ tool: "codebase-memory subrepos", checkout: CHECKOUT });
   const repos = await ignoredRepos({ checkout: CHECKOUT });
 
   if (repos.length === 0) {
@@ -48,6 +52,8 @@ async function main(): Promise<void> {
   if (failed.length > 0) {
     throw new Error(`index_repository failed for ${failed.length} repo(s):\n${failed.join("\n")}`);
   }
+
+  await writeIndexStamp({ stamp, path: join(CACHE_DIR, "index-stamp-subrepos.json") });
 }
 
 /** All physical RAM, in MiB. The indexer will not take more than this. */

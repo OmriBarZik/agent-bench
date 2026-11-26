@@ -13,6 +13,7 @@ test("buildJudgePrompt includes the task and the rubric without the reply format
       { tool: "mcp__serena__find_symbol", command: null, ran: true, responsePreview: '{"error":"not indexed"}' },
     ],
     benchChecks: [],
+    screenshots: [],
   });
 
   expect(prompt).toContain("1 never ran, 1 failed.");
@@ -35,6 +36,7 @@ test("buildJudgePrompt says when the tree was not changed", () => {
     agentReport: "",
     toolTrouble: [],
     benchChecks: [],
+    screenshots: [],
   });
 
   expect(prompt).toContain("(none recorded)");
@@ -52,6 +54,7 @@ test("buildJudgePrompt shows bench checks as evidence the judge must still verif
     agentReport: "",
     toolTrouble: [],
     benchChecks: [{ name: "asset copies", status: "fail", detail: "dino/sprite.png is not byte-identical." }],
+    screenshots: [],
   });
 
   expect(prompt).toContain("## Bench checks of the final tree");

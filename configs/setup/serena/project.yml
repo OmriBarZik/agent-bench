@@ -1,0 +1,35 @@
+# Copied to CHROMIUM_SRC/.serena/project.yml by `bun run setup:serena`. Serena rewrites that copy in its own
+# layout on every start; the Setups tab compares the values of the keys below, not the bytes.
+project_name: "src"
+# TypeScript first: the dino game and the DevTools frontend. cpp is Chromium's own clangd on compile_commands.json.
+language_servers:
+  - typescript
+  - cpp
+encoding: "utf-8"
+# Matching every file against Chromium's .gitignore files makes one walk of the tree take about 5 minutes, and
+# find_referencing_symbols, find_declaration, find_implementations and get_diagnostics_for_file walk it before
+# every call. Without it a walk takes about 9 seconds. ignored_paths stands in for the ignores that matter.
+ignore_all_files_in_gitignore: false
+# Needs the checkout in trusted_project_path_patterns of ~/.serena/serena_config.yml, or Serena ignores it.
+ls_specific_settings:
+  cpp:
+    # The clangd that matches Chromium's clang. Background indexing of the whole tree would take hours,
+    # so clangd only knows the files Serena opens.
+    ls_path: "third_party/llvm-build/Release+Asserts/bin/clangd"
+    ls_args:
+      - "--background-index=false"
+      - "--header-insertion=never"
+      - "--clang-tidy=false"
+ls_workspace_folders:
+  - "."
+ignored_paths:
+  - "out"
+  - ".serena"
+  - "**/node_modules"
+  - "**/.git"
+read_only: true
+excluded_tools: []
+included_optional_tools: []
+fixed_tools: []
+excluded_apis: []
+included_apis: []

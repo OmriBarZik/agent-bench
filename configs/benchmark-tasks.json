@@ -9,9 +9,10 @@
     "validate": "dino",
     "scoring": {
       "checks": [
-        "change is in the offline dino game sources (components/neterror/resources/dino_game)",
-        "hat rendered in all dino states and sprite scales",
-        "hat bounces off the head during a jump and lands back on it, and sits still otherwise",
+        "hat drawn by the offline dino game sources (components/neterror/resources/dino_game) and built by the existing targets",
+        "1x screenshots of the final build show the hat on the head in all five states (waiting, running, jumping, ducking while the key is held, crashed)",
+        "2x screenshots of the final build show the hat in the same five states",
+        "hat lifts off the head only in a jump, stays fully inside the canvas at the top of the jump, and sits still otherwise",
         "collision boxes and game logic unchanged"
       ]
     }
@@ -26,11 +27,11 @@
     "validate": "devtools",
     "scoring": {
       "checks": [
-        "a DevTools UI entry (panel or drawer view) that hosts the game",
-        "real game code and original sprite/sound assets used, never recreated",
-        "consumes the dino game's build output (or the same build steps), showing it understood how the game is built",
-        "keyboard input (jump/duck/restart) reaches the game",
-        "BUILD.gn / grd resources updated so the game and its assets are part of the build"
+        "a DevTools UI entry (panel or drawer view) hosts the game, and a screenshot shows it running there",
+        "game code reaches DevTools only at build time from components/neterror (its build output or its sources through build rules); no copy of dino_game code, identical or not, outside components/neterror",
+        "original sprite sheets (1x and 2x) and sounds used, never recreated",
+        "keyboard jump, duck (while the key is held) and restart work in DevTools",
+        "BUILD.gn / grd resources updated so the game and its assets are part of the DevTools frontend build"
       ]
     }
   },
@@ -44,13 +45,25 @@
     "validate": "chrome",
     "scoring": {
       "checks": [
-        "decision model built into the browser returns jump/duck/nothing with probabilities",
-        "fully offline: no network, no runtime download, packaged in the build",
-        "exposed as a built-in AI JS API following the existing AI API pattern",
-        "dino game reads real state, calls the API and acts without user input, restarting after a crash",
-        "API and auto-play are on by default with no flags, and the game UI has a toggle to switch auto-play off and on",
-        "BUILD.gn / IDL / grd / feature registration updated so it builds"
+        "ships the supplied dino_decision.tflite unmodified (sha256 f7278499...b691) from a proper place in the tree, with no weights in source and nothing referring to bench_inputs/",
+        "inference runs on Chromium's TFLite runtime on that file: no hand-written forward pass, no rules or heuristics deciding or adjusting the output",
+        "JS contract exact: global DinoDecisionModel with static availability() and create(), decide(state) returning { decision, jump, duck, nothing } from the raw game-state dictionary",
+        "built-in AI API wired like the existing ones end to end: IDL in modules/ai, mojo interface, browser-side implementation behind AIManager where TFLite runs",
+        "fully offline and fast: no network, no runtime download, model packaged in the build and loaded once",
+        "dino game reads real state, calls decide() and acts without user input, and restarts by itself after a crash",
+        "API and auto-play are on by default with no flags on chrome://dino, and the game UI has a toggle to switch auto-play off and on",
+        "BUILD.gn / IDL / mojom / resource lists / feature registration updated so the final tree builds"
       ]
-    }
+    },
+    "inputFiles": [
+      {
+        "from": "tasks/dino-ai-player/model/dino_decision.tflite",
+        "to": "bench_inputs/dino_decision_model/dino_decision.tflite"
+      },
+      {
+        "from": "tasks/dino-ai-player/model/SPEC.md",
+        "to": "bench_inputs/dino_decision_model/SPEC.md"
+      }
+    ]
   }
 ]

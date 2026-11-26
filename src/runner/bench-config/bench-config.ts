@@ -52,6 +52,7 @@ async function loadTask({ entry, tasksDir }: { entry: TaskEntry; tasksDir: strin
     chromiumSha: entry.chromiumSha,
     validate: entry.validate,
     scoring: entry.scoring,
+    inputFiles: entry.inputFiles?.map((file) => ({ from: resolve(tasksDir, file.from), to: file.to })),
   };
 }
 

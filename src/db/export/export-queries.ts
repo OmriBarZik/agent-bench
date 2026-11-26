@@ -53,7 +53,8 @@ export function listExportRuns(db: Database): ExportRunRow[] {
               j.blocked, j.blockers, j.checks AS judgeChecks,
               f.setup_tool_calls AS setupToolCalls, f.first_game_source_turn AS firstGameSourceTurn,
               f.first_game_source_tokens AS firstGameSourceTokens, f.first_panel_reg_turn AS firstPanelRegTurn,
-              f.first_panel_reg_tokens AS firstPanelRegTokens
+              f.first_panel_reg_tokens AS firstPanelRegTokens, f.diagnostics_deliveries AS diagnosticsDeliveries,
+              f.diagnostics_errors AS diagnosticsErrors
        FROM runs r LEFT JOIN judge_runs j ON j.run_id = r.run_id
        LEFT JOIN run_findings f ON f.run_id = r.run_id
        WHERE r.batch IS NULL

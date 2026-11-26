@@ -225,5 +225,7 @@ CREATE TABLE IF NOT EXISTS run_findings (
     first_game_source_turn     INTEGER,   -- components/neterror/resources (the dino game)
     first_game_source_tokens   INTEGER,
     first_panel_reg_turn       INTEGER,   -- a DevTools panel registration (*-meta.ts, devtools_app entrypoint)
-    first_panel_reg_tokens     INTEGER
+    first_panel_reg_tokens     INTEGER,
+    diagnostics_deliveries     INTEGER,   -- LSP diagnostics attached after edits (not tool calls)
+    diagnostics_errors         INTEGER
 );

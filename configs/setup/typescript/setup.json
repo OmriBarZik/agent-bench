@@ -1,10 +1,22 @@
 {
   "checks": [
     {
-      "label": "TypeScript 7 tsc",
+      "label": "typescript-language-server",
       "kind": "command",
-      "target": "tsc",
-      "fix": "bun install -g typescript"
+      "target": "typescript-language-server",
+      "fix": "bun install -g typescript-language-server"
+    },
+    {
+      "label": "node",
+      "kind": "command",
+      "target": "node",
+      "fix": "install Node.js; typescript-language-server runs on it"
+    },
+    {
+      "label": "checkout tsserver",
+      "kind": "file",
+      "target": "${CHROMIUM_SRC}/third_party/devtools-frontend/src/node_modules/typescript/lib/_tsserver.js",
+      "fix": "gclient sync, so third_party/devtools-frontend/src is at its gitlink"
     }
   ]
 }

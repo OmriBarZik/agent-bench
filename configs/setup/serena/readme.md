@@ -1,6 +1,6 @@
 # serena
 
-[baseline](../baseline/readme.md) plus [Serena](https://github.com/oraios/serena). [`mcp.json`](mcp.json) is what starts the server: `serena start-mcp-server` on stdio, in the session directory. The `serena` entry in [`benchmark-setup.json`](../../benchmark-setup.json) allows `mcp__serena__*`, so the agent can call every tool that server exposes. Nothing is written to `~/.claude.json`.
+[baseline](../baseline/readme.md) plus [Serena](https://github.com/oraios/serena). [`mcp.json`](mcp.json) is what starts the server: `serena start-mcp-server` on stdio, in the session directory, with `--agent-interface tools` and the context in [`context.yml`](context.yml) (`../agent-bench/configs/setup/serena/context.yml`, relative to the checkout). The context's `fixed_tools` limits the server to `initial_instructions`, `get_symbols_overview`, `find_symbol`, `find_referencing_symbols`, `find_declaration`, `find_implementations` and `get_diagnostics_for_file`. There is no shell, file, edit or memory tool. Serena's default REPL interface (`serena_repl`) is not used: it runs arbitrary Python, so its `s.shell` facade, or a plain `import subprocess`, went around the baseline guard and `allowedTools`. The `serena` entry in [`benchmark-setup.json`](../../benchmark-setup.json) allows `mcp__serena__*`. Nothing is written to `~/.claude.json`.
 
 [tools.md](tools.md) is appended to the session prompt. It tells the agent it must use Serena's MCP tools before Grep, Glob, or Read.
 
@@ -31,6 +31,28 @@ serena --version
 
 `serena init` writes Serena's own config under `~/.serena`. The bench config is the Claude Code connection.
 
+## Configure the checkout
+
+```sh
+bun run setup:serena
+```
+
+That copies [`project.yml`](project.yml) to `CHROMIUM_SRC/.serena/project.yml` and adds `/.serena/` to the checkout's `info/exclude`, so the runner's `git clean -fd` keeps it and the end of a run does not commit it. The project file:
+
+- starts two language servers: `typescript` (Serena installs `typescript-language-server` with TypeScript 5.9 through `npm` on first start, under `~/.serena/language_servers`) and `cpp`. With `language_servers: []`, every symbol call failed with `Active language servers: []`.
+- runs `cpp` as the checkout's own `third_party/llvm-build/Release+Asserts/bin/clangd` with `--background-index=false`, through `ls_specific_settings`. Serena's default is a downloaded clangd 19 with `--background-index`, which would index all of Chromium during the run. Without the index, C++ references and implementations are found only in the files clangd has opened. clangd reads the checkout's `compile_commands.json` (`bun run setup:clangd`).
+- turns `ignore_all_files_in_gitignore` off and lists `out`, `.serena`, `node_modules` and `.git` in `ignored_paths` instead. Serena walks every source file before each `find_referencing_symbols`, `find_declaration`, `find_implementations` and `get_diagnostics_for_file` call. Matching about 320,000 files against Chromium's `.gitignore` files made that walk take over 5 minutes, longer than the tool timeout; without the matching it takes about 9 seconds.
+- sets `read_only: true`.
+
+Serena applies a project's `ls_specific_settings` only when the project is trusted. `~/.serena/serena_config.yml` must list the checkout under `trusted_project_path_patterns`; `setup:serena` fails until it does:
+
+```yaml
+trusted_project_path_patterns:
+  - /Users/you/Projects/chromium/src
+```
+
+Serena rewrites `.serena/project.yml` in its own layout on every start. The Setups tab compares the values of the keys in `configs/setup/serena/project.yml` with that file, so the rewrite passes and `language_servers: []` fails.
+
 ## Keep Serena's folder out of the run
 
 Serena stores the project index in `.serena/` at the checkout root. The runner's `git clean -fd` deletes untracked files, and the end of a run commits whatever is left. Add the folder to the checkout's exclude list once so it survives the reset and stays out of `changed_files`:
@@ -40,4 +62,4 @@ exclude="$(git -C "${CHROMIUM_SRC:-../src}" rev-parse --git-path info/exclude)"
 grep -qxF '/.serena/' "$exclude" || echo '/.serena/' >> "$exclude"
 ```
 
-The first session downloads language servers and builds the symbol index. Later sessions reuse `.serena/`. A C++ tree the size of Chromium can spend the run's timeout on that first index. For precise C++ references, generate `compile_commands.json` in the checkout. JavaScript, TypeScript, and the other languages Serena detects do not need one.
+Serena caches document symbols in `.serena/cache/`. It builds them file by file as the agent asks, not up front. The first call of a session waits about 15 seconds for the language servers and the first walk of the tree.

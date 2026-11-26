@@ -74,7 +74,8 @@ servers, MCP servers, etc.) help the agent finish the task more often, faster, o
   older judge prompts), plus the judge's own cost and duration. The judge is not told which tools the agent had.
 - \`findings\`: measured in code from the transcript. \`setupToolCalls\` counts calls to the config's own tools (null
   for baseline; 0 means the agent ignored them). \`firstGameSource\` and \`firstPanelRegistration\` give the turn and
-  context tokens when the agent first opened the dino game sources and a DevTools panel registration (null if never).
+  context tokens when the agent first opened the dino game sources and a DevTools panel registration (null if never). \`diagnosticsDeliveries\` / \`diagnosticsErrors\` count language-server diagnostics Claude Code attached
+  after edits (LSP configs); they are not tool calls, so \`setupToolCalls\` misses them.
 - \`benchChecks\`: deterministic checks the runner ran on the final tree, \`[{ name, status, detail }]\`, status
   \`pass\` / \`fail\` / \`not-run\`. Null for tasks or runs without them.
 - \`changedFiles\`: \`[{ status, path, previousPath? }]\` vs the task commit. \`commitSha\` is null when nothing changed.

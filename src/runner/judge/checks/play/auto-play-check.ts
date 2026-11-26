@@ -92,13 +92,29 @@ export function autoPlayOutcome(played: GameWatch | null): PlayOutcome {
     };
   }
 
-  const restarts =
-    played.crashes === 0
-      ? "it never crashed, so the restart was not seen"
-      : `it crashed ${played.crashes} times and restarted by itself ${played.restarts} times`;
+  if (played.forcedCrash?.restarted === false) {
+    return {
+      status: "fail",
+      reason: `${on} the T-Rex played well (${distances}), but when the bench ended the game it did not restart by itself within 5 s.`,
+    };
+  }
+
+  const restarts = restartText(played);
 
   return {
     status: "pass",
     reason: `${on} the T-Rex jumped ${played.jumps} times in 30 s, ${distances}, and ${restarts}.`,
   };
+}
+
+function restartText(played: GameWatch): string {
+  if (played.forcedCrash?.restarted) {
+    return `${played.crashes === 0 ? "it never crashed by itself; " : ""}after the bench ended the game it restarted by itself`;
+  }
+
+  if (played.crashes === 0) {
+    return "it never crashed, and the bench could not end the game to see a restart";
+  }
+
+  return `it crashed ${played.crashes} times and restarted by itself ${played.restarts} times`;
 }

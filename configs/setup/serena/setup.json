@@ -5,6 +5,31 @@
       "kind": "command",
       "target": "serena",
       "fix": "uv tool install -p 3.13 serena-agent"
+    },
+    {
+      "label": "serena project.yml",
+      "kind": "file",
+      "target": "${CHROMIUM_SRC}/.serena/project.yml",
+      "sameAs": "configs/setup/serena/project.yml",
+      "fix": "bun run setup:serena"
+    },
+    {
+      "label": "Chromium clangd",
+      "kind": "file",
+      "target": "${CHROMIUM_SRC}/third_party/llvm-build/Release+Asserts/bin/clangd",
+      "fix": "set checkout_clangd in .gclient, then gclient sync"
+    },
+    {
+      "label": "compile_commands.json",
+      "kind": "file",
+      "target": "${CHROMIUM_SRC}/compile_commands.json",
+      "fix": "bun run setup:clangd"
+    },
+    {
+      "label": "npm",
+      "kind": "command",
+      "target": "npm",
+      "fix": "install Node.js; Serena installs its TypeScript server with npm"
     }
   ]
 }

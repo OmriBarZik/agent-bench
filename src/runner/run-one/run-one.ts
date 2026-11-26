@@ -41,7 +41,13 @@ export async function runOne({
 }): Promise<RunOneResult> {
   const runId = `${task.taskId}__${config.configId}__r${repeat}__${Date.now().toString(36)}`;
   onPhase("reset");
-  await prepareCheckout({ sha: task.chromiumSha, sync: options.sync, runId, signal });
+  await prepareCheckout({
+    sha: task.chromiumSha,
+    sync: options.sync,
+    runId,
+    inputFiles: task.inputFiles,
+    signal,
+  });
   const outDir = join(RUNS_DIR, runId);
   mkdirSync(outDir, { recursive: true });
 

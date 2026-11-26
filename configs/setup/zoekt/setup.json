@@ -18,6 +18,12 @@
       "target": "${HOME}/.zoekt",
       "nonEmpty": true,
       "fix": "bun run setup:zoekt-index"
+    },
+    {
+      "label": "zoekt index at the task SHA",
+      "kind": "index-stamp",
+      "target": "${HOME}/.zoekt/index-stamp.json",
+      "fix": "check the task SHA out clean, then bun run setup:zoekt-index"
     }
   ]
 }

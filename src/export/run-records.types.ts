@@ -72,6 +72,10 @@ export type FindingsRecord = {
   setupToolCalls: number | null;
   firstGameSource: FindingPointRecord;
   firstPanelRegistration: FindingPointRecord;
+  /** Times language-server diagnostics arrived after an edit; null before they were counted. */
+  diagnosticsDeliveries: number | null;
+  /** Error-severity diagnostics across those deliveries. */
+  diagnosticsErrors: number | null;
 };
 
 /**

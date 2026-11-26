@@ -1,0 +1,12 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "bun \"${CLAUDE_PLUGIN_ROOT}\"/../../hooks/tool-reminder/tool-reminder.ts" }
+        ]
+      }
+    ]
+  }
+}

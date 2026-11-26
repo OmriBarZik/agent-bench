@@ -3,6 +3,7 @@ import { $ } from "bun";
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+import { requirePristineTree, writeIndexStamp } from "../../../src/setup/index-stamp/pristine-index";
 
 const REPO_ROOT = resolve(import.meta.dir, "../../..");
 const CHECKOUT = process.env.CHROMIUM_SRC ?? resolve(REPO_ROOT, "../src");
@@ -15,12 +16,15 @@ const CHECKOUT = process.env.CHROMIUM_SRC ?? resolve(REPO_ROOT, "../src");
  * CHROMIUM_SRC overrides the checkout (default ../src). The index is
  * $CSEARCHINDEX, or ~/.csearchindex when that is unset. cindex -reset
  * replaces it. Hidden names and build directories named out or out_* are skipped.
+ * Refuses to run unless the checkout is clean (submodules included) and at the tasks' chromiumSha.
+ * The index's path plus `.stamp.json` records the SHA and tree state; the Setups tab compares it with the tasks.
  */
 async function main(): Promise<void> {
   if (!existsSync(CHECKOUT)) {
     throw new Error(`Chromium checkout not found at ${CHECKOUT}; set CHROMIUM_SRC`);
   }
 
+  const stamp = await requirePristineTree({ tool: "codesearch", checkout: CHECKOUT });
   const roots = indexRoots(CHECKOUT);
 
   if (roots.length === 0) {
@@ -33,6 +37,8 @@ async function main(): Promise<void> {
   if (result.exitCode !== 0) {
     throw new Error(`cindex failed (${result.exitCode})`);
   }
+
+  await writeIndexStamp({ stamp, path: `${csearchIndexPath()}.stamp.json` });
 }
 
 /** Top-level checkout entries cindex should walk. */

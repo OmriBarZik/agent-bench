@@ -1,0 +1,14 @@
+{
+  "train_samples": 129620,
+  "test_samples": 22781,
+  "train_accuracy": 0.9713778737849097,
+  "test_accuracy": 0.9679996488301655,
+  "confusion": [
+    [2999, 0, 169],
+    [46, 2105, 231],
+    [253, 30, 16948]
+  ],
+  "parameters": 803,
+  "labels_train": [18148, 10946, 100526],
+  "labels_test": [3168, 2382, 17231]
+}

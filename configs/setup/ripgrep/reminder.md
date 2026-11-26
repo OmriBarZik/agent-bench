@@ -1,0 +1,1 @@
+Reminder: this session has `rg` (ripgrep) for code search, and that search used `grep`. Run your next code search with `rg -n --no-config 'pattern' path`. It searches a whole directory tree fast and skips ignored and binary files.

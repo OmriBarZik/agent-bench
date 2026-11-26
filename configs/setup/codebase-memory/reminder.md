@@ -1,0 +1,1 @@
+Reminder: this session has the codebase-memory graph tools (`mcp__codebase-memory-mcp__*`), and that search used `grep`. To find a class, function or feature you have not located yet, call `search_graph` over the whole checkout. For callers and callees several hops deep, call `trace_path`.

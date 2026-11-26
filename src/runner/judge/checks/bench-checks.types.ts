@@ -88,4 +88,26 @@ export type GameWatch = {
   firstCrashDistance: number | null;
   /** The last read was a crashed game. */
   endedCrashed: boolean;
+  /** Set when the bench ended the game itself after the watch, to see the restart a model that never dies hides. */
+  forcedCrash?: ForcedCrash;
+};
+
+/** What happened after the bench called the game's own game-over path. */
+export type ForcedCrash = {
+  /** The game was running again within 5 s with no input. */
+  restarted: boolean;
+};
+
+/** A text file the fork check compares: a game source at the task commit, or a file the agent committed. */
+export type GameSource = {
+  path: string;
+  /** Git's blob id of the bytes: equal ids mean byte-identical files. */
+  blobId: string;
+  text: string;
+};
+
+/** A committed file the fork check found to be a copy of the game's sources, and why. */
+export type ForkFinding = {
+  path: string;
+  why: string;
 };

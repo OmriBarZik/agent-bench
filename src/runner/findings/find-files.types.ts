@@ -23,4 +23,22 @@ export type FindingTranscriptEntry = {
 };
 
 /** Where in the session the agent first opened a game source and a DevTools panel registration. */
-export type FileFindings = Omit<RunFindings, "setupToolCalls">;
+export type FileFindings = Pick<RunFindings, "firstGameSource" | "firstPanelRegistration">;
+
+/** One diagnostic a language server reported for a file. */
+export type DiagnosticEntry = {
+  severity?: string;
+  message?: string;
+};
+
+/** The diagnostics for one file inside a diagnostics attachment. */
+export type DiagnosticsFile = {
+  uri?: string;
+  diagnostics?: DiagnosticEntry[];
+};
+
+/** A transcript attachment; only `diagnostics` ones are counted. */
+export type DiagnosticsAttachment = {
+  type?: string;
+  files?: DiagnosticsFile[];
+};

@@ -1,8 +1,9 @@
 import { expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CHROMIUM_SRC } from "../../paths";
+import { BENCH_DIR, CHROMIUM_SRC } from "../../paths";
+import { readTaskShas } from "../index-stamp/task-shas";
 import { checkSetup, expandTarget } from "./check-setup";
 import { readSetupFile } from "./read-setup";
 
@@ -60,6 +61,42 @@ test("readSetupFile reports a missing file and an unknown key", () => {
     expect(readSetupFile(path).problem?.detail).toContain("unknown key");
     writeFileSync(path, JSON.stringify({ checks: [{ label: "sift", kind: "command", target: "sift" }] }));
     expect(readSetupFile(path).checks[0]).toMatchObject({ label: "sift", kind: "command", target: "sift" });
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("an index-stamp check passes only for a clean stamp at the tasks' SHA", () => {
+  const directory = mkdtempSync(join(tmpdir(), "agent-bench-setup-"));
+
+  try {
+    const path = join(directory, "index-stamp.json");
+    const [taskSha] = readTaskShas();
+    const spec = { label: "index", kind: "index-stamp" as const, target: path };
+
+    expect(checkSetup(spec).detail).toContain("no index stamp");
+    writeFileSync(path, JSON.stringify({ sha: taskSha, dirty: [] }));
+    expect(checkSetup(spec).ok).toBe(true);
+    writeFileSync(path, JSON.stringify({ sha: taskSha, dirty: ["?? leftover.ts"] }));
+    expect(checkSetup(spec)).toMatchObject({ ok: false, detail: expect.stringContaining("dirty") });
+    writeFileSync(path, JSON.stringify({ sha: "0".repeat(40), dirty: [] }));
+    expect(checkSetup(spec).ok).toBe(false);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("a file check with sameAs fails when a value differs from the repo file", () => {
+  const directory = mkdtempSync(join(tmpdir(), "agent-bench-setup-"));
+
+  try {
+    const path = join(directory, "project.yml");
+    const spec = { label: "project", kind: "file" as const, target: path, sameAs: "configs/setup/serena/project.yml" };
+
+    writeFileSync(path, "language_servers: []\n");
+    expect(checkSetup(spec)).toMatchObject({ ok: false, detail: expect.stringContaining("differs from") });
+    writeFileSync(path, readFileSync(join(BENCH_DIR, "configs/setup/serena/project.yml")));
+    expect(checkSetup(spec).ok).toBe(true);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

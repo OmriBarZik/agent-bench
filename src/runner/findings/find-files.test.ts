@@ -1,4 +1,5 @@
 import { expect, test } from "bun:test";
+import { countDiagnostics } from "./count-diagnostics";
 import { findFirstFiles } from "./find-files";
 
 function call({ id, name, input }: { id: string; name: string; input: unknown }): string {
@@ -20,4 +21,17 @@ test("finds the first opened game source and panel registration, ignoring search
     firstGameSource: { turn: 2, tokens: 30 },
     firstPanelRegistration: { turn: 3, tokens: 45 },
   });
+});
+
+test("countDiagnostics counts diagnostics attachments and their errors", () => {
+  const attachment = (severities: string[]) =>
+    JSON.stringify({
+      attachment: {
+        type: "diagnostics",
+        files: [{ uri: "a.cc", diagnostics: severities.map((severity) => ({ severity })) }],
+      },
+    });
+  const lines = [attachment(["Error", "Warning"]), attachment(["Error"]), '{"attachment":{"type":"date"}}', "{torn"];
+
+  expect(countDiagnostics(lines)).toEqual({ diagnosticsDeliveries: 2, diagnosticsErrors: 2 });
 });

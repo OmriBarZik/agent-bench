@@ -4,6 +4,7 @@ import { startChrome } from "../../../../validate/chrome/launch";
 import { withGameRunner } from "../../../../validate/chrome/page/game-state";
 import { pressKey } from "../../../../validate/chrome/page/press-key";
 import type { GameWatch } from "../bench-checks.types";
+import { forceCrashAndWatch } from "./force-crash";
 import { waitFor } from "./play-game";
 import { watchGame } from "./watch-game";
 
@@ -16,7 +17,8 @@ const RESTART_GRACE_MS = 5_000;
 
 /**
  * Starts the built Chromium with no feature switches, opens chrome://dino, presses Space once to start the game,
- * and from then on only watches for 30 s. Returns null when the page has no dino game.
+ * and from then on only watches for 30 s. If the game is still running then, it ends it through the game's own
+ * game-over path and watches 5 s more for a restart. Returns null when the page has no dino game.
  */
 export async function watchHandsOff(appPath: string): Promise<GameWatch | null> {
   const chrome = await startChrome({ appPath, switches: [], timeoutMs: START_TIMEOUT_MS });
@@ -47,7 +49,7 @@ async function startAndWatch({ page, runnerId }: { page: CdpSession; runnerId: s
   const played = await watchGame({ page, runnerId, watchMs: AUTO_PLAY_MS });
 
   if (!played.endedCrashed) {
-    return played;
+    return forceCrashAndWatch({ page, runnerId, played });
   }
 
   // A crash in the last moments of the watch still gets the time a restart takes.

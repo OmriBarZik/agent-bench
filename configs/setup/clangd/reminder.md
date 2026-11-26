@@ -1,0 +1,1 @@
+Reminder: this session has the `LSP` tool (clangd) for C and C++, and that search used `grep`. For a C++ file you already have, call `documentSymbol` to list what it defines. Use `goToDefinition`, `findReferences` or `hover` for a symbol's definition, uses or type, instead of grepping for its name.

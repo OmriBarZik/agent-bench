@@ -99,6 +99,8 @@ function toFindingsRecord(run: ExportRunRow): FindingsRecord | null {
     setupToolCalls: run.setupToolCalls,
     firstGameSource: { turn: run.firstGameSourceTurn, tokens: run.firstGameSourceTokens },
     firstPanelRegistration: { turn: run.firstPanelRegTurn, tokens: run.firstPanelRegTokens },
+    diagnosticsDeliveries: run.diagnosticsDeliveries,
+    diagnosticsErrors: run.diagnosticsErrors,
   };
 }
 

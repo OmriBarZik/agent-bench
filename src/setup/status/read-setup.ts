@@ -1,8 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import type { SetupCheckKind, SetupCheckSpec, SetupFileProblem } from "./status.types";
 
-const KINDS = new Set<SetupCheckKind>(["command", "file", "directory"]);
-const CHECK_KEYS = new Set(["label", "kind", "target", "fix", "nonEmpty"]);
+const KINDS = new Set<SetupCheckKind>(["command", "file", "directory", "index-stamp"]);
+const CHECK_KEYS = new Set(["label", "kind", "target", "fix", "nonEmpty", "sameAs"]);
 
 /** Reads setup.json. A missing file and a file that does not match the check shape come back as `problem`. */
 export function readSetupFile(path: string): { checks: SetupCheckSpec[]; problem?: SetupFileProblem } {
@@ -77,7 +77,7 @@ function validateCheck({ entry, index }: { entry: unknown; index: number }): Set
   }
 
   if (typeof record.kind !== "string" || !KINDS.has(record.kind as SetupCheckKind)) {
-    return `${where}.kind must be command, file, or directory`;
+    return `${where}.kind must be command, file, directory, or index-stamp`;
   }
 
   if (typeof record.target !== "string" || record.target === "") {
@@ -102,11 +102,20 @@ function validateCheck({ entry, index }: { entry: unknown; index: number }): Set
     return `${where}.nonEmpty is only for a directory check`;
   }
 
+  if (record.sameAs !== undefined && (typeof record.sameAs !== "string" || record.sameAs === "")) {
+    return `${where}.sameAs must be a non-empty string`;
+  }
+
+  if (record.sameAs !== undefined && kind !== "file") {
+    return `${where}.sameAs is only for a file check`;
+  }
+
   return {
     label: record.label,
     kind,
     target: record.target,
     fix: typeof record.fix === "string" ? record.fix : undefined,
     nonEmpty: record.nonEmpty === true ? true : undefined,
+    sameAs: typeof record.sameAs === "string" ? record.sameAs : undefined,
   };
 }

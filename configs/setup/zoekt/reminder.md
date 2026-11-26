@@ -1,0 +1,1 @@
+Reminder: this session has `zoekt`, an index of the whole checkout, and that search used `grep`. For anything you have not located yet, or that spans directories, run `zoekt 'pattern file:path/regex'` first. Keep `grep` for files you created or edited, which the index does not have.

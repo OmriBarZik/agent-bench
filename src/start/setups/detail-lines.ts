@@ -63,6 +63,10 @@ export function detailLines({
       lines.push({ text: `${check.ok ? "ok     " : "missing"}  ${check.label}`, kind: check.ok ? "dim" : "notice" });
       lines.push({ text: `         ${fitEnd({ text: check.target, width: Math.max(columns - 9, 1) })}`, kind: "dim" });
 
+      if (!check.ok && check.detail) {
+        lines.push({ text: `         ${check.detail}`, kind: "notice" });
+      }
+
       if (!check.ok && check.fix) {
         lines.push({ text: `         ${check.fix}`, kind: "plain" });
       }

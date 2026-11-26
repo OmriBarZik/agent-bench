@@ -65,6 +65,8 @@ export type ExportRunRow = {
   firstGameSourceTokens: number | null;
   firstPanelRegTurn: number | null;
   firstPanelRegTokens: number | null;
+  diagnosticsDeliveries: number | null;
+  diagnosticsErrors: number | null;
 };
 
 /** One run_phases row. */
