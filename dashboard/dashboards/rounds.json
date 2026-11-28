@@ -4,7 +4,7 @@
   "tags": ["agent-bench"],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "refresh": "30s",
   "time": {
     "from": "now-7d",
@@ -58,9 +58,10 @@
     {
       "id": 1,
       "type": "row",
-      "title": "Rounds: did the agent understand the code the first time?",
+      "title": "Task: $task",
       "collapsed": false,
       "panels": [],
+      "repeat": "task",
       "gridPos": {
         "x": 0,
         "y": 0,
@@ -70,6 +71,22 @@
     },
     {
       "id": 2,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "### Rounds: did the agent understand the code the first time?"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 24,
+        "h": 2
+      }
+    },
+    {
+      "id": 3,
       "type": "barchart",
       "title": "Rounds per run by config",
       "description": "A round is discovery (reading and searching), implementation (editing) and validation (building and checking in Chrome). A failed build or check, and the search or fix after it, starts the next round. Fewer rounds means the first understanding was closer to right. The label shows how many runs each bar averages.",
@@ -116,13 +133,13 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 1,
+        "y": 3,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 3,
+      "id": 4,
       "type": "barchart",
       "title": "How round 1 ended (% of runs)",
       "description": "The outcome of each run's first round: its first build failed, it built but the Chrome check stopped with an error, the check ran, it built with no check, or it never validated. A high 'checked' share means the first discovery understood the code well enough to build and run the change.",
@@ -171,13 +188,13 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 1,
+        "y": 3,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 4,
+      "id": 5,
       "type": "barchart",
       "title": "Right the first time vs passed in the end (%)",
       "description": "First time: round 1 built and its Chrome check ran, and the judge passed the run. Passed: the judge's pass or partially-pass, after however many rounds it took.",
@@ -226,13 +243,13 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 10,
+        "y": 12,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 5,
+      "id": 6,
       "type": "barchart",
       "title": "Round 1 edits kept in the final change (%)",
       "description": "Of the files the agent edited in round 1, the share that still differ from the task commit at the end. Low means the first discovery led the agent to the wrong files.",
@@ -279,26 +296,29 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 10,
+        "y": 12,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 6,
-      "type": "row",
-      "title": "Discovery: how each tool helped",
-      "collapsed": false,
-      "panels": [],
+      "id": 7,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "### Discovery: how each tool helped"
+      },
       "gridPos": {
         "x": 0,
-        "y": 19,
+        "y": 21,
         "w": 24,
-        "h": 1
+        "h": 2
       }
     },
     {
-      "id": 7,
+      "id": 8,
       "type": "barchart",
       "title": "Discovery tokens per run: round 1 vs later rounds",
       "description": "Tokens spent reading and searching before the first edit (round 1), and again after a failed build or check (later rounds). Lower is better.",
@@ -345,13 +365,13 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 20,
+        "y": 23,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 8,
+      "id": 9,
       "type": "barchart",
       "title": "Discovery work time per run: round 1 vs later rounds",
       "description": "Work time (no build or Chrome waits) spent on discovery, in the first round and in later rounds.",
@@ -398,13 +418,13 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 20,
+        "y": 23,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 9,
+      "id": 10,
       "type": "barchart",
       "title": "Round 1 discovery calls per run by kind",
       "description": "What the agent did before its first edit: search (grep, rg, ugrep, agrep, sift, ast-grep, zoekt, csearch, Grep), read (Read, cat, sed, head), list (ls, find, Glob), navigate (language servers, Serena, the code index) and other.",
@@ -451,13 +471,13 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 29,
+        "y": 32,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 10,
+      "id": 11,
       "type": "barchart",
       "title": "Config's own tool in round 1 discovery",
       "description": "Calls per run to the tool the config adds (rg, agrep, LSP, Serena, ...) before the first edit, and its share of all search and navigate calls there. Baseline adds none.",
@@ -504,13 +524,13 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 29,
+        "y": 32,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 11,
+      "id": 12,
       "type": "table",
       "title": "Round 1 discovery tools by config",
       "description": "Every tool the agent called before its first edit, per run, with whether it is the config's own tool. Sort by a column to compare configs.",
@@ -542,26 +562,29 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 38,
+        "y": 41,
         "w": 24,
         "h": 12
       }
     },
     {
-      "id": 12,
-      "type": "row",
-      "title": "Where the tokens and cost go, round by round",
-      "collapsed": false,
-      "panels": [],
+      "id": 13,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "### Where the tokens and cost go, round by round"
+      },
       "gridPos": {
         "x": 0,
-        "y": 50,
+        "y": 53,
         "w": 24,
-        "h": 1
+        "h": 2
       }
     },
     {
-      "id": 13,
+      "id": 14,
       "type": "barchart",
       "title": "Tokens per run by round and segment",
       "description": "Round 1 discovery, implementation and validation, then the same three summed over every later round. Later rounds are the cost of a first understanding that was wrong.",
@@ -608,13 +631,13 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 51,
+        "y": 55,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 14,
+      "id": 15,
       "type": "barchart",
       "title": "Cost per run: round 1 vs later rounds",
       "description": "The run's cost split by price-weighted tokens: what the first round cost, and what fixing it cost.",
@@ -661,26 +684,29 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 51,
+        "y": 55,
         "w": 12,
         "h": 9
       }
     },
     {
-      "id": 15,
-      "type": "row",
-      "title": "Every run, round by round",
-      "collapsed": false,
-      "panels": [],
+      "id": 16,
+      "type": "text",
+      "title": "",
+      "transparent": true,
+      "options": {
+        "mode": "markdown",
+        "content": "### Every run, round by round"
+      },
       "gridPos": {
         "x": 0,
-        "y": 60,
+        "y": 64,
         "w": 24,
-        "h": 1
+        "h": 2
       }
     },
     {
-      "id": 16,
+      "id": 17,
       "type": "table",
       "title": "Rounds of each run",
       "description": "One row per run and round: discovery size, the search and navigate tools it used, how the round ended, and the judge's final decision on the run.",
@@ -712,7 +738,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 61,
+        "y": 66,
         "w": 24,
         "h": 16
       }
