@@ -134,6 +134,14 @@ test("the shipped configs load their tool prompts", async () => {
   expect(allowedToolsByConfig.get("ugrep")).toContain("Bash(ugrep *)");
   expect(toolPromptByConfig.get("tre-agrep")).toContain("You have `agrep`");
   expect(allowedToolsByConfig.get("tre-agrep")).toContain("Bash(agrep *)");
+  expect(toolPromptByConfig.get("ripgrep-tre-agrep")).toContain("You have two search commands");
+  expect(allowedToolsByConfig.get("ripgrep-tre-agrep")).toEqual(
+    expect.arrayContaining(["Bash(rg *)", "Bash(agrep *)"]),
+  );
+  expect(selection.configs.find((config) => config.configId === "ripgrep-tre-agrep")?.setupTools).toEqual([
+    "rg",
+    "agrep",
+  ]);
   expect(toolPromptByConfig.get("ast-grep")).toContain("You have `ast-grep`");
   expect(allowedToolsByConfig.get("ast-grep")).toContain("Bash(ast-grep *)");
   expect(toolPromptByConfig.get("zoekt")).toContain("You have Zoekt (`zoekt`)");

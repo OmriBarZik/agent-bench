@@ -14,6 +14,7 @@ Install the [shared requirements](#requirements) first. The steps for a config l
 | `ripgrep`           | [configs/setup/ripgrep/readme.md](../configs/setup/ripgrep/readme.md)                     |
 | `ugrep`             | [configs/setup/ugrep/readme.md](../configs/setup/ugrep/readme.md)                         |
 | `tre-agrep`         | [configs/setup/tre-agrep/readme.md](../configs/setup/tre-agrep/readme.md)                 |
+| `ripgrep-tre-agrep` | [configs/setup/ripgrep-tre-agrep/readme.md](../configs/setup/ripgrep-tre-agrep/readme.md) |
 | `ast-grep`          | [configs/setup/ast-grep/readme.md](../configs/setup/ast-grep/readme.md)                   |
 | `zoekt`             | [configs/setup/zoekt/readme.md](../configs/setup/zoekt/readme.md)                         |
 | `clangd`            | [configs/setup/clangd/readme.md](../configs/setup/clangd/readme.md)                       |

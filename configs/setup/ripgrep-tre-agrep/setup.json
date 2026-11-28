@@ -1,0 +1,16 @@
+{
+  "checks": [
+    {
+      "label": "rg",
+      "kind": "command",
+      "target": "rg",
+      "fix": "brew install ripgrep"
+    },
+    {
+      "label": "agrep",
+      "kind": "command",
+      "target": "agrep",
+      "fix": "brew install tre"
+    }
+  ]
+}

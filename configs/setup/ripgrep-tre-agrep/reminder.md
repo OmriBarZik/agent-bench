@@ -1,0 +1,1 @@
+Reminder: this session has `rg` (ripgrep) and `agrep` (approximate match) for code search, and that search used `grep`. Run your next search across the tree with `rg -n --no-config 'pattern' path`. When a name is not found, or you are guessing its spelling, run `agrep -n -H -2 'pattern' path/to/dir/*.ts` on the directory's files.

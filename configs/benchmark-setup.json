@@ -265,6 +265,40 @@
     ]
   },
   {
+    "configId": "ripgrep-tre-agrep",
+    "description": "Claude Code with both ripgrep (rg) and TRE agrep approximate search, default tools",
+    "model": "claude-sonnet-5-5",
+    "toolPromptFile": "configs/setup/ripgrep-tre-agrep/tools.md",
+    "strictMcpConfig": true,
+    "allowedTools": [
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(wc *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+      "Bash(mkdir *)",
+      "Bash(git -C * status*)",
+      "Bash(git -C * diff*)",
+      "Bash(git -C * log*)",
+      "Bash(git -C * show*)",
+      "Bash(git -C * ls-files*)",
+      "Bash(rg *)",
+      "Bash(agrep *)"
+    ],
+    "permissionMode": "acceptEdits",
+    "setupTools": ["rg", "agrep"],
+    "pluginDirs": ["plugins/tool-reminder"],
+    "extraFiles": [
+      "configs/setup/ripgrep-tre-agrep/reminder.md",
+      "hooks/tool-reminder/tool-reminder.ts",
+      "hooks/tool-reminder/reminder-policy.ts",
+      "plugins/tool-reminder/hooks/hooks.json"
+    ]
+  },
+  {
     "configId": "ast-grep",
     "description": "Claude Code with ast-grep structural search, default tools",
     "model": "claude-sonnet-5-5",
