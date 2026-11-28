@@ -230,3 +230,46 @@ CREATE TABLE IF NOT EXISTS run_findings (
     diagnostics_deliveries     INTEGER,   -- LSP diagnostics attached after edits (not tool calls)
     diagnostics_errors         INTEGER
 );
+
+-- A run split into rounds (src/runner/rounds/): discovery (reading and searching before the round's first edit),
+-- implementation (from that edit to the first chrome-validate call) and validation (its chrome-validate calls).
+-- A failed build or check and the search that follows start the next round. One row per round × segment.
+CREATE TABLE IF NOT EXISTS run_rounds (
+    run_id        TEXT NOT NULL REFERENCES runs,
+    round         INTEGER NOT NULL,    -- 1-based
+    segment       TEXT NOT NULL,       -- discovery / implementation / validation
+    turns         INTEGER,             -- API responses in this segment
+    work_ms       INTEGER,             -- wall clock minus chrome-validate waits
+    total_tokens  INTEGER,
+    cost_usd      REAL,                -- the run's cost split by price-weighted tokens
+    PRIMARY KEY (run_id, round, segment)
+);
+
+-- How each round ended. outcome: build_failed / check_failed (run_chrome stopped with an error) / checked /
+-- built (no check) / not_validated. kept_files of edited_files still differ from the task commit at the end.
+CREATE TABLE IF NOT EXISTS run_round_results (
+    run_id               TEXT NOT NULL REFERENCES runs,
+    round                INTEGER NOT NULL,
+    outcome              TEXT NOT NULL,
+    builds               INTEGER,
+    failed_builds        INTEGER,
+    chrome_runs          INTEGER,
+    failed_chrome_runs   INTEGER,
+    edited_files         INTEGER,
+    kept_files           INTEGER,
+    is_last              INTEGER,      -- 1 for the run's last round
+    PRIMARY KEY (run_id, round)
+);
+
+-- Tool calls per round × segment: each Bash program, or the tool's name. kind groups them (search, read, list,
+-- navigate for language servers and code indexes, edit, validate, other); setup_tool = 1 for the config's tools.
+CREATE TABLE IF NOT EXISTS run_round_tools (
+    run_id      TEXT NOT NULL REFERENCES runs,
+    round       INTEGER NOT NULL,
+    segment     TEXT NOT NULL,
+    tool        TEXT NOT NULL,
+    kind        TEXT NOT NULL,
+    setup_tool  INTEGER NOT NULL,
+    calls       INTEGER NOT NULL,
+    PRIMARY KEY (run_id, round, segment, tool)
+);

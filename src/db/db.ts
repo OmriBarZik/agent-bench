@@ -28,9 +28,11 @@ import type {
   RunConfigRow,
   RunFindings,
   RunOutcome,
+  RunRounds,
   RunVersions,
   RunStart,
   RunWithoutPhases,
+  RunWithoutRounds,
   Task,
   ToolCall,
   ToolTrouble,
@@ -446,6 +448,55 @@ export function saveRunPhases({ db, runId, phases }: { db: Database; runId: stri
   });
 
   save();
+}
+
+/** Replaces a run's round rows (run_rounds, run_round_results, run_round_tools) with a new split. */
+export function saveRunRounds({ db, runId, rounds }: { db: Database; runId: string; rounds: RunRounds }) {
+  const save = db.transaction(() => {
+    deleteRunRounds({ db, runId });
+
+    for (const segment of rounds.segments) {
+      db.query(
+        `INSERT INTO run_rounds (run_id, round, segment, turns, work_ms, total_tokens, cost_usd)
+         VALUES ($runId, $round, $segment, $turns, $workMs, $totalTokens, $costUsd)`,
+      ).run({ runId, ...segment });
+    }
+
+    for (const result of rounds.results) {
+      db.query(
+        `INSERT INTO run_round_results (run_id, round, outcome, builds, failed_builds, chrome_runs,
+           failed_chrome_runs, edited_files, kept_files, is_last)
+         VALUES ($runId, $round, $outcome, $builds, $failedBuilds, $chromeRuns, $failedChromeRuns, $editedFiles,
+           $keptFiles, $isLast)`,
+      ).run({ runId, ...result, isLast: result.isLast ? 1 : 0 });
+    }
+
+    for (const tool of rounds.tools) {
+      db.query(
+        `INSERT INTO run_round_tools (run_id, round, segment, tool, kind, setup_tool, calls)
+         VALUES ($runId, $round, $segment, $tool, $kind, $setupTool, $calls)`,
+      ).run({ runId, ...tool, setupTool: tool.setupTool ? 1 : 0 });
+    }
+  });
+
+  save();
+}
+
+/** Finished runs with no run_rounds rows yet, for the backfill. */
+export function listRunsWithoutRounds(db: Database): RunWithoutRounds[] {
+  return db
+    .query(
+      `SELECT run_id AS runId, config_id AS configId, cost_usd AS costUsd, changed_files AS changedFiles FROM runs
+       WHERE status != 'running' AND run_id NOT IN (SELECT run_id FROM run_rounds)
+       ORDER BY started_at`,
+    )
+    .all() as RunWithoutRounds[];
+}
+
+function deleteRunRounds({ db, runId }: { db: Database; runId: string }) {
+  db.query(`DELETE FROM run_rounds WHERE run_id = $runId`).run({ runId });
+  db.query(`DELETE FROM run_round_results WHERE run_id = $runId`).run({ runId });
+  db.query(`DELETE FROM run_round_tools WHERE run_id = $runId`).run({ runId });
 }
 
 /** Finished runs with no run_phases rows yet, or rows from before work_ms, for the backfill. */
@@ -921,6 +972,7 @@ export function deleteRun({ db, runId }: { db: Database; runId: string }) {
     db.query(`DELETE FROM judge_runs WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM run_phases WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM run_findings WHERE run_id = $runId`).run({ runId });
+    deleteRunRounds({ db, runId });
     db.query(`DELETE FROM chromium_builds WHERE run_id = $runId`).run({ runId });
     db.query(`DELETE FROM runs WHERE run_id = $runId`).run({ runId });
   });

@@ -15,6 +15,7 @@ import { judgeRun } from "../judge/judge";
 import { cancelledJudgeMetrics, failedJudgeMetrics } from "../judge/result/judge-result";
 import { storeRunFindings } from "../findings/store-findings";
 import { storeRunPhases } from "../phases/store-phases";
+import { storeRunRounds } from "../rounds/store-rounds";
 import type { RunOneResult, RunOptions } from "./run-one.types";
 import { commitAgentWork, restoreTree, saveTranscript } from "./run-tree";
 import type { CommittedWork } from "./run-tree.types";
@@ -71,6 +72,14 @@ export async function runAndCommitAgent({
   });
   storeRunPhases({ db, runId, outDir, costUsd: committed.result.total_cost_usd ?? null });
   storeRunFindings({ db, runId, outDir, setupTools: config.setupTools });
+  storeRunRounds({
+    db,
+    runId,
+    outDir,
+    costUsd: committed.result.total_cost_usd ?? null,
+    setupTools: config.setupTools,
+    finalPaths: committed.artifact.changedFiles.map((file) => file.path),
+  });
 
   return committed;
 }

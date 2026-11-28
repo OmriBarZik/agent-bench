@@ -80,7 +80,8 @@ export function splitPhases({ lines, costUsd }: { lines: string[]; costUsd: numb
   ];
 }
 
-function parseEntry(line: string): PhaseTranscriptEntry | null {
+/** Parses one transcript line, or returns null for a blank or cut-off line. */
+export function parseEntry(line: string): PhaseTranscriptEntry | null {
   if (!line.trim()) {
     return null;
   }
@@ -142,7 +143,8 @@ function weightOf(messages: PhaseMessage[]): number {
   return messages.reduce((total, message) => total + usageWeight(message.usage), 0);
 }
 
-function usageWeight(usage: TranscriptUsage): number {
+/** The price-weighted size of one API response, in fresh-input-token units, for sharing out a run's cost. */
+export function usageWeight(usage: TranscriptUsage): number {
   const cacheWrite = usage.cache_creation_input_tokens ?? 0;
   const cacheWrite1h = Math.min(cacheWrite, usage.cache_creation?.ephemeral_1h_input_tokens ?? 0);
 

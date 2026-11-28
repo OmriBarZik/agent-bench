@@ -12,6 +12,9 @@ while true; do
       DELETE FROM judge_runs WHERE run_id IN (SELECT run_id FROM runs WHERE batch IS NOT NULL);
       DELETE FROM run_phases WHERE run_id IN (SELECT run_id FROM runs WHERE batch IS NOT NULL);
       DELETE FROM run_findings WHERE run_id IN (SELECT run_id FROM runs WHERE batch IS NOT NULL);
+      DELETE FROM run_rounds WHERE run_id IN (SELECT run_id FROM runs WHERE batch IS NOT NULL);
+      DELETE FROM run_round_results WHERE run_id IN (SELECT run_id FROM runs WHERE batch IS NOT NULL);
+      DELETE FROM run_round_tools WHERE run_id IN (SELECT run_id FROM runs WHERE batch IS NOT NULL);
       DELETE FROM builds WHERE run_id IN (SELECT run_id FROM runs WHERE batch IS NOT NULL);
       DELETE FROM chromium_builds WHERE run_id IN (SELECT run_id FROM runs WHERE batch IS NOT NULL);
       DELETE FROM runs WHERE batch IS NOT NULL;" 2>/dev/null

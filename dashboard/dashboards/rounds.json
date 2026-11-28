@@ -1,0 +1,721 @@
+{
+  "uid": "bench-rounds",
+  "title": "agent-bench discovery and rounds",
+  "tags": ["agent-bench"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "task",
+        "label": "Task",
+        "type": "query",
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "bench-sqlite"
+        },
+        "query": "SELECT DISTINCT task_id FROM runs ORDER BY task_id",
+        "definition": "SELECT DISTINCT task_id FROM runs ORDER BY task_id",
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "config",
+        "label": "Config",
+        "type": "query",
+        "datasource": {
+          "type": "frser-sqlite-datasource",
+          "uid": "bench-sqlite"
+        },
+        "query": "SELECT DISTINCT config_id FROM runs ORDER BY config_id",
+        "definition": "SELECT DISTINCT config_id FROM runs ORDER BY config_id",
+        "multi": true,
+        "includeAll": true,
+        "current": {
+          "selected": true,
+          "text": ["All"],
+          "value": ["$__all"]
+        },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "Rounds: did the agent understand the code the first time?",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 2,
+      "type": "barchart",
+      "title": "Rounds per run by config",
+      "description": "A round is discovery (reading and searching), implementation (editing) and validation (building and checking in Chrome). A failed build or check, and the search or fix after it, starts the next round. Fewer rounds means the first understanding was closer to right. The label shows how many runs each bar averages.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, avg(rr.rounds) AS rounds, avg(rr.failed_builds) AS \"failed builds\", avg(rr.failed_checks) AS \"failed checks\" FROM base JOIN (SELECT run_id, max(round) AS rounds, sum(failed_builds) AS failed_builds, sum(failed_chrome_runs) AS failed_checks FROM run_round_results GROUP BY run_id) rr ON rr.run_id = base.run_id GROUP BY base.config_id ORDER BY avg(rr.rounds)",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, avg(rr.rounds) AS rounds, avg(rr.failed_builds) AS \"failed builds\", avg(rr.failed_checks) AS \"failed checks\" FROM base JOIN (SELECT run_id, max(round) AS rounds, sum(failed_builds) AS failed_builds, sum(failed_chrome_runs) AS failed_checks FROM run_round_results GROUP BY run_id) rr ON rr.run_id = base.run_id GROUP BY base.config_id ORDER BY avg(rr.rounds)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 3,
+      "type": "barchart",
+      "title": "How round 1 ended (% of runs)",
+      "description": "The outcome of each run's first round: its first build failed, it built but the Chrome check stopped with an error, the check ran, it built with no check, or it never validated. A high 'checked' share means the first discovery understood the code well enough to build and run the change.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, 100.0 * avg(r1.outcome = 'checked') AS checked, 100.0 * avg(r1.outcome = 'built') AS built, 100.0 * avg(r1.outcome = 'check_failed') AS \"check failed\", 100.0 * avg(r1.outcome = 'build_failed') AS \"build failed\", 100.0 * avg(r1.outcome = 'not_validated') AS \"not validated\" FROM base JOIN run_round_results r1 ON r1.run_id = base.run_id AND r1.round = 1 GROUP BY base.config_id ORDER BY avg(r1.outcome = 'checked') DESC",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, 100.0 * avg(r1.outcome = 'checked') AS checked, 100.0 * avg(r1.outcome = 'built') AS built, 100.0 * avg(r1.outcome = 'check_failed') AS \"check failed\", 100.0 * avg(r1.outcome = 'build_failed') AS \"build failed\", 100.0 * avg(r1.outcome = 'not_validated') AS \"not validated\" FROM base JOIN run_round_results r1 ON r1.run_id = base.run_id AND r1.round = 1 GROUP BY base.config_id ORDER BY avg(r1.outcome = 'checked') DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 1,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 4,
+      "type": "barchart",
+      "title": "Right the first time vs passed in the end (%)",
+      "description": "First time: round 1 built and its Chrome check ran, and the judge passed the run. Passed: the judge's pass or partially-pass, after however many rounds it took.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, 100.0 * avg(r1.outcome = 'checked' AND base.success = 1) AS \"first time\", 100.0 * avg(base.success) AS passed FROM base JOIN run_round_results r1 ON r1.run_id = base.run_id AND r1.round = 1 GROUP BY base.config_id ORDER BY avg(r1.outcome = 'checked' AND base.success = 1) DESC",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, 100.0 * avg(r1.outcome = 'checked' AND base.success = 1) AS \"first time\", 100.0 * avg(base.success) AS passed FROM base JOIN run_round_results r1 ON r1.run_id = base.run_id AND r1.round = 1 GROUP BY base.config_id ORDER BY avg(r1.outcome = 'checked' AND base.success = 1) DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 0,
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 5,
+      "type": "barchart",
+      "title": "Round 1 edits kept in the final change (%)",
+      "description": "Of the files the agent edited in round 1, the share that still differ from the task commit at the end. Low means the first discovery led the agent to the wrong files.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, 100.0 * sum(r1.kept_files) / max(1, sum(r1.edited_files)) AS kept, avg(r1.edited_files) AS \"files edited in round 1\" FROM base JOIN run_round_results r1 ON r1.run_id = base.run_id AND r1.round = 1 GROUP BY base.config_id ORDER BY 100.0 * sum(r1.kept_files) / max(1, sum(r1.edited_files)) DESC",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, 100.0 * sum(r1.kept_files) / max(1, sum(r1.edited_files)) AS kept, avg(r1.edited_files) AS \"files edited in round 1\" FROM base JOIN run_round_results r1 ON r1.run_id = base.run_id AND r1.round = 1 GROUP BY base.config_id ORDER BY 100.0 * sum(r1.kept_files) / max(1, sum(r1.edited_files)) DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 6,
+      "type": "row",
+      "title": "Discovery: how each tool helped",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "Discovery tokens per run: round 1 vs later rounds",
+      "description": "Tokens spent reading and searching before the first edit (round 1), and again after a failed build or check (later rounds). Lower is better.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN s.round = 1 THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"round 1\", sum(CASE WHEN s.round > 1 THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later rounds\" FROM base LEFT JOIN run_rounds s ON s.run_id = base.run_id AND s.segment = 'discovery' GROUP BY base.config_id ORDER BY sum(s.total_tokens) * 1.0 / count(DISTINCT base.run_id)",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN s.round = 1 THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"round 1\", sum(CASE WHEN s.round > 1 THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later rounds\" FROM base LEFT JOIN run_rounds s ON s.run_id = base.run_id AND s.segment = 'discovery' GROUP BY base.config_id ORDER BY sum(s.total_tokens) * 1.0 / count(DISTINCT base.run_id)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 20,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Discovery work time per run: round 1 vs later rounds",
+      "description": "Work time (no build or Chrome waits) spent on discovery, in the first round and in later rounds.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN s.round = 1 THEN s.work_ms ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"round 1\", sum(CASE WHEN s.round > 1 THEN s.work_ms ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later rounds\" FROM base LEFT JOIN run_rounds s ON s.run_id = base.run_id AND s.segment = 'discovery' GROUP BY base.config_id ORDER BY sum(s.work_ms) * 1.0 / count(DISTINCT base.run_id)",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN s.round = 1 THEN s.work_ms ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"round 1\", sum(CASE WHEN s.round > 1 THEN s.work_ms ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later rounds\" FROM base LEFT JOIN run_rounds s ON s.run_id = base.run_id AND s.segment = 'discovery' GROUP BY base.config_id ORDER BY sum(s.work_ms) * 1.0 / count(DISTINCT base.run_id)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 20,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 9,
+      "type": "barchart",
+      "title": "Round 1 discovery calls per run by kind",
+      "description": "What the agent did before its first edit: search (grep, rg, ugrep, agrep, sift, ast-grep, zoekt, csearch, Grep), read (Read, cat, sed, head), list (ls, find, Glob), navigate (language servers, Serena, the code index) and other.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN t.kind = 'search' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS search, sum(CASE WHEN t.kind = 'navigate' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS navigate, sum(CASE WHEN t.kind = 'read' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS read, sum(CASE WHEN t.kind = 'list' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS list, sum(CASE WHEN t.kind = 'other' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS other FROM base LEFT JOIN run_round_tools t ON t.run_id = base.run_id AND t.round = 1 AND t.segment = 'discovery' GROUP BY base.config_id ORDER BY sum(t.calls) * 1.0 / count(DISTINCT base.run_id)",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN t.kind = 'search' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS search, sum(CASE WHEN t.kind = 'navigate' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS navigate, sum(CASE WHEN t.kind = 'read' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS read, sum(CASE WHEN t.kind = 'list' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS list, sum(CASE WHEN t.kind = 'other' THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS other FROM base LEFT JOIN run_round_tools t ON t.run_id = base.run_id AND t.round = 1 AND t.segment = 'discovery' GROUP BY base.config_id ORDER BY sum(t.calls) * 1.0 / count(DISTINCT base.run_id)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 10,
+      "type": "barchart",
+      "title": "Config's own tool in round 1 discovery",
+      "description": "Calls per run to the tool the config adds (rg, agrep, LSP, Serena, ...) before the first edit, and its share of all search and navigate calls there. Baseline adds none.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN t.setup_tool = 1 THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"setup tool calls\", 100.0 * sum(CASE WHEN t.setup_tool = 1 THEN t.calls ELSE 0 END) / max(1, sum(CASE WHEN t.kind IN ('search', 'navigate') OR t.setup_tool = 1 THEN t.calls ELSE 0 END)) AS \"share of searches (%)\" FROM base LEFT JOIN run_round_tools t ON t.run_id = base.run_id AND t.round = 1 AND t.segment = 'discovery' GROUP BY base.config_id ORDER BY 2 DESC",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN t.setup_tool = 1 THEN t.calls ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"setup tool calls\", 100.0 * sum(CASE WHEN t.setup_tool = 1 THEN t.calls ELSE 0 END) / max(1, sum(CASE WHEN t.kind IN ('search', 'navigate') OR t.setup_tool = 1 THEN t.calls ELSE 0 END)) AS \"share of searches (%)\" FROM base LEFT JOIN run_round_tools t ON t.run_id = base.run_id AND t.round = 1 AND t.segment = 'discovery' GROUP BY base.config_id ORDER BY 2 DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "none",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 29,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 11,
+      "type": "table",
+      "title": "Round 1 discovery tools by config",
+      "description": "Every tool the agent called before its first edit, per run, with whether it is the config's own tool. Sort by a column to compare configs.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id AS config, t.tool, t.kind, CASE WHEN t.setup_tool = 1 THEN 'yes' ELSE '' END AS \"config's tool\", sum(t.calls) * 1.0 / (SELECT count(*) FROM base b2 WHERE b2.config_id = base.config_id) AS \"calls per run\", count(DISTINCT t.run_id) AS \"runs using it\" FROM base JOIN run_round_tools t ON t.run_id = base.run_id AND t.round = 1 AND t.segment = 'discovery' WHERE t.kind IN ('search', 'navigate', 'read', 'list') GROUP BY base.config_id, t.tool ORDER BY base.config_id, 5 DESC",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id AS config, t.tool, t.kind, CASE WHEN t.setup_tool = 1 THEN 'yes' ELSE '' END AS \"config's tool\", sum(t.calls) * 1.0 / (SELECT count(*) FROM base b2 WHERE b2.config_id = base.config_id) AS \"calls per run\", count(DISTINCT t.run_id) AS \"runs using it\" FROM base JOIN run_round_tools t ON t.run_id = base.run_id AND t.round = 1 AND t.segment = 'discovery' WHERE t.kind IN ('search', 'navigate', 'read', 'list') GROUP BY base.config_id, t.tool ORDER BY base.config_id, 5 DESC",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 38,
+        "w": 24,
+        "h": 12
+      }
+    },
+    {
+      "id": 12,
+      "type": "row",
+      "title": "Where the tokens and cost go, round by round",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 50,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 13,
+      "type": "barchart",
+      "title": "Tokens per run by round and segment",
+      "description": "Round 1 discovery, implementation and validation, then the same three summed over every later round. Later rounds are the cost of a first understanding that was wrong.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN s.round = 1 AND s.segment = 'discovery' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"R1 discovery\", sum(CASE WHEN s.round > 1 AND s.segment = 'discovery' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later discovery\", sum(CASE WHEN s.round = 1 AND s.segment = 'implementation' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"R1 implementation\", sum(CASE WHEN s.round > 1 AND s.segment = 'implementation' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later implementation\", sum(CASE WHEN s.round = 1 AND s.segment = 'validation' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"R1 validation\", sum(CASE WHEN s.round > 1 AND s.segment = 'validation' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later validation\" FROM base LEFT JOIN run_rounds s ON s.run_id = base.run_id GROUP BY base.config_id ORDER BY sum(s.total_tokens) * 1.0 / count(DISTINCT base.run_id)",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN s.round = 1 AND s.segment = 'discovery' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"R1 discovery\", sum(CASE WHEN s.round > 1 AND s.segment = 'discovery' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later discovery\", sum(CASE WHEN s.round = 1 AND s.segment = 'implementation' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"R1 implementation\", sum(CASE WHEN s.round > 1 AND s.segment = 'implementation' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later implementation\", sum(CASE WHEN s.round = 1 AND s.segment = 'validation' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"R1 validation\", sum(CASE WHEN s.round > 1 AND s.segment = 'validation' THEN s.total_tokens ELSE 0 END) * 1.0 / count(DISTINCT base.run_id) AS \"later validation\" FROM base LEFT JOIN run_rounds s ON s.run_id = base.run_id GROUP BY base.config_id ORDER BY sum(s.total_tokens) * 1.0 / count(DISTINCT base.run_id)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 51,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 14,
+      "type": "barchart",
+      "title": "Cost per run: round 1 vs later rounds",
+      "description": "The run's cost split by price-weighted tokens: what the first round cost, and what fixing it cost.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN s.round = 1 THEN s.cost_usd ELSE 0 END) / count(DISTINCT base.run_id) AS \"round 1\", sum(CASE WHEN s.round > 1 THEN s.cost_usd ELSE 0 END) / count(DISTINCT base.run_id) AS \"later rounds\" FROM base LEFT JOIN run_rounds s ON s.run_id = base.run_id GROUP BY base.config_id ORDER BY sum(s.cost_usd) / count(DISTINCT base.run_id)",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.config_id || ' (' || count(DISTINCT base.run_id) || ')' AS config, sum(CASE WHEN s.round = 1 THEN s.cost_usd ELSE 0 END) / count(DISTINCT base.run_id) AS \"round 1\", sum(CASE WHEN s.round > 1 THEN s.cost_usd ELSE 0 END) / count(DISTINCT base.run_id) AS \"later rounds\" FROM base LEFT JOIN run_rounds s ON s.run_id = base.run_id GROUP BY base.config_id ORDER BY sum(s.cost_usd) / count(DISTINCT base.run_id)",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "xField": "config",
+        "orientation": "auto",
+        "stacking": "normal",
+        "showValue": "auto",
+        "groupWidth": 0.75,
+        "barWidth": 0.9,
+        "xTickLabelRotation": -45,
+        "tooltip": {
+          "mode": "multi",
+          "sort": "none"
+        },
+        "legend": {
+          "showLegend": true,
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 51,
+        "w": 12,
+        "h": 9
+      }
+    },
+    {
+      "id": 15,
+      "type": "row",
+      "title": "Every run, round by round",
+      "collapsed": false,
+      "panels": [],
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 16,
+      "type": "table",
+      "title": "Rounds of each run",
+      "description": "One row per run and round: discovery size, the search and navigate tools it used, how the round ended, and the judge's final decision on the run.",
+      "datasource": {
+        "type": "frser-sqlite-datasource",
+        "uid": "bench-sqlite"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "frser-sqlite-datasource",
+            "uid": "bench-sqlite"
+          },
+          "queryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.run_id AS run, base.config_id AS config, base.decision AS \"final decision\", r.round, d.turns AS \"discovery turns\", d.total_tokens AS \"discovery tokens\", d.work_ms / 60000.0 AS \"discovery min\", (SELECT group_concat(t.tool || ' ×' || t.calls, ', ') FROM run_round_tools t WHERE t.run_id = r.run_id AND t.round = r.round AND t.segment = 'discovery' AND t.kind IN ('search', 'navigate')) AS \"discovery searches\", i.turns AS \"implementation turns\", r.edited_files AS \"files edited\", r.kept_files AS \"kept\", r.outcome, r.builds, r.failed_builds AS \"failed builds\", r.chrome_runs AS checks, r.failed_chrome_runs AS \"failed checks\" FROM base JOIN run_round_results r ON r.run_id = base.run_id LEFT JOIN run_rounds d ON d.run_id = r.run_id AND d.round = r.round AND d.segment = 'discovery' LEFT JOIN run_rounds i ON i.run_id = r.run_id AND i.round = r.round AND i.segment = 'implementation' ORDER BY base.config_id, base.run_id, r.round",
+          "rawQueryText": "WITH base AS (SELECT runs.run_id, runs.task_id, runs.config_id, judge_runs.decision, coalesce(judge_runs.success, 0) AS success FROM runs LEFT JOIN judge_runs ON judge_runs.run_id = runs.run_id WHERE runs.status IN ('done', 'crashed') AND runs.task_id IN (${task:singlequote}) AND runs.config_id IN (${config:singlequote}) AND runs.run_id IN (SELECT run_id FROM run_round_results)) SELECT base.run_id AS run, base.config_id AS config, base.decision AS \"final decision\", r.round, d.turns AS \"discovery turns\", d.total_tokens AS \"discovery tokens\", d.work_ms / 60000.0 AS \"discovery min\", (SELECT group_concat(t.tool || ' ×' || t.calls, ', ') FROM run_round_tools t WHERE t.run_id = r.run_id AND t.round = r.round AND t.segment = 'discovery' AND t.kind IN ('search', 'navigate')) AS \"discovery searches\", i.turns AS \"implementation turns\", r.edited_files AS \"files edited\", r.kept_files AS \"kept\", r.outcome, r.builds, r.failed_builds AS \"failed builds\", r.chrome_runs AS checks, r.failed_chrome_runs AS \"failed checks\" FROM base JOIN run_round_results r ON r.run_id = base.run_id LEFT JOIN run_rounds d ON d.run_id = r.run_id AND d.round = r.round AND d.segment = 'discovery' LEFT JOIN run_rounds i ON i.run_id = r.run_id AND i.round = r.round AND i.segment = 'implementation' ORDER BY base.config_id, base.run_id, r.round",
+          "queryType": "table"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 1
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 24,
+        "h": 16
+      }
+    }
+  ]
+}

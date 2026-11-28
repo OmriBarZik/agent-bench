@@ -13,6 +13,7 @@
     "start:dashboard:stop": "pkill -f dashboard/snapshot.sh ; docker compose -f dashboard/docker-compose.yml down",
     "phases:backfill": "bun src/runner/phases/backfill-phases.ts",
     "findings:backfill": "bun src/runner/findings/backfill-findings.ts",
+    "rounds:backfill": "bun src/runner/rounds/backfill-rounds.ts",
     "runs:archive": "bun src/archive/archive-pilot.ts",
     "matrix": "bun src/matrix/run-matrix.ts",
     "export": "bun src/export/export-runs.ts",

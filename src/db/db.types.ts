@@ -421,3 +421,67 @@ export type AgentBuildView = {
   config_id: string | null;
   repeat: number | null;
 };
+
+/** A part of one round of a run: finding the code, changing it, or building and checking it. */
+export type RoundSegment = "discovery" | "implementation" | "validation";
+
+/**
+ * How a round ended: its last build failed, its last Chrome check stopped with an error, the check ran, the build
+ * passed with no check, or the round made no chrome-validate call.
+ */
+export type RoundOutcome = "build_failed" | "check_failed" | "checked" | "built" | "not_validated";
+
+/** What a tool call did, for grouping a round's calls: search, read, list, navigate (LSP, code index), and so on. */
+export type ToolKind = "search" | "read" | "list" | "navigate" | "edit" | "validate" | "other";
+
+/** One segment of one round: its API responses, work time without chrome-validate waits, tokens and cost share. */
+export type RoundSegmentUsage = {
+  round: number;
+  segment: RoundSegment;
+  turns: number;
+  workMs: number;
+  totalTokens: number;
+  /** The run's cost_usd split by price-weighted tokens; null when the run has no cost. */
+  costUsd: number | null;
+};
+
+/** How one round ended, and whether the files it edited are still in the run's final change. */
+export type RoundResult = {
+  round: number;
+  outcome: RoundOutcome;
+  builds: number;
+  failedBuilds: number;
+  chromeRuns: number;
+  failedChromeRuns: number;
+  /** Distinct files the round's Edit and Write calls touched, relative to the checkout. */
+  editedFiles: number;
+  /** How many of editedFiles differ from the task commit at the end of the run. */
+  keptFiles: number;
+  isLast: boolean;
+};
+
+/** How many times one tool (a Bash program, or a tool name) was called in one segment of one round. */
+export type RoundToolCount = {
+  round: number;
+  segment: RoundSegment;
+  tool: string;
+  kind: ToolKind;
+  /** Whether the tool is one of the config's setupTools. */
+  setupTool: boolean;
+  calls: number;
+};
+
+/** A run split into rounds: each segment's usage, each round's result, and the tools each segment called. */
+export type RunRounds = {
+  segments: RoundSegmentUsage[];
+  results: RoundResult[];
+  tools: RoundToolCount[];
+};
+
+/** A finished run with no run_rounds rows yet, for the backfill. */
+export type RunWithoutRounds = {
+  runId: string;
+  configId: string;
+  costUsd: number | null;
+  changedFiles: string | null;
+};
